@@ -7,6 +7,7 @@ import traceback
 
 import pandas as pd
 import yamale
+import oyaml as yaml
 
 from ucsfdock.files import File
 
@@ -117,6 +118,20 @@ class ParametersConfiguration:
 
         #
         logger.debug(f"Parameters:\n{self.param_dict}")
+
+    @staticmethod
+    def write_config_file(save_path, src_file_path, overwrite=False):
+        File.validate_path(src_file_path)
+        if File.file_exists(save_path):
+            if overwrite:
+                logger.info(f"Overwriting existing config file: {save_path}")
+            else:
+                logger.info(f"A config file already exists: {save_path}")
+        else:
+            logger.info(f"Writing config file: {save_path}")
+        with open(src_file_path, 'r') as infile:
+            with open(save_path, "w") as outfile:
+                yaml.dump(yaml.safe_load(infile), outfile)
 
 
 class CleanExit(object):

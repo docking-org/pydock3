@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from ucsfdock.util import get_logger_for_script, Parameter, CleanExit
-from ucsfdock.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
+from ucsfdock.blastermaster.blastermaster import BlasterFiles, get_blaster_steps, copy_blaster_files_into_dir
 from ucsfdock.dockmaster.config import DockmasterParametersConfiguration
 from ucsfdock.files import (
     Dir,
@@ -263,9 +263,7 @@ class FullTargetsDAG(object):
             ancestor_parameter_nodes = list(set(ancestor_parameter_nodes))
 
             #
-            ancestor_parameters = []
-            for ancestor_parameter_node in ancestor_parameter_nodes:
-                ancestor_parameters.append(self.g.nodes[ancestor_parameter_node]["parameter"])
+            ancestor_parameters = [self.g.nodes[ancestor_parameter_node]["parameter"] for ancestor_parameter_node in ancestor_parameter_nodes]
 
             return ancestor_parameters
 
@@ -328,7 +326,6 @@ class Dockmaster(object):
         #
         self.logger = get_logger_for_script(log_file, debug=debug)
 
-
     @staticmethod
     def handle_run_func(run_func):
 
@@ -339,6 +336,19 @@ class Dockmaster(object):
                 run_func(self, *args, **kwargs)
 
         return wrapper
+
+    def configure(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
+        #
+        job_dir = Dir(path=job_dir_path, create=True, reset=False)
+        working_dir = BlasterWorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
+        retro_docking_dir = Dir(path=os.path.join(job_dir.path, self.RETRO_DOCKING_DIR_NAME), create=True, reset=False)
+
+        # write fresh config file from default file
+        save_path = os.path.join(job_dir.path, self.CONFIG_FILE_NAME)
+        DockmasterParametersConfiguration.write_config_file(save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite)
+
+        # copy detected blaster files into working dir
+        copy_blaster_files_into_dir(working_dir)
 
     @handle_run_func.__get__(0)
     def run(self,

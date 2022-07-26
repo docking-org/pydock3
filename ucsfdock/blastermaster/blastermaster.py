@@ -391,10 +391,20 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     return tuple(steps)
 
 
+def copy_blaster_files_into_dir(dst_dir):
+    blaster_file_names_dict = get_dataclass_as_dict(BlasterFileNames())
+    files_to_copy = [f for f in os.listdir() if os.path.isfile(f) and f in blaster_file_names_dict.values()]
+    files_to_copy_str = '\n\t'.join(files_to_copy)
+    if files_to_copy:
+        logger.info(f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}")
+        for file_name in files_to_copy:
+            dst_dir.copy_in_file(file_name)
+
+
 class Blastermaster(object):
-    BLASTER_JOB_DIR_NAME = "blastermaster_job"
-    BLASTER_CONFIG_FILE_NAME = "blastermaster_config.yaml"
-    DEFAULT_BLASTER_CONFIG_FILE_PATH = os.path.join(os.path.dirname(BLASTERMASTER_INIT_FILE_PATH), "default_blastermaster_config.yaml")
+    JOB_DIR_NAME = "blastermaster_job"
+    CONFIG_FILE_NAME = "blastermaster_config.yaml"
+    DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(BLASTERMASTER_INIT_FILE_PATH), "default_blastermaster_config.yaml")
     WORKING_DIR_NAME = "working"
     DOCK_FILES_DIR_NAME = "dockfiles"
 
@@ -404,47 +414,24 @@ class Blastermaster(object):
                  ):
         #
         self.logger = get_logger_for_script(log_file, debug=debug)
-
-    def configure(self, job_dir_path=BLASTER_JOB_DIR_NAME, overwrite=False):
-
-        def write_config_file(save_path, src_file_path, overwrite=False):
-            File.validate_path(src_file_path)
-            if File.file_exists(save_path):
-                if overwrite:
-                    logger.info(f"Overwriting existing config file: {save_path}")
-                else:
-                    logger.info(f"A config file already exists: {save_path}")
-            else:
-                logger.info(f"Writing config file: {save_path}")
-            with open(src_file_path, 'r') as infile:
-                with open(save_path, "w") as outfile:
-                    yaml.dump(yaml.safe_load(infile), outfile)
-
-        def copy_blaster_files_into_working_dir(working_dir):
-            blaster_file_names_dict = get_dataclass_as_dict(BlasterFileNames())
-            files_to_copy = [f for f in os.listdir() if os.path.isfile(f) and f in blaster_file_names_dict.values()]
-            files_to_copy_str = '\n\t'.join(files_to_copy)
-            if files_to_copy:
-                logger.info(f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}")
-                for file_name in files_to_copy:
-                    working_dir.copy_in_file(file_name)
-
+                
+    def configure(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
         #
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
         working_dir = BlasterWorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
         dock_files_dir = Dir(path=os.path.join(job_dir.path, self.DOCK_FILES_DIR_NAME), create=True, reset=False)
 
         # write fresh config file from default file
-        save_path = os.path.join(job_dir.path, self.BLASTER_CONFIG_FILE_NAME)
-        write_config_file(save_path, self.DEFAULT_BLASTER_CONFIG_FILE_PATH, overwrite=overwrite)
+        save_path = os.path.join(job_dir.path, self.CONFIG_FILE_NAME)
+        BlastermasterParametersConfiguration.write_config_file(save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite)
 
         # copy detected blaster files into working dir
-        copy_blaster_files_into_working_dir(working_dir)
+        copy_blaster_files_into_dir(working_dir)
 
     def run(self, job_dir_path=".", config_file_path=None, use_graph_state=True, write_graph_image=False):
         # validate args
         if config_file_path is None:
-            config_file_path = os.path.join(job_dir_path, self.BLASTER_CONFIG_FILE_NAME)
+            config_file_path = os.path.join(job_dir_path, self.CONFIG_FILE_NAME)
         File.validate_file_exists(config_file_path)
 
         # load directories
