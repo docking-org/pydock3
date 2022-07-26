@@ -3,8 +3,10 @@ import itertools
 import logging
 from copy import deepcopy
 
-from ucsfdock.util import Parameter, ParametersConfiguration
+from ucsfdock.config import Parameter, ParametersConfiguration
 from ucsfdock.dockmaster import __file__ as DOCKMASTER_INIT_FILE_PATH
+
+#
 DOCKMASTER_CONFIG_SCHEMA_FILE_PATH = os.path.join(os.path.dirname(DOCKMASTER_INIT_FILE_PATH), "dockmaster_config_schema.yaml")
 
 

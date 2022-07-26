@@ -17,34 +17,24 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-#
-if (os.environ.get("SHRTCACHE") is None) or (os.environ.get("LONGCACHE") is None):
-    raise Exception("Need to set environmental variables SHRTCACHE and LONGCACHE in order to use a job scheduler.")
-SHRTCACHE = os.environ["SHRTCACHE"]
-LONGCACHE = os.environ["LONGCACHE"]
-
-#
-QSUB_EXEC = os.environ.get("QSUB_EXEC")
-SGE_SETTINGS = os.environ.get("SGE_SETTINGS")
-QSTAT_EXEC = os.environ.get("QSTAT_EXEC")
-
-#
-SBATCH_EXEC = os.environ.get("SBATCH_EXEC")
-SLURM_SETTINGS = os.environ.get("SLURM_SETTINGS")
-SQUEUE_EXEC = os.environ.get("SQUEUE_EXEC")
-
-
 @dataclass
 class JobScheduler(ABC):
     name: str
+
+    def __post_init__(self):
+        #
+        if (os.environ.get("SHRTCACHE") is None) or (os.environ.get("LONGCACHE") is None):
+            raise Exception(
+                "Need to set environmental variables SHRTCACHE and LONGCACHE in order to use a job scheduler.")
+        self.SHRTCACHE = os.environ["SHRTCACHE"]
+        self.LONGCACHE = os.environ["LONGCACHE"]
 
     @abstractmethod
     def run(self, job_name, dock_executable_path, working_dir, input_file, dock_files_dir, output_dir, job_timeout_minutes=None):
         raise NotImplementedError
 
-    @staticmethod
     @abstractmethod
-    def is_running_job(job_name):
+    def is_running_job(self, job_name):
         raise NotImplementedError
 
 
@@ -55,8 +45,7 @@ class NoJobScheduler(JobScheduler):
     def run(self, job_name, dock_executable_path, working_dir, input_file, dock_files_dir, output_dir, job_timeout_minutes=None):
         raise NotImplementedError
 
-    @staticmethod
-    def is_running_job(job_name):
+    def is_running_job(self, job_name):
         raise NotImplementedError
 
 
@@ -66,6 +55,10 @@ class SlurmJobScheduler(JobScheduler):
     submissision_script_path: str = os.path.join(DOCK_SUBMISSION_SLURM_DIR_PATH, "subdock.bash")
 
     def __post_init__(self):
+        #
+        self.SBATCH_EXEC = os.environ.get("SBATCH_EXEC")
+        self.SLURM_SETTINGS = os.environ.get("SLURM_SETTINGS")
+        self.SQUEUE_EXEC = os.environ.get("SQUEUE_EXEC")
         required_env_var_names = [
             "SQUEUE_EXEC",
             "SBATCH_EXEC",
@@ -80,14 +73,14 @@ class SlurmJobScheduler(JobScheduler):
             "INPUT_SOURCE": input_file.path,
             "DOCKFILES": dock_files_dir.path,
             "DOCKEXEC": dock_executable_path,
-            "SHRTCACHE": SHRTCACHE,
-            "LONGCACHE": LONGCACHE,
+            "SHRTCACHE": self.SHRTCACHE,
+            "LONGCACHE": self.LONGCACHE,
         }
 
-        if SBATCH_EXEC is not None:
-            env_vars_dict["SBATCH_EXEC"] = SBATCH_EXEC
-        if SGE_SETTINGS is not None:
-            env_vars_dict["SLURM_SETTINGS"] = SLURM_SETTINGS
+        if self.SBATCH_EXEC is not None:
+            env_vars_dict["SBATCH_EXEC"] = self.SBATCH_EXEC
+        if self.SLURM_SETTINGS is not None:
+            env_vars_dict["SLURM_SETTINGS"] = self.SLURM_SETTINGS
 
         sbatch_args_str = f"-J {job_name} -o {output_dir.path}/{job_name}_%A_%a.out -e {output_dir.path}/{job_name}_%A_%a.err"
 
@@ -100,9 +93,8 @@ class SlurmJobScheduler(JobScheduler):
 
         return system_call(command_str, cwd=working_dir.path, env_vars_dict=env_vars_dict)       
 
-    @staticmethod
-    def is_running_job(job_name):
-        command_str = f"{SQUEUE_EXEC} --format='%.18i %.{len(job_name)}j' | grep '{job_name}'"
+    def is_running_job(self, job_name):
+        command_str = f"{self.SQUEUE_EXEC} --format='%.18i %.{len(job_name)}j' | grep '{job_name}'"
         proc = system_call(command_str)
         if proc.stdout:
             return True
@@ -116,6 +108,10 @@ class SGEJobScheduler(JobScheduler):
     submissision_script_path: str = os.path.join(DOCK_SUBMISSION_SGE_DIR_PATH, "subdock.bash")
 
     def __post_init__(self):
+        #
+        self.QSUB_EXEC = os.environ.get("QSUB_EXEC")
+        self.SGE_SETTINGS = os.environ.get("SGE_SETTINGS")
+        self.QSTAT_EXEC = os.environ.get("QSTAT_EXEC")
         required_env_var_names = [
             "QSTAT_EXEC",
             "QSUB_EXEC",
@@ -130,14 +126,14 @@ class SGEJobScheduler(JobScheduler):
             "INPUT_SOURCE": input_file.path,
             "DOCKFILES": dock_files_dir.path,
             "DOCKEXEC": dock_executable_path,
-            "SHRTCACHE": SHRTCACHE,
-            "LONGCACHE": LONGCACHE,
+            "SHRTCACHE": self.SHRTCACHE,
+            "LONGCACHE": self.LONGCACHE,
         }
 
-        if QSUB_EXEC is not None:            
-            env_vars_dict["QSUB_EXEC"] = QSUB_EXEC
-        if SGE_SETTINGS is not None:    
-            env_vars_dict["SGE_SETTINGS"] = SGE_SETTINGS
+        if self.QSUB_EXEC is not None:
+            env_vars_dict["QSUB_EXEC"] = self.QSUB_EXEC
+        if self.SGE_SETTINGS is not None:
+            env_vars_dict["SGE_SETTINGS"] = self.SGE_SETTINGS
 
         qsub_args_str = f"-N {job_name} -o {output_dir.path} -e {output_dir.path}"
 
@@ -149,9 +145,8 @@ class SGEJobScheduler(JobScheduler):
 
         return system_call(command_str, cwd=working_dir.path, env_vars_dict=env_vars_dict)
 
-    @staticmethod
-    def is_running_job(job_name):
-        command_str = f"{QSTAT_EXEC} -r | grep '{job_name}'"
+    def is_running_job(self, job_name):
+        command_str = f"{self.QSTAT_EXEC} -r | grep '{job_name}'"
         proc = system_call(command_str)
         if proc.stdout:
             return True

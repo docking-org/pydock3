@@ -16,7 +16,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
-from ucsfdock.util import get_logger_for_script, Parameter, CleanExit
+from ucsfdock.util import get_logger_for_script, CleanExit
+from ucsfdock.config import Parameter
 from ucsfdock.blastermaster.blastermaster import BlasterFiles, get_blaster_steps, copy_blaster_files_into_dir
 from ucsfdock.dockmaster.config import DockmasterParametersConfiguration
 from ucsfdock.files import (

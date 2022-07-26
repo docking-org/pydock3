@@ -7,6 +7,7 @@ from functools import wraps
 from dataclasses import dataclass
 
 from ucsfdock.util import validate_variable_type, system_call
+from ucsfdock.config import Parameter
 from ucsfdock.files import File, Dir, LogFile
 from ucsfdock.blastermaster.programs import __file__ as PROGRAMS_INIT_FILE_PATH
 PROGRAMS_DIR_PATH = os.path.dirname(PROGRAMS_INIT_FILE_PATH)
@@ -68,7 +69,7 @@ class BlasterFile(File):
 
         if src_file_path is not None:
             if self.exists:
-                logger.warning(f"Source file provided for {self.name} but file already exists in working dir: '{self.path}'. Using existing version instead of source file.")
+                logger.debug(f"Source file provided for {self.name} but file already exists in working dir: '{self.path}'. Using existing version instead of source file {src_file_path}.")
             else:
                 self.src_file_path = src_file_path
                 self.copy_from(self.src_file_path, overwrite=True)

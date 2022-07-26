@@ -3,7 +3,6 @@ from dataclasses import fields
 import logging
 
 import fire
-import oyaml as yaml
 
 from ucsfdock.blastermaster.steps.receptor_most_occupied_residues_renaming import \
     ReceptorMostOccupiedResiduesRenamingStep
