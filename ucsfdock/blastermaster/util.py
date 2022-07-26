@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 from ucsfdock.util import validate_variable_type, system_call
 from ucsfdock.files import File, Dir, LogFile
-from ucsfdock.blastermaster import __file__ as PROTEINS_INIT_FILE_PATH
-PROTEINS_DIR_PATH = os.path.dirname(PROTEINS_INIT_FILE_PATH)
+from ucsfdock.blastermaster.programs import __file__ as PROGRAMS_INIT_FILE_PATH
+PROGRAMS_DIR_PATH = os.path.dirname(PROGRAMS_INIT_FILE_PATH)
 from ucsfdock.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 DEFAULTS_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
@@ -21,38 +21,38 @@ logger.setLevel(logging.DEBUG)
 
 #
 class ProgramFilePaths:
-    REDUCE_PROGRAM_FILE_PATH = os.path.join(PROTEINS_DIR_PATH, "reduce/reduce")
-    DMS_PROGRAM_FILE_PATH = os.path.join(PROTEINS_DIR_PATH, "dms/bin/dms")
-    FILT_PROGRAM_FILE_PATH = os.path.join(PROTEINS_DIR_PATH, "filt/bin/filt")
-    SPHGEN_PROGRAM_FILE_PATH = os.path.join(PROTEINS_DIR_PATH, "sphgen/bin/sphgen")
+    REDUCE_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "reduce/reduce")
+    DMS_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "dms/bin/dms")
+    FILT_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "filt/bin/filt")
+    SPHGEN_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "sphgen/bin/sphgen")
     THIN_SPHERES_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "thinspheres/thin_spheres.py"
+        PROGRAMS_DIR_PATH, "thinspheres/thin_spheres.py"
     )
     CLOSE_SPH_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "thinspheres/close_sph.py"
+        PROGRAMS_DIR_PATH, "thinspheres/close_sph.py"
     )
     PDBTOSPH_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "pdbtosph/bin/pdbtosph"
+        PROGRAMS_DIR_PATH, "pdbtosph/bin/pdbtosph"
     )
     MAKESPHERES1_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "makespheres1/makespheres1.cli.pl"
+        PROGRAMS_DIR_PATH, "makespheres1/makespheres1.cli.pl"
     )
     DOSHOWSPH_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "showsphere/doshowsph.csh"
+        PROGRAMS_DIR_PATH, "showsphere/doshowsph.csh"
     )
     MAKESPHERES3_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "makespheres3/makespheres3.cli.pl"
+        PROGRAMS_DIR_PATH, "makespheres3/makespheres3.cli.pl"
     )
     QNIFFT_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "qnifft/bin/qnifft22_193_pgf_32"
+        PROGRAMS_DIR_PATH, "qnifft/bin/qnifft22_193_pgf_32"
     )
     MAKEBOX_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "makebox/makebox.smallokay.pl"
+        PROGRAMS_DIR_PATH, "makebox/makebox.smallokay.pl"
     )
     CHEMGRID_PROGRAM_FILE_PATH = os.path.join(
-        PROTEINS_DIR_PATH, "chemgrid/bin/chemgrid"
+        PROGRAMS_DIR_PATH, "chemgrid/bin/chemgrid"
     )
-    SOLVMAP_PROGRAM_FILE_PATH = os.path.join(PROTEINS_DIR_PATH, "solvmap/bin/solvmap")
+    SOLVMAP_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "solvmap/bin/solvmap")
 
 
 class BlasterFile(File):

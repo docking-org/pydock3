@@ -542,7 +542,7 @@ class Dockmaster(object):
                 else:
                     #
                     if docking_job.is_complete:
-                        self.logger.exception(f"Docking job {docking_job.name} is marked complete but OUTDOCK files not found.")
+                        raise Exception(f"Docking job {docking_job.name} is marked complete but OUTDOCK files not found.")
                     else:  # job timed out / failed 
                         if docking_job.num_attempts > retro_docking_job_max_reattempts:
                             self.logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
