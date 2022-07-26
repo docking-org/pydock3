@@ -264,7 +264,7 @@ class File(FileSystemEntity):
     @staticmethod
     def validate_file_exists(file_path):
         if not File.file_exists(file_path):
-            raise Exception(f"File {file_path} does not exist.")
+            raise FileNotFoundError(f"File {file_path} does not exist.")
 
     @staticmethod
     def validate_file_is_not_empty(file_path):

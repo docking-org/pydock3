@@ -312,8 +312,10 @@ class FullTargetsDAG(object):
 
 class Dockmaster(object):
 
-    JOB_DIR_NAME = "blastermaster_job"
-    CONFIG_FILE_NAME = "blastermaster_config.yaml"
+    JOB_DIR_NAME = "dockmaster_job"
+    CONFIG_FILE_NAME = "dockmaster_config.yaml"
+    ACTIVES_TGZ_FILE_NAME = "actives.tgz"
+    DECOYS_TGZ_FILE_NAME = "decoys.tgz"
     DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(DOCKMASTER_INIT_FILE_PATH), "default_dockmaster_config.yaml")
     WORKING_DIR_NAME = "working"
     RETRO_DOCKING_DIR_NAME= "dockfiles"
@@ -353,8 +355,8 @@ class Dockmaster(object):
 
     @handle_run_func.__get__(0)
     def run(self,
-            job_dir_path,
             scheduler,
+            job_dir_path=".",
             config_file_path=None,
             actives_tgz_file_path=None,
             decoys_tgz_file_path=None,
@@ -365,14 +367,27 @@ class Dockmaster(object):
         # validate args
         if config_file_path is None:
             config_file_path = os.path.join(job_dir_path, self.CONFIG_FILE_NAME)
-        File.validate_file_exists(config_file_path)
+        if actives_tgz_file_path is None:
+            actives_tgz_file_path = os.path.join(job_dir_path, self.ACTIVES_TGZ_FILE_NAME)
+        if decoys_tgz_file_path is None:
+            decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
+        try:
+            File.validate_file_exists(config_file_path)
+        except FileNotFoundError:
+            logger.error("Config file not found. Are you in the job directory?")
+            return
+        try:
+            File.validate_file_exists(actives_tgz_file_path)
+            File.validate_file_exists(decoys_tgz_file_path)
+        except FileNotFoundError:
+            logger.error("Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?")
+            return
         if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
-            raise Exception(f"scheduler flag must be one of: {list(SCHEDULER_NAME_TO_CLASS_DICT.keys())}")
-        File.validate_file_exists(config_file_path)
-        File.validate_file_exists(actives_tgz_file_path)
-        File.validate_file_exists(decoys_tgz_file_path)
+            logger.error(f"scheduler flag must be one of: {list(SCHEDULER_NAME_TO_CLASS_DICT.keys())}")
+            return
         if enrichment_metric_name not in ENRICHMENT_METRIC_NAMES:
-            raise Exception("metric flag must be one of: {ENRICHMENT_METRIC_NAMES}")
+            logger.error("metric flag must be one of: {ENRICHMENT_METRIC_NAMES}")
+            return
 
         #
         job_dir = Dir(job_dir_path, create=True, reset=False)

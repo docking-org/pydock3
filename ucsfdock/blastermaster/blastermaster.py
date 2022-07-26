@@ -431,7 +431,11 @@ class Blastermaster(object):
         # validate args
         if config_file_path is None:
             config_file_path = os.path.join(job_dir_path, self.CONFIG_FILE_NAME)
-        File.validate_file_exists(config_file_path)
+        try:
+            File.validate_file_exists(config_file_path)
+        except FileNotFoundError:
+            logger.error("Config file not found. Are you in the job directory?")
+            return
 
         # load directories
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
