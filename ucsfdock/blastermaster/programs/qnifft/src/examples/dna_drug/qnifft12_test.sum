@@ -1,0 +1,37 @@
+doing local cshrc file
+ net assigned source charge              :    2.000000    
+ net assigned source charge              :    2.000000    
+ net assigned source charge              :   -22.00000    
+ net assigned source charge              :   -22.00000    
+ net assigned source charge              :   -20.00000    
+ net assigned source charge              :   -20.00000    
+ 0.5*sum(phi.q) (kT) =     29.26276    
+ 0.5*sum(phi.q) (kT) =     28.48590    
+ 0.5*sum(phi.q) (kT) =     483.6458    
+ 0.5*sum(phi.q) (kT) =     416.7596    
+ 0.5*sum(phi.q) (kT) =     508.0670    
+ 0.5*sum(phi.q) (kT) =     455.7749    
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:  -0.5045087    
+ rho.phi                    i:  -0.5057874    
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:   -29.02423    
+ rho.phi                    i:   -29.18851    
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:   -22.65775    
+ rho.phi                    i:   -22.81264    
+ dPI                        i:   0.0000000E+00
+ dPI                        i:   0.0000000E+00
+ dPI                        i:   0.2417797    
+ dPI                        i:   0.2424192    
+ dPI                        i:   0.0000000E+00
+ dPI                        i:   0.0000000E+00
+ dPI                        i:    10.30205    
+ dPI                        i:    10.38406    
+ dPI                        i:   0.0000000E+00
+ dPI                        i:   0.0000000E+00
+ dPI                        i:    8.607378    
+ dPI                        i:    8.684711    

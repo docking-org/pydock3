@@ -1,0 +1,9 @@
+! default extended atom radii based loosely
+! on mike connolly's MS program- note H's are 0
+atom__res_radius_
+c           1.90
+o           1.60
+n           1.65
+h           0.00
+ca          1.86
+s           1.90

@@ -1,0 +1,20 @@
+ output from QNIFFT                                                                                                                 
+ grid size,percent fill: 145 260.000000                                                                                             
+ inner,outer dielectric: 1.00000000 79.9999924                                                                                      
+ ionic strength (M): 2.50000000                                                                                                     
+ ion excl., probe radius: 0.00000000E+00 0.00000000E+00                                                                             
+ level 0, newton iterations: 2 30                                                                                                   
+ boundary condition: 3                                                                                                              
+                                                                                                                                    
+ title:                                                                                                                             
+ test_run_for_sphere                                                                                                                
+         coordinates          charge   reaction potential  field (kT/e/Ang.)
+     x         y          z          (e)        (kT/e)       Ex        Ey       Ez    Atom Res C   #                                
+     0.0000     0.0000     0.0000     0.0000 -1337.2069     0.0000     0.0000     1.8580   x    SPH    1
+     3.0000     0.0000     0.0000     0.0000 -1378.5937  -146.9603     0.0000     4.0980   x    SPH    1
+     3.1000     0.0000     0.0000     0.0000 -1355.2703  -296.5885     0.0000     3.1275   x    SPH    1
+     4.0000     0.0000     0.0000     0.0000 -1131.8562  -211.3620     0.0000     2.1106   x    SPH    1
+     5.0000     0.0000     0.0000     0.0000  -950.4769  -155.3367     0.0000     1.0558   x    SPH    1
+     6.0000     0.0000     0.0000     0.0000  -815.1188  -117.7243     0.0000     0.6025   x    SPH    1
+  Interaction between reaction potl. and target charges (kT)  0.000000000000000E+00
+  (Excludes Coulombic energy)

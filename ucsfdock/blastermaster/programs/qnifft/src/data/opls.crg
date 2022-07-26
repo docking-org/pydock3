@@ -1,0 +1,113 @@
+! atom charges for small molecules from
+! jorgensens opls parameters as used by clark still, and us
+atom__resnumbc_charge_
+ch3   mth      0.265       !methanol==serine
+oh    mth      -0.700
+h     mth      0.435
+ch3   eth      0.00        !ethanol==threonine
+ch2   eth      0.265
+oh    eth      -0.700
+h     eth      0.435
+ch3   act      0.062       !acetone
+c     act      0.300
+o     act      -0.424
+ch3   isp      0.00        !isopropanol
+ch    isp      0.265
+oh    isp      -0.700
+h     isp      0.435
+ch3   mac      0.050       !methyl acetate
+c     mac      0.6
+o     mac      -0.5
+oes   mac      -0.4
+me    mac      0.25       
+ch3   aca      0.080       !acetic acid==aspartic acid
+c     aca      0.550
+o     aca      -0.50
+oh    aca      -0.580
+h     aca      0.450
+ch3   aci      -0.100      !acetate ion==aspartate
+c     aci      0.700
+o     aci      -0.800
+ch3   dma      0.000       !dimethyl acetamide
+c     dma      0.500
+o     dma      -0.500
+nh    dma      -0.4
+me    dma      0.2
+ch3   mad      0.000       !methyl acetamide trans/cis
+c     mad      0.500
+o     mad      -0.500
+nh    mad      -0.57
+me    mad      0.2
+h     mad      0.37
+ch3   acd      0.000       !acetamide==asparagine
+c     acd      0.500
+o     acd      -0.500
+nh    acd      -0.850
+h     acd      0.425
+c     adp      0.500       ! alanine dipeptide
+o     adp      -0.500
+nh    adp      -0.570
+h     adp      0.370
+ch    adp      0.200
+ch3   adp      0.000
+ch3n  adp      0.200       !methyl next to o/n ie ester, amide
+chr   bnz      -0.115      !benzene
+h     bnz      0.115
+chr   tol      -0.115      !toluene==phenylalanine
+h     tol      0.115
+chm   tol      0.000      !substituted carbon
+ch3   tol      0.000      !methyl group
+chr   phl      -0.115      !phenol
+h     phl      0.115
+oh    phl      -0.700
+ho    phl      0.435
+coh   phl      0.265      !carbon with oh group on
+nh4   amm                  !ammonium ion
+h     amm
+chr   cre      -0.115      !p-cresol==tyrosine
+h     cre      0.115
+oh    cre      -0.700
+ho    cre      0.435
+coh   cre      0.265      !carbon with oh group on
+chm   cre      0.000      !substituted carbon
+ch3   cre      0.000      !methyl group
+ch3   pmd      0.000       !propionamide==glutamine
+ch2   pmd      0.000
+c     pmd      0.500
+o     pmd      -0.500
+nh    pmd      -0.850
+h     pmd      0.425
+ch3   pac      0.080       !propanoic acid==glutamic acid
+ch2   pac      0.0
+c     pac      0.550
+o     pac      -0.50
+oh    pac      -0.580
+h     pac      0.450
+ch3   nba      0.000        !N-butyl amine==lysine (neut)
+ch2   nba      0.000
+nh    nba      -0.850
+h     nba      0.425
+cb    his      0             !4-methyl imidazole==histidine
+cg    his      0.13
+nd    his      -0.57
+hd    his      0.42
+cd    his      0.1
+ce    his      0.41
+ne    his      -0.49
+cb    met      0.0            !ethyl, methyl sulfide==methionine
+cg    met      0.235
+sg    met      -0.47
+cd    met      0.235
+cb    trp      0.0             !3-methyl indole==tryptophan
+cg    trp      -0.055
+chd   trp      0.13
+cd    trp      -0.055
+ne    trp      -0.57
+he    trp      0.42
+ce    trp      0.13
+che   trp      0.0
+cz    trp      0.0
+ch    trp      0.0
+cb    cys      0.18            !methane thiol==cysteine
+sg    cys      -0.45
+hg    cys      0.27

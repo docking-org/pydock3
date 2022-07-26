@@ -1,0 +1,6 @@
+ GRASP PDB FILE
+ FORMAT NUMBER= 1
+ HEADER output from qnifft
+ HEADER atom radii in columns 55-60
+ HEADER atom charges in columns 61-67
+ATOM      1  q    SPH    1        .000    .000    .000  3.00  5.0000            

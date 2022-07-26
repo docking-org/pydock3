@@ -1,0 +1,28 @@
+! amber charges on backbone only
+atom__resnumbc_charge_
+ht1             0.416
+ht2             0.416
+ht3             0.416
+n              -0.520 
+ca              0.246
+c               0.526         
+o              -0.500
+h               0.248  
+n     pro      -0.257
+ca    pro       0.231
+c     pro       0.526
+o     pro      -0.500
+nz    lys        1.0
+nh1   arg        0.5
+nh2   arg        0.5
+oe1   glu       -0.5
+oe2   glu       -0.5
+od1   asp       -0.5
+od2   asp       -0.5
+nd1   his        0.25
+ne2   his        0.25
+oxt             -1.00
+oct1            -0.75
+oct2            -0.75
+cu               2.0
+zn               2.0

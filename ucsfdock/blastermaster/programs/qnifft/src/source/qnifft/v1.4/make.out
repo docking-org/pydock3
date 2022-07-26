@@ -1,0 +1,295 @@
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 qnifft14.f
+qnifft14.f: In program `qnifft':
+qnifft14.f:37: warning: unused variable `tomid'
+qnifft14.f:34: warning: unused variable `xyzmid'
+qnifft14.f:33: warning: unused variable `ismax'
+qnifft14.f:32: warning: unused variable `ismin'
+qnifft14.f:29: warning: unused variable `pmid'
+qnifft14.f:29: warning: unused variable `cran'
+qnifft14.f:28: warning: unused variable `cmax'
+qnifft14.f:27: warning: unused variable `cmin'
+qnifft14.f:20: warning: unused variable `iauto'
+qnifft14.f:18: warning: unused variable `radstr'
+qnifft14.f:17: warning: unused variable `crdstr'
+qnifft14.f:16: warning: unused variable `tatm'
+qnifft14.f:15: warning: unused variable `tres'
+qnifft14.f:14: warning: unused variable `head'
+qnifft14.f:13: warning: unused variable `line'
+qnifft14.f:12: warning: unused variable `bclab'
+qnifft14.f:10: warning: unused variable `comment'
+qnifft14.f:9: warning: unused variable `day'
+qnifft14.f:8: warning: unused variable `hour'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 elb.f
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 up.f
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 charge.f
+charge.f: In subroutine `getcfil':
+charge.f:21: warning: unused variable `tomid'
+charge.f:20: warning: unused variable `cqmin'
+charge.f:20: warning: unused variable `cqplus'
+charge.f:19: warning: unused variable `offset'
+charge.f:18: warning: unused variable `xyzmid'
+charge.f:17: warning: unused variable `ismax'
+charge.f:16: warning: unused variable `ismin'
+charge.f:15: warning: unused variable `xn'
+charge.f:14: warning: unused variable `xo'
+charge.f:13: warning: unused variable `pmid'
+charge.f:13: warning: unused variable `cran'
+charge.f:12: warning: unused variable `cmax'
+charge.f:11: warning: unused variable `cmin'
+charge.f:10: warning: unused variable `iper'
+charge.f:5: warning: unused variable `crdstr'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+charge.f: In function `ichash':
+charge.f:92: warning: unused variable `irhash'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+charge.f: In subroutine `cent':
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+charge.f: In subroutine `cfind':
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 radius.f
+radius.f: In subroutine `getrfil':
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+radius.f: In function `irhash':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+radius.f: In subroutine `rent':
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+radius.f: In subroutine `rfind':
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 getpdb.f
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 phintp.f
+phintp.f: In subroutine `phintp':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 scaler.f
+scaler.f: In subroutine `gtoc':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+scaler.f: In subroutine `ctog':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+scaler.f: In subroutine `sclit':
+scaler.f:43: warning: unused variable `sclin'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 chrgit.f
+chrgit.f: In subroutine `chrgit':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+chrgit.f: In subroutine `chrgit1':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 setbc.f
+setbc.f: In subroutine `setbc':
+setbc.f:16: warning: unused variable `toblbl'
+setbc.f:14: warning: unused variable `iper'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 expand6.f
+expand6.f: In subroutine `expand':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 wrteps.f
+wrteps.f: In subroutine `wrteps':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 cputime.f
+cputime.f: In function `cputime':
+cputime.f:3: warning: unused variable `tarray'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 mkmaps.f
+mkmaps.f: In subroutine `mkmaps':
+mkmaps.f:14: warning: unused variable `iline'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+mkmaps.f: In subroutine `setout':
+mkmaps.f:238: warning:
+               ismin(k) = jmin0(ismin(k),igrid)
+                          ^
+Reference to unimplemented intrinsic `JMIN0' at (^) (assumed EXTERNAL)
+mkmaps.f:239: warning:
+               ismin(k) = jmax0(ismin(k),1)
+                          ^
+Reference to unimplemented intrinsic `JMAX0' at (^) (assumed EXTERNAL)
+mkmaps.f:157: warning: `itobig' might be used uninitialized in this function
+mkmaps.f: In subroutine `setin':
+mkmaps.f:411: warning:
+               ismin(k) = jmin0(ismin(k),igrid)
+                          ^
+Reference to unimplemented intrinsic `JMIN0' at (^) (assumed EXTERNAL)
+mkmaps.f:412: warning:
+               ismin(k) = jmax0(ismin(k),1)
+                          ^
+Reference to unimplemented intrinsic `JMAX0' at (^) (assumed EXTERNAL)
+mkmaps.f:327: warning: `itobig' might be used uninitialized in this function
+mkmaps.f: In subroutine `debmemb':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 smtheps.f
+smtheps.f: In subroutine `smtheps':
+smtheps.f:10: warning: unused variable `id'
+smtheps.f:10: warning: unused variable `ic'
+smtheps.f:10: warning: unused variable `ib'
+smtheps.f:10: warning: unused variable `ia'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 phierg2.f
+phierg2.f: In subroutine `phierg':
+phierg2.f:24: warning: unused variable `conv'
+phierg2.f:20: warning: unused variable `twopi'
+phierg2.f:15: warning: unused variable `indx'
+phierg2.f:15: warning: unused variable `nclass'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 inewt2.f
+inewt2.f: In subroutine `newt':
+inewt2.f:10: warning: unused variable `normf1'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+inewt2.f: In subroutine `getf':
+inewt2.f:172: warning: unused variable `pold2'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+inewt2.f: In subroutine `getcoh':
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+inewt2.f: In subroutine `multin':
+inewt2.f:287: warning: unused variable `dresid'
+qdiffpar.h:83: warning: unused variable `atm'
+qdiffpar.h:82: warning: unused variable `snum'
+qdiffpar.h:82: warning: unused variable `rnum'
+qdiffpar.h:81: warning: unused variable `res'
+qdiffpar.h:81: warning: unused variable `sres'
+qdiffpar.h:80: warning: unused variable `schn'
+qdiffpar.h:80: warning: unused variable `chn'
+f77 -c -fno-ugly -O2 -Wall -ffixed-line-length-132 getpar.f
+getpar.f: In subroutine `getpar':
+getpar.f:493: 
+           if((hasdef(1,16,1).eq..false.).and.(hasdef(2,16,1).eq..false.))then
+               1             2   3
+Use .EQV./.NEQV. instead of .EQ./.NE. at (2) for LOGICAL operands at (1) and (3)
+getpar.f:493: 
+           if((hasdef(1,16,1).eq..false.).and.(hasdef(2,16,1).eq..false.))then
+                                               1             2   3
+Use .EQV./.NEQV. instead of .EQ./.NE. at (2) for LOGICAL operands at (1) and (3)
+getpar.f:499: 
+           if((hasdef(1,17,1).eq..false.).and.(hasdef(2,17,1).eq..false.))then
+               1             2   3
+Use .EQV./.NEQV. instead of .EQ./.NE. at (2) for LOGICAL operands at (1) and (3)
+getpar.f:499: 
+           if((hasdef(1,17,1).eq..false.).and.(hasdef(2,17,1).eq..false.))then
+                                               1             2   3
+Use .EQV./.NEQV. instead of .EQ./.NE. at (2) for LOGICAL operands at (1) and (3)
+getpar.f:53: warning: unused variable `label'
+getpar.f:44: warning: unused variable `dtemp'
+getpar.f:41: warning: unused variable `vtemp'
+getpar.f:37: warning: unused variable `ltemp'
+make: *** [getpar.o] Error 1

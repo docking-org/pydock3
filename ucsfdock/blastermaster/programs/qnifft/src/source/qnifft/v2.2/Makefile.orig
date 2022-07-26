@@ -1,0 +1,58 @@
+FFLAGS = -O2 -Wall -ffixed-line-length-132 -byteswapio
+FCOMP = gfortran
+#
+BIN = $(DELDIR)/bin
+#-----------------
+# rules- general
+.f.o:
+	$(FCOMP) -c $(FFLAGS) $*.f
+#-----------------
+
+#
+FOBJ = qnifft22.f elb.f up.f charge.f radius.f getpdb.f \
+ phintp.f scaler.f chrgit.f setbc.f wrteps.f cputime.f  \
+ phierg.f inewt.f getpar.f qhelp.f chrgal.f dtstmp.f dmpeps.f phirxn.f phifrc.f \
+ sasgen.f mapgen.f girdgen.f utility.f pntchk.f mkepsd.f
+#
+OBJ1 = qcall.o qnifft22_sub.o qcen.o elb.o up.o charge.o radius.o getpdb.o \
+ phintp.o scaler.o chrgit.o setbc.o wrteps.o cputime.o  \
+ phierg.o inewt.o getpar.o qhelp.o chrgal.o dtstmp.o dmpeps.o phirxn.o phifrc.o \
+ mapit.o sasgen.o mapgen.o girdgen.o utility.o pntchk.o mkepsd.o
+#
+qnifft_small: 
+	/bin/cp qdiffpar65.h qdiffpar.h
+	echo "      data lstmod / ' `date`'/" > lstmod.h
+	$(FCOMP) $(FFLAGS) -c dtstmp.f
+	$(FCOMP) $(FFLAGS) $(FOBJ) 
+	mv a.out $(BIN)/qnifft22_65
+#
+qnifft_medium: 
+	/bin/cp qdiffpar129.h qdiffpar.h
+	echo "      data lstmod / ' `date`'/" > lstmod.h
+	$(FCOMP) $(FFLAGS) -c dtstmp.f
+	$(FCOMP) $(FFLAGS) $(FOBJ) 
+	mv a.out $(BIN)/qnifft22_129
+#
+qnifft_large: 
+	/bin/cp qdiffpar161.h qdiffpar.h
+	echo "      data lstmod / ' `date`'/" > lstmod.h
+	$(FCOMP) $(FFLAGS) -c dtstmp.f
+	$(FCOMP) $(FFLAGS) $(FOBJ) 
+	mv a.out $(BIN)/qnifft22_161
+#
+qnifft_huge: 
+	/bin/cp qdiffpar193.h qdiffpar.h
+	echo "      data lstmod / ' `date`'/" > lstmod.h
+	$(FCOMP) $(FFLAGS) -c dtstmp.f
+	$(FCOMP) $(FFLAGS) $(FOBJ) 
+	mv a.out $(BIN)/qnifft22_193
+#
+clean:
+	/bin/rm *.o
+
+qnifft_sub: $(OBJ1)
+	echo "      data lstmod / ' `date`'/" > lstmod.h
+	$(FCOMP) $(FFLAGS) -c dtstmp.f
+	$(FCOMP) $(FFLAGS) -o qcall $(OBJ1) 
+	mv qcall $(BIN)/qcall22a
+$(OBJ1): qdiffpar.h

@@ -1,0 +1,243 @@
+!crg file created by ds   2/3/93
+!by using pauling radii and creating simple charge moments in polar groups
+!to match Wolfendon's transfer energies of side chains.
+!use with parseres.siz
+!heme charges from Northrup et al emended at end
+! simplified by global backbone atoms specs
+atom__resnumbc_charge_
+H1              0.467
+H2              0.466
+H3              0.467
+HT1             0.467
+HT2             0.466
+HT3             0.467
+HN              0.400
+N              -0.400
+H               0.400
+C               0.550
+O              -0.550
+OXT            -1.000
+CD    ARG       0.350
+NE    ARG      -0.350
+CZ    ARG       0.350
+NH1   ARG      -0.700
+NH2   ARG      -0.700
+HE    ARG       0.450
+HH1   ARG       0.400
+HH2   ARG       0.400
+HH11  ARG       0.400
+HH12  ARG       0.400
+HH21  ARG       0.400
+HH22  ARG       0.400
+CG    ASN       0.550
+OD1   ASN      -0.550
+ND2   ASN      -0.780
+HD1   ASN       0.390
+HD2   ASN       0.390
+HD21  ASN       0.390
+HD22  ASN       0.390
+CG    ASP       0.100
+OD1   ASP      -0.550
+OD2   ASP      -0.550
+CB    CYS       0.290
+SG    CYS      -0.290
+CB    CY-      -0.080
+SG    CY-      -0.920
+CD    GLU       0.100
+OE1   GLU      -0.550 
+OE2   GLU      -0.550
+CD    GLN       0.550
+OE1   GLN      -0.550
+NE2   GLN      -0.780
+HE1   GLN       0.390
+HE2   GLN       0.390
+HE21  GLN       0.390
+HE22  GLN       0.390
+CB    HIS       0.125
+CG    HIS      -0.125
+ND1   HIS      -0.400
+CE1   HIS       0.155
+NE2   HIS      -0.560
+CD2   HIS       0.155
+HD1   HIS       0.400
+HE1   HIS       0.125
+HE2   HIS       0.400
+HD2   HIS       0.125
+CE    LYS       0.330
+NZ    LYS      -0.320
+HZ1   LYS       0.330
+HZ2   LYS       0.330
+HZ3   LYS       0.330
+CG    MET       0.265
+SD    MET      -0.530
+CE    MET       0.265
+CB    PHE       0.125
+CG    PHE      -0.125
+CD1   PHE      -0.125
+HD1   PHE       0.125
+CE1   PHE      -0.125
+HE1   PHE       0.125
+CZ    PHE      -0.125
+HZ    PHE       0.125
+CE2   PHE      -0.125
+HE2   PHE       0.125
+CD2   PHE      -0.125
+HD2   PHE       0.125
+H1    PRO       0.500
+H2    PRO       0.500
+N     PRO      -0.560
+CA    PRO       0.280
+CD    PRO       0.280
+OG    SER      -0.490
+HG1   SER       0.490
+HG    SER       0.490
+OG1   THR      -0.490
+HG1   THR       0.490
+CB    TRP       0.125
+CG    TRP      -0.125
+CD1   TRP      -0.125
+NE1   TRP      -0.400
+HD1   TRP       0.125
+HE1   TRP       0.400
+CE3   TRP      -0.125
+HE3   TRP       0.125
+CZ3   TRP      -0.125
+HZ3   TRP       0.125
+CH2   TRP      -0.125
+HH2   TRP       0.125
+CZ2   TRP      -0.125
+HZ2   TRP       0.125
+CB    TYR       0.125
+CG    TYR      -0.125
+CD1   TYR      -0.125
+HD1   TYR       0.125
+CE1   TYR      -0.125
+HE1   TYR       0.125
+CZ    TYR       0.055
+OH    TYR      -0.490
+HH    TYR       0.435
+CE2   TYR      -0.125
+HE2   TYR       0.125
+CD2   TYR      -0.125
+HD2   TYR       0.125
+CB    TY-       0.125
+CG    TY-      -0.195
+CD1   TY-      -0.195
+HD1   TY-       0.125
+CE1   TY-      -0.195
+HE1   TY-       0.125
+CZ    TY-      -0.070
+OH    TY-      -0.580
+CE2   TY-      -0.195
+HE2   TY-       0.125
+CD2   TY-      -0.195
+HD2   TY-       0.125
+C     ACE       0.550
+O     ACE      -0.550
+N     N-M      -0.400
+H 1   N-M       0.400
+N     BKN      -0.780
+H 1   BKN       0.390
+H 2   BKN       0.390
+C     BKN       0.550
+O     BKN      -0.550
+N     BK+      -0.320   !from LYS    (alternative: model on ARG) 
+CA    BK+       0.330   !could distribute 0.00 of this on CB
+H 1   BK+       0.330
+H 2   BK+       0.330
+H 3   BK+       0.330
+C     BK+       0.550
+O     BK+      -0.550
+N     BKC      -0.400
+H     BKC       0.400
+C     BKC       0.550
+O1    BKC      -0.495
+O2    BKC      -0.490
+H2    BKC       0.435
+N     BK-      -0.400
+H     BK-       0.400
+C     GLU104    0.100
+OT1            -0.550
+OT2            -0.550
+NA    HEM      -0.18
+NB    HEM      -0.18
+NC    HEM      -0.18
+ND    HEM      -0.18
+FE    HEM       0.24
+C1A   HEM       0.03
+CHA   HEM       0.04
+C4D   HEM       0.02
+C1B   HEM       0.03
+CHB   HEM       0.04
+C4A   HEM       0.02
+C1C   HEM       0.03
+CHC   HEM       0.04
+C4B   HEM       0.02
+C1D   HEM       0.03
+CHD   HEM       0.04
+C4C   HEM       0.02
+C2A   HEM      -0.02
+CAA   HEM       0.04
+C3A   HEM       0.02
+CMA   HEM      -0.04
+CBA   HEM      -0.10
+CGA   HEM       0.30
+O1A   HEM      -0.50
+O2A   HEM      -0.50
+C2B   HEM       0.02
+CMB   HEM      -0.04
+C3B   HEM      -0.05
+CBB   HEM      -0.10
+CAB   HEM       0.03
+C2C   HEM       0.02
+CMC   HEM      -0.04
+C3C   HEM      -0.05
+CBC   HEM      -0.10
+CAC   HEM       0.03
+C2D   HEM       0.02
+CMD   HEM      -0.04
+C3D   HEM      -0.02
+CAD   HEM       0.04
+CBD   HEM      -0.10
+CGD   HEM       0.30
+O1D   HEM      -0.50
+O2D   HEM      -0.50
+N     PTR      -0.400
+H     PTR       0.400
+C     PTR       0.550
+O     PTR      -0.550
+CB    PTR       0.125
+CG    PTR      -0.125
+CD1   PTR      -0.125
+HD1   PTR       0.125
+CE1   PTR      -0.125
+HE1   PTR       0.125
+CZ    PTR       0.055
+OH    PTR      -0.490
+HH    PTR       0.435
+CE2   PTR      -0.125
+HE2   PTR       0.125
+CD2   PTR      -0.125
+HD2   PTR       0.125
+P     PTR       0.800
+O1P   PTR      -0.455
+O2P   PTR      -0.455
+O3P   PTR      -0.455
+CB    HSD       0.125
+CG    HSD      -0.125
+ND1   HSD      -0.560
+CE1   HSD       0.155
+NE2   HSD      -0.400
+CD2   HSD       0.155
+HD1   HSD       0.400
+HE1   HSD       0.125
+HD2   HSD       0.125
+CB    HSE       0.125
+CG    HSE      -0.125
+ND1   HSE      -0.400
+CE1   HSE       0.155
+NE2   HSE      -0.560
+CD2   HSE       0.155
+HE2   HSE       0.400
+HE1   HSE       0.125
+HD2   HSE       0.125

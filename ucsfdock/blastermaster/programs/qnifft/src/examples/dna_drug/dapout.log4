@@ -1,0 +1,2048 @@
+    
+ ------------------QNIFFT22--------------------------
+ * Version 2.2                                            *
+ * a program to solve the non-linear P-B equation         *
+ * 2 dielectric regions, ionic strength, periodic         *
+ * and focussing boundary conditions.                     *
+ * Does nonlinear salt analysis                           *
+ * uses mike holsts inexact newton method                 *
+ * implemented by jonathan hecht, new input style         *
+ * and multigridding by kas 6 sept, 1993                  *
+ * dielectric smoothing added july 95, kas                *
+ * 2nd, site potl. charge file added. Reads atom          *
+ * names of form 2H2                                      *
+ * charge anti-aliasing added may 96                      *
+ * Mixed salt NLPB added Oct 99 by Vinod Misra/KAS        *
+ * Mixed salt NLPB doesnt work with channel ionic diffrnce*
+ * reduce memory requirements- 7-feb-01                   *
+ * cleaned up mkmaps 14-feb-01                            *
+ * read radii, charges from *.atm file 10-apr-01          *
+ * compute atomic forces               10-apr-01          *
+ * output reaction field, potl.        27-apr-01          *
+ * improved surface mapping            18-may-01          *
+ * include reentrant surface remapping 28-may-01          *
+ ------------------QNIFFT22--------------------------
+   
+ max grid dimension:  129
+   
+  last modified:  Wed Jul 23 10:44:52 EDT 2003 
+  run on  7-Aug-03
+   
+ trying to read default file delphi.def in directory
+ /disks/node2/sharp/source/delphi
+  
+ Default parameter file 
+ ----------------------- 
+  
+  
+ lines read                          :  121
+ valid keywords found                :  46
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  0
+  
+ trying to read user parameter file 
+ parm2                                                                           
+  
+ User parameter file 
+ ----------------------- 
+  
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ NOTE: overriding previous value for SOLV*ENT_DIELECTRIC  
+ NOTE: overriding previous value for PDB_OUT*PUT_FILE     
+ NOTE: overriding previous value for CHAR*GE_FILE         
+ NOTE: overriding previous value for RADI*US_FILE         
+ NOTE: overriding previous value for CONV*ERGENCE         
+ NOTE: overriding previous value for RELA*XATION PARAMETER
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SIZI*NG              
+ NOTE: overriding previous value for NONL*INEAR_EQUATION  
+ NOTE: overriding previous value for ANAL*YSE_MAP         
+ NOTE: overriding previous value for FAST*_DIELECTRIC_MAP 
+ NOTE: overriding previous value for GRID*SIZE            
+ NOTE: overriding previous value for BOUN*DARY_CONDITION  
+ NOTE: overriding previous value for SALT*_CONCENTRATION  
+ NOTE: overriding previous value for ANI_MON*OVALENT      
+ NOTE: overriding previous value for CAT_MON*OVALENT      
+ NOTE: overriding previous value for PDB_IN*PUT_FILE      
+ NOTE: overriding previous value for PHI_OUT*PUT_FILE     
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SCAL*E               
+  
+ lines read                          :  22
+ valid keywords found                :  25
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  21
+  
+ values transferred to variables
+ NOTE: Using explicit anion, cation concentrations
+ and ignoring salt concentration variable       
+ Summary of parameter assignments
+ --------------------------------
+  
+ Name                  | Def |  Value
+ ----------------------------------------------------------
+                              real parameters
+ FILL*                 |     | ignored              
+ XCEN*TER              | no  |   15.6940002         
+ YCEN*TER              | no  |   21.0240002         
+ ZCEN*TER              | no  |   9.09799957         
+ SCAL*E                | no  |   0.300000012        
+ BORD*ER_SOLVENT       |     | ignored              
+ SOLV*ENT_DIELECTRIC   | no  |   80.                
+ SOLU*TE_DIELECTRIC    | no  |   4.                 
+ PROB*E_RADIUS         | yes |   1.39999998         
+ IONI*C_RADIUS         |     | ignored              
+ SALT*_CONCENTRATION   |     | ignored              
+ CONV*ERGENCE          | no  |   0.00100000005      
+ RELA*XATION PARAMETER | no  |   1.5                
+ TEMP*ERATURE          | yes |   298.               
+ LENG*TH_SMOOTH        |     | ignored              
+ ISALT*_CONCENTRATION  |     | ignored              
+ OSALT*_CONCENTRATION  |     | ignored              
+ IMEMB*RANE_POSITION   |     | ignored              
+ OMEMB*RANE_POSITION   |     | ignored              
+ CAT_DIV*ALENT         | yes |   0.                 
+ CAT_MON*OVALENT       | no  |   0.                 
+ ANI_DIV*ALENT         | yes |   0.                 
+ ANI_MON*OVALENT       | no  |   0.                 
+ FIELD*_BOUNDARY       |     | ignored              
+                           integer parameters
+ GRID*SIZE             | no  |  129                 
+ NEWT*ON_ITERATIONS    | yes |  20                  
+ LEVEL0*_MULTI_GRID_IT | yes |  2                   
+ LEVEL1*_MULTI_GRID_IT | yes |  4                   
+ LEVEL2*_MULTI_GRID_IT | yes |  8                   
+ LEVEL3*_MULTI_GRID_IT | yes |  16                  
+ CHEC*K_FREQUENCY      | yes |  2                   
+ SMOO*TH_DIELECTRIC    | yes |  0                   
+                           logical parameters
+ XPER*IODIC            | yes |  F                   
+ YPER*IODIC            | yes |  F                   
+ ZPER*IODIC            | yes |  F                   
+ NONL*INEAR_EQUATION   |     | ignored              
+ CONC*ENTRATION OUTPUT |     | ignored              
+ INSI*GHT_FORMAT       | yes |  F                   
+ SITE_POT*ENTIALS      | yes |  F                   
+ ATOM*_FILE_OUTPUT     | yes |  T                   
+ SPHE*RICAL_CHARGE_DIS | yes |  F                   
+ ANAL*YSE_MAP          | no  |  F                   
+ INPU*T_ATM*_FILE      | yes |  F                   
+ FAST*_DIELECTRIC_MAP  | no  |  T                   
+ FORC*E_CALCULATION    | yes |  F                   
+                             ascii parameters
+ SIZI*NG               | no  | scale                
+ BOUN*DARY_CONDITION   | no  | zero                 
+ TITL*E                | yes | untitled             
+ RADI*US_FILE          | no  | default.siz          
+ CHAR*GE_FILE          | no  | dapdna.crg           
+ PDB_IN*PUT_FILE       | no  | dap.pdb              
+ PDB_OUT*PUT_FILE      | no  | temp.atm             
+ PHI_IN*PUT_FILE       |     | ignored              
+ PHI_OUT*PUT_FILE      | no  | dapout.phi           
+ DIEL*ECTRIC_MAP_FILE  | no  | dapout.eps           
+ SITE_IN*PUT_FILE      |     | ignored              
+ SITE_OUT*PUT_FILE     |     | ignored              
+ SITE_CH*ARGE_FILE     |     | ignored              
+  
+ # of assigned parameters            :  21
+ # of default parameters             :  21
+ # of missing parameters             :  0
+ # of ignored parameters             :  16
+  
+ cion:   0.  0.  0.  0.
+ zion:   2.  1. -2. -1.
+ Debye length infinite
+ reading radii from file
+ default.siz                                                                     
+ ! default extended atom radii based loosely                 
+ ! on mike connolly's MS program- note H's are 0             
+ # of radius parameter records: 15
+ reading charges from file
+ dapdna.crg                                                                      
+ ! charges only on nucleic acids                             
+ ! charge of -1.0 on each P atom                             
+ # of charge parameter records: 5
+    
+ assigning radii and charges to atoms...
+ using *.siz/*.crg files
+    
+ atomic coordinates, charges and radii written to
+ temp.atm                                                                        
+    
+ reading coordinates from file
+ dap.pdb                                                                         
+    
+ number of atom coordinates read  :  38
+ total number of source charged atoms    :  2
+ net assigned source charge              :   2.
+ assigned positive charge                :   2.
+ centred at (A)  :  10.2299995  23.1780014  7.46799994
+ assigned negative charge                :   0.
+ centred at (A)  :  0.  0.  0.
+    
+   
+ scaling by specified scale and midpoint
+ xmin,xmax     (A)   :  5.19499969  14.5459995
+ ymin,ymax     (A)   :  18.4360008  28.0790005
+ zmin,zma      (A)   :  0.133000016  15.0159998
+ x,y,z range   (A)   :   9.35099983  9.64299965  14.8829994
+ object centre (A)   :   9.87049961  23.2574997  7.57450008
+ scale=0.3000000      
+ xcen=15.69400        ycen=21.02400        zcen=9.098000       
+ low,up x borders (A):  202.83432  214.481323
+ low,up y borders (A):  210.745331  206.27832
+ low,up z borders (A):  204.368332  207.415329
+ longest dimension of molecule(s) as % of box length:   3.48820305
+ minimum solvent border (A) :   202.83432
+   
+ total number of source charged atoms    :  2
+ net assigned source charge              :   2.
+ assigned positive charge                :   2.
+ centred at (gu) :  63.3607979  65.6462021  64.5110016
+ assigned negative charge                :   0.
+ centred at (gu) :  60.2918015  58.6927986  62.2705994
+    
+ assigning charges to grid...
+ # of atoms charged by trilinear interpolation: 2
+ # of atoms charged by anti-aliasing: 0
+ time to charge grid:  0.
+   
+ setting boundary conditions...
+   
+ Using fast dielectric mapping-no surface charge correction
+    
+ initializing dielectric and debye maps...
+    
+ lim in setout:  1
+ ibox in setout:  27
+ atoms in case 1 (num):  0
+ time to turn everything out is  0.
+ number of grid points on expanded surface=  34
+  finishing off dielectric map...
+  using kas code in fleps...
+ expanded surface maximum, minimum (g.u.)= 62 67
+ lim in fleps:  1
+ in fleps ibnum:  34
+ redo insides at   0.
+ lim in setin:  1
+ ibox in setin:  19
+ atoms in case 1 (num):  0
+ number of grid points on molecular surface=  30
+ time to turn everything in is  0.
+    
+ dumping dielectric and debye maps...
+    
+  generating compact epsilon array...
+ inside, outside dielectric points:  45 6440022
+  generating compact debye array...
+ inside, outside debye points:  6 2146683
+  writing to compact epsilon file
+  
+ dielectric map written to file
+ dapout.eps                                                                      
+  
+ debye factors:   0.  0.  0.  0.
+ dieletric factors:   0.142602488  0.00713012461
+   
+ total setup time was (sec)   1.
+   
+ using inexact Newton method to solve NLPB eqn...
+ dphi relaxation parameter:   1.5
+ dphi multigrid iterations:  2 4 8 16
+  
+ WARNING: # of charged points in salt:  11
+ these were set out of salt; scale should be increased
+ NEWTON ITERATION#,norm:  1  14.991836
+ LEVEL  #it    Norm of dphi residual
+ 0        1    18.744632
+ 0        2    16.222914
+ 0        2     6.281315
+ 1        1     1.322474
+ 1        2     1.496014
+ 1        3     0.817436
+ 1        4     0.406970
+    pre1        5     0.190982
+      pre2        9     0.015223
+       post3       17     0.000157
+     post2        9     0.000534
+   post1        5     0.017672
+ 0        3     5.334108
+ 0        4     1.706652
+ 0        4     0.519028
+ NEWTON ITERATION#,norm:  2  0.51902845
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.592810
+ 0        2     0.191926
+ 0        2     0.055240
+ 1        1     0.011100
+ 1        2     0.012418
+ 1        3     0.005783
+ 1        4     0.002558
+    pre1        5     0.001084
+      pre2        9     0.000245
+       post3       17     0.000004
+     post2        9     0.000009
+   post1        5     0.000110
+ 0        3     0.049760
+ 0        4     0.014820
+ 0        4     0.004804
+ NEWTON ITERATION#,norm:  3  0.00480381251
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.005347
+ 0        2     0.001933
+ 0        2     0.000664
+ 1        1     0.000281
+ 1        2     0.000600
+ 1        3     0.000410
+ 1        4     0.000244
+    pre1        5     0.000120
+      pre2        9     0.000007
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000013
+ 0        3     0.000508
+ 0        4     0.000106
+ 0        4     0.000046
+ final normal:   4.61572456E-05
+ total time for newton iterations (sec):   6.
+  
+ 0.5*sum(phi.q) (kT) =    36.373085
+ Interaction of source charges with themselves (kT)  36.373085
+ (Includes Grid+Coulombic+Solvation energy)
+ Equals Total energy for Linear PB only
+ For net fixed charge of :   1.99994087
+ potential map written to file
+ dapout.phi                                                                      
+   
+   
+ total cpu time was (sec)   8.
+   
+ QNIFFT QNIFF QNIF. QNI.. QN... Q....
+    
+ ------------------QNIFFT22--------------------------
+ * Version 2.2                                            *
+ * a program to solve the non-linear P-B equation         *
+ * 2 dielectric regions, ionic strength, periodic         *
+ * and focussing boundary conditions.                     *
+ * Does nonlinear salt analysis                           *
+ * uses mike holsts inexact newton method                 *
+ * implemented by jonathan hecht, new input style         *
+ * and multigridding by kas 6 sept, 1993                  *
+ * dielectric smoothing added july 95, kas                *
+ * 2nd, site potl. charge file added. Reads atom          *
+ * names of form 2H2                                      *
+ * charge anti-aliasing added may 96                      *
+ * Mixed salt NLPB added Oct 99 by Vinod Misra/KAS        *
+ * Mixed salt NLPB doesnt work with channel ionic diffrnce*
+ * reduce memory requirements- 7-feb-01                   *
+ * cleaned up mkmaps 14-feb-01                            *
+ * read radii, charges from *.atm file 10-apr-01          *
+ * compute atomic forces               10-apr-01          *
+ * output reaction field, potl.        27-apr-01          *
+ * improved surface mapping            18-may-01          *
+ * include reentrant surface remapping 28-may-01          *
+ ------------------QNIFFT22--------------------------
+   
+ max grid dimension:  129
+   
+  last modified:  Wed Jul 23 10:44:52 EDT 2003 
+  run on  7-Aug-03
+   
+ trying to read default file delphi.def in directory
+ /disks/node2/sharp/source/delphi
+  
+ Default parameter file 
+ ----------------------- 
+  
+  
+ lines read                          :  121
+ valid keywords found                :  46
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  0
+  
+ trying to read user parameter file 
+ parm2                                                                           
+  
+ User parameter file 
+ ----------------------- 
+  
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ NOTE: overriding previous value for SOLV*ENT_DIELECTRIC  
+ NOTE: overriding previous value for PDB_OUT*PUT_FILE     
+ NOTE: overriding previous value for CHAR*GE_FILE         
+ NOTE: overriding previous value for RADI*US_FILE         
+ NOTE: overriding previous value for CONV*ERGENCE         
+ NOTE: overriding previous value for RELA*XATION PARAMETER
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SIZI*NG              
+ NOTE: overriding previous value for NONL*INEAR_EQUATION  
+ NOTE: overriding previous value for ANAL*YSE_MAP         
+ NOTE: overriding previous value for FAST*_DIELECTRIC_MAP 
+ NOTE: overriding previous value for GRID*SIZE            
+ NOTE: overriding previous value for BOUN*DARY_CONDITION  
+ NOTE: overriding previous value for SALT*_CONCENTRATION  
+ NOTE: overriding previous value for ANI_MON*OVALENT      
+ NOTE: overriding previous value for CAT_MON*OVALENT      
+ NOTE: overriding previous value for PDB_IN*PUT_FILE      
+ NOTE: overriding previous value for PHI_OUT*PUT_FILE     
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SCAL*E               
+  
+ lines read                          :  22
+ valid keywords found                :  25
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  21
+  
+ values transferred to variables
+ NOTE: Using explicit anion, cation concentrations
+ and ignoring salt concentration variable       
+ Summary of parameter assignments
+ --------------------------------
+  
+ Name                  | Def |  Value
+ ----------------------------------------------------------
+                              real parameters
+ FILL*                 |     | ignored              
+ XCEN*TER              | no  |   15.6940002         
+ YCEN*TER              | no  |   21.0240002         
+ ZCEN*TER              | no  |   9.09799957         
+ SCAL*E                | no  |   0.300000012        
+ BORD*ER_SOLVENT       |     | ignored              
+ SOLV*ENT_DIELECTRIC   | no  |   80.                
+ SOLU*TE_DIELECTRIC    | no  |   4.                 
+ PROB*E_RADIUS         | yes |   1.39999998         
+ IONI*C_RADIUS         | yes |   2.                 
+ SALT*_CONCENTRATION   |     | ignored              
+ CONV*ERGENCE          | no  |   0.00100000005      
+ RELA*XATION PARAMETER | no  |   1.5                
+ TEMP*ERATURE          | yes |   298.               
+ LENG*TH_SMOOTH        |     | ignored              
+ ISALT*_CONCENTRATION  |     | ignored              
+ OSALT*_CONCENTRATION  |     | ignored              
+ IMEMB*RANE_POSITION   |     | ignored              
+ OMEMB*RANE_POSITION   |     | ignored              
+ CAT_DIV*ALENT         | yes |   0.                 
+ CAT_MON*OVALENT       | no  |   0.100000001        
+ ANI_DIV*ALENT         | yes |   0.                 
+ ANI_MON*OVALENT       | no  |   0.100000001        
+ FIELD*_BOUNDARY       |     | ignored              
+                           integer parameters
+ GRID*SIZE             | no  |  129                 
+ NEWT*ON_ITERATIONS    | yes |  20                  
+ LEVEL0*_MULTI_GRID_IT | yes |  2                   
+ LEVEL1*_MULTI_GRID_IT | yes |  4                   
+ LEVEL2*_MULTI_GRID_IT | yes |  8                   
+ LEVEL3*_MULTI_GRID_IT | yes |  16                  
+ CHEC*K_FREQUENCY      | yes |  2                   
+ SMOO*TH_DIELECTRIC    | yes |  0                   
+                           logical parameters
+ XPER*IODIC            | yes |  F                   
+ YPER*IODIC            | yes |  F                   
+ ZPER*IODIC            | yes |  F                   
+ NONL*INEAR_EQUATION   | no  |  T                   
+ CONC*ENTRATION OUTPUT | yes |  F                   
+ INSI*GHT_FORMAT       | yes |  F                   
+ SITE_POT*ENTIALS      | yes |  F                   
+ ATOM*_FILE_OUTPUT     | yes |  T                   
+ SPHE*RICAL_CHARGE_DIS | yes |  F                   
+ ANAL*YSE_MAP          | no  |  F                   
+ INPU*T_ATM*_FILE      | yes |  F                   
+ FAST*_DIELECTRIC_MAP  | no  |  T                   
+ FORC*E_CALCULATION    | yes |  F                   
+                             ascii parameters
+ SIZI*NG               | no  | scale                
+ BOUN*DARY_CONDITION   | no  | zero                 
+ TITL*E                | yes | untitled             
+ RADI*US_FILE          | no  | default.siz          
+ CHAR*GE_FILE          | no  | dapdna.crg           
+ PDB_IN*PUT_FILE       | no  | dap.pdb              
+ PDB_OUT*PUT_FILE      | no  | temp.atm             
+ PHI_IN*PUT_FILE       |     | ignored              
+ PHI_OUT*PUT_FILE      | no  | dapout.phi           
+ DIEL*ECTRIC_MAP_FILE  | no  | dapout.eps           
+ SITE_IN*PUT_FILE      |     | ignored              
+ SITE_OUT*PUT_FILE     |     | ignored              
+ SITE_CH*ARGE_FILE     |     | ignored              
+  
+ # of assigned parameters            :  22
+ # of default parameters             :  23
+ # of missing parameters             :  0
+ # of ignored parameters             :  13
+  
+ cion:   0.  0.100000001  0.  0.100000001
+ zion:   2.  1. -2. -1.
+ Debye length (A):   9.6354599
+ reading radii from file
+ default.siz                                                                     
+ ! default extended atom radii based loosely                 
+ ! on mike connolly's MS program- note H's are 0             
+ # of radius parameter records: 15
+ reading charges from file
+ dapdna.crg                                                                      
+ ! charges only on nucleic acids                             
+ ! charge of -1.0 on each P atom                             
+ # of charge parameter records: 5
+    
+ assigning radii and charges to atoms...
+ using *.siz/*.crg files
+    
+ atomic coordinates, charges and radii written to
+ temp.atm                                                                        
+    
+ reading coordinates from file
+ dap.pdb                                                                         
+    
+ number of atom coordinates read  :  38
+ total number of source charged atoms    :  2
+ net assigned source charge              :   2.
+ assigned positive charge                :   2.
+ centred at (A)  :  10.2299995  23.1780014  7.46799994
+ assigned negative charge                :   0.
+ centred at (A)  :  0.  0.  0.
+    
+   
+ scaling by specified scale and midpoint
+ xmin,xmax     (A)   :  5.19499969  14.5459995
+ ymin,ymax     (A)   :  18.4360008  28.0790005
+ zmin,zma      (A)   :  0.133000016  15.0159998
+ x,y,z range   (A)   :   9.35099983  9.64299965  14.8829994
+ object centre (A)   :   9.87049961  23.2574997  7.57450008
+ scale=0.3000000      
+ xcen=15.69400        ycen=21.02400        zcen=9.098000       
+ low,up x borders (A):  202.83432  214.481323
+ low,up y borders (A):  210.745331  206.27832
+ low,up z borders (A):  204.368332  207.415329
+ longest dimension of molecule(s) as % of box length:   3.48820305
+ minimum solvent border (A) :   202.83432
+   
+ total number of source charged atoms    :  2
+ net assigned source charge              :   2.
+ assigned positive charge                :   2.
+ centred at (gu) :  63.3607979  65.6462021  64.5110016
+ assigned negative charge                :   0.
+ centred at (gu) :  60.2918015  58.6927986  62.2705994
+    
+ assigning charges to grid...
+ # of atoms charged by trilinear interpolation: 2
+ # of atoms charged by anti-aliasing: 0
+ time to charge grid:  0.
+   
+ setting boundary conditions...
+   
+ Using fast dielectric mapping-no surface charge correction
+    
+ initializing dielectric and debye maps...
+    
+ lim in setout:  2
+ ibox in setout:  45
+ atoms in case 1 (num):  0
+ time to turn everything out is  0.
+ number of grid points on expanded surface=  34
+  finishing off dielectric map...
+  using kas code in fleps...
+ expanded surface maximum, minimum (g.u.)= 62 67
+ lim in fleps:  1
+ in fleps ibnum:  34
+ redo insides at   0.
+ lim in setin:  1
+ ibox in setin:  19
+ atoms in case 1 (num):  0
+ number of grid points on molecular surface=  30
+ time to turn everything in is  1.
+    
+ dumping dielectric and debye maps...
+    
+  generating compact epsilon array...
+ inside, outside dielectric points:  45 6440022
+  generating compact debye array...
+ inside, outside debye points:  32 2146657
+  writing to compact epsilon file
+  
+ dielectric map written to file
+ dapout.eps                                                                      
+  
+ debye factors:   0.  0.0853279978  0.0853279978  0.0853279978
+ dieletric factors:   0.142602488  0.00713012461
+   
+ total setup time was (sec)   1.
+   
+ using inexact Newton method to solve NLPB eqn...
+ dphi relaxation parameter:   1.5
+ dphi multigrid iterations:  2 4 8 16
+  
+ WARNING: # of charged points in salt:  3
+ these were set out of salt; scale should be increased
+ NEWTON ITERATION#,norm:  1  14.991836
+ LEVEL  #it    Norm of dphi residual
+ 0        1    18.744632
+ 0        2    16.135796
+ 0        2     6.129441
+ 1        1     1.189380
+ 1        2     1.061873
+ 1        3     0.385746
+ 1        4     0.119156
+    pre1        5     0.043391
+      pre2        9     0.000003
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000691
+ 0        3     5.679756
+ 0        4     1.787257
+ 0        4     0.538969
+ NEWTON ITERATION#,norm:  2  0.541553629
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.599940
+ 0        2     0.193985
+ 0        2     0.056093
+ 1        1     0.019686
+ 1        2     0.029132
+ 1        3     0.010789
+ 1        4     0.001870
+    pre1        5     0.000534
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000014
+ 0        3     0.061165
+ 0        4     0.016295
+ 0        4     0.005395
+ NEWTON ITERATION#,norm:  3  0.00539215625
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.005866
+ 0        2     0.002504
+ 0        2     0.000920
+ 1        1     0.000169
+ 1        2     0.000240
+ 1        3     0.000048
+ 1        4     0.000013
+    pre1        5     0.000007
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000000
+ 0        3     0.001108
+ 0        4     0.000371
+ 0        4     0.000147
+ final normal:   0.000146788981
+ total time for newton iterations (sec):   8.
+  
+ 0.5*sum(phi.q) (kT) =    35.5714455
+ Interaction of source charges with themselves (kT)  35.5714455
+ (Includes Grid+Coulombic+Solvation energy)
+ Equals Total energy for Linear PB only
+ For net fixed charge of :   1.99994087
+ potential map written to file
+ dapout.phi                                                                      
+   
+   
+ total cpu time was (sec)   10.
+   
+ QNIFFT QNIFF QNIF. QNI.. QN... Q....
+    
+ ------------------QNIFFT22--------------------------
+ * Version 2.2                                            *
+ * a program to solve the non-linear P-B equation         *
+ * 2 dielectric regions, ionic strength, periodic         *
+ * and focussing boundary conditions.                     *
+ * Does nonlinear salt analysis                           *
+ * uses mike holsts inexact newton method                 *
+ * implemented by jonathan hecht, new input style         *
+ * and multigridding by kas 6 sept, 1993                  *
+ * dielectric smoothing added july 95, kas                *
+ * 2nd, site potl. charge file added. Reads atom          *
+ * names of form 2H2                                      *
+ * charge anti-aliasing added may 96                      *
+ * Mixed salt NLPB added Oct 99 by Vinod Misra/KAS        *
+ * Mixed salt NLPB doesnt work with channel ionic diffrnce*
+ * reduce memory requirements- 7-feb-01                   *
+ * cleaned up mkmaps 14-feb-01                            *
+ * read radii, charges from *.atm file 10-apr-01          *
+ * compute atomic forces               10-apr-01          *
+ * output reaction field, potl.        27-apr-01          *
+ * improved surface mapping            18-may-01          *
+ * include reentrant surface remapping 28-may-01          *
+ ------------------QNIFFT22--------------------------
+   
+ max grid dimension:  129
+   
+  last modified:  Wed Jul 23 10:44:52 EDT 2003 
+  run on  7-Aug-03
+   
+ trying to read default file delphi.def in directory
+ /disks/node2/sharp/source/delphi
+  
+ Default parameter file 
+ ----------------------- 
+  
+  
+ lines read                          :  121
+ valid keywords found                :  46
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  0
+  
+ trying to read user parameter file 
+ parm2                                                                           
+  
+ User parameter file 
+ ----------------------- 
+  
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ NOTE: overriding previous value for SOLV*ENT_DIELECTRIC  
+ NOTE: overriding previous value for PDB_OUT*PUT_FILE     
+ NOTE: overriding previous value for CHAR*GE_FILE         
+ NOTE: overriding previous value for RADI*US_FILE         
+ NOTE: overriding previous value for CONV*ERGENCE         
+ NOTE: overriding previous value for RELA*XATION PARAMETER
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SIZI*NG              
+ NOTE: overriding previous value for NONL*INEAR_EQUATION  
+ NOTE: overriding previous value for ANAL*YSE_MAP         
+ NOTE: overriding previous value for FAST*_DIELECTRIC_MAP 
+ NOTE: overriding previous value for GRID*SIZE            
+ NOTE: overriding previous value for BOUN*DARY_CONDITION  
+ NOTE: overriding previous value for SALT*_CONCENTRATION  
+ NOTE: overriding previous value for ANI_MON*OVALENT      
+ NOTE: overriding previous value for CAT_MON*OVALENT      
+ NOTE: overriding previous value for PDB_IN*PUT_FILE      
+ NOTE: overriding previous value for PHI_OUT*PUT_FILE     
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SCAL*E               
+  
+ lines read                          :  22
+ valid keywords found                :  25
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  21
+  
+ values transferred to variables
+ NOTE: Using explicit anion, cation concentrations
+ and ignoring salt concentration variable       
+ Summary of parameter assignments
+ --------------------------------
+  
+ Name                  | Def |  Value
+ ----------------------------------------------------------
+                              real parameters
+ FILL*                 |     | ignored              
+ XCEN*TER              | no  |   15.6940002         
+ YCEN*TER              | no  |   21.0240002         
+ ZCEN*TER              | no  |   9.09799957         
+ SCAL*E                | no  |   0.300000012        
+ BORD*ER_SOLVENT       |     | ignored              
+ SOLV*ENT_DIELECTRIC   | no  |   80.                
+ SOLU*TE_DIELECTRIC    | no  |   4.                 
+ PROB*E_RADIUS         | yes |   1.39999998         
+ IONI*C_RADIUS         |     | ignored              
+ SALT*_CONCENTRATION   |     | ignored              
+ CONV*ERGENCE          | no  |   0.00100000005      
+ RELA*XATION PARAMETER | no  |   1.5                
+ TEMP*ERATURE          | yes |   298.               
+ LENG*TH_SMOOTH        |     | ignored              
+ ISALT*_CONCENTRATION  |     | ignored              
+ OSALT*_CONCENTRATION  |     | ignored              
+ IMEMB*RANE_POSITION   |     | ignored              
+ OMEMB*RANE_POSITION   |     | ignored              
+ CAT_DIV*ALENT         | yes |   0.                 
+ CAT_MON*OVALENT       | no  |   0.                 
+ ANI_DIV*ALENT         | yes |   0.                 
+ ANI_MON*OVALENT       | no  |   0.                 
+ FIELD*_BOUNDARY       |     | ignored              
+                           integer parameters
+ GRID*SIZE             | no  |  129                 
+ NEWT*ON_ITERATIONS    | yes |  20                  
+ LEVEL0*_MULTI_GRID_IT | yes |  2                   
+ LEVEL1*_MULTI_GRID_IT | yes |  4                   
+ LEVEL2*_MULTI_GRID_IT | yes |  8                   
+ LEVEL3*_MULTI_GRID_IT | yes |  16                  
+ CHEC*K_FREQUENCY      | yes |  2                   
+ SMOO*TH_DIELECTRIC    | yes |  0                   
+                           logical parameters
+ XPER*IODIC            | yes |  F                   
+ YPER*IODIC            | yes |  F                   
+ ZPER*IODIC            | yes |  F                   
+ NONL*INEAR_EQUATION   |     | ignored              
+ CONC*ENTRATION OUTPUT |     | ignored              
+ INSI*GHT_FORMAT       | yes |  F                   
+ SITE_POT*ENTIALS      | yes |  F                   
+ ATOM*_FILE_OUTPUT     | yes |  T                   
+ SPHE*RICAL_CHARGE_DIS | yes |  F                   
+ ANAL*YSE_MAP          | no  |  F                   
+ INPU*T_ATM*_FILE      | yes |  F                   
+ FAST*_DIELECTRIC_MAP  | no  |  T                   
+ FORC*E_CALCULATION    | yes |  F                   
+                             ascii parameters
+ SIZI*NG               | no  | scale                
+ BOUN*DARY_CONDITION   | no  | zero                 
+ TITL*E                | yes | untitled             
+ RADI*US_FILE          | no  | default.siz          
+ CHAR*GE_FILE          | no  | dapdna.crg           
+ PDB_IN*PUT_FILE       | no  | dna12.pdb            
+ PDB_OUT*PUT_FILE      | no  | temp.atm             
+ PHI_IN*PUT_FILE       |     | ignored              
+ PHI_OUT*PUT_FILE      | no  | dapout.phi           
+ DIEL*ECTRIC_MAP_FILE  | no  | dapout.eps           
+ SITE_IN*PUT_FILE      |     | ignored              
+ SITE_OUT*PUT_FILE     |     | ignored              
+ SITE_CH*ARGE_FILE     |     | ignored              
+  
+ # of assigned parameters            :  21
+ # of default parameters             :  21
+ # of missing parameters             :  0
+ # of ignored parameters             :  16
+  
+ cion:   0.  0.  0.  0.
+ zion:   2.  1. -2. -1.
+ Debye length infinite
+ reading radii from file
+ default.siz                                                                     
+ ! default extended atom radii based loosely                 
+ ! on mike connolly's MS program- note H's are 0             
+ # of radius parameter records: 15
+ reading charges from file
+ dapdna.crg                                                                      
+ ! charges only on nucleic acids                             
+ ! charge of -1.0 on each P atom                             
+ # of charge parameter records: 5
+    
+ assigning radii and charges to atoms...
+ using *.siz/*.crg files
+    
+ atomic coordinates, charges and radii written to
+ temp.atm                                                                        
+    
+ reading coordinates from file
+ dna12.pdb                                                                       
+    
+ number of atom coordinates read  :  758
+ total number of source charged atoms    :  66
+ net assigned source charge              :  -22.
+ assigned positive charge                :   0.
+ centred at (A)  :  0.  0.  0.
+ assigned negative charge                :  -22.
+ centred at (A)  :  14.6357718  21.2173176  8.57477188
+    
+   
+ scaling by specified scale and midpoint
+ xmin,xmax     (A)   :  2.95800018  28.4300003
+ ymin,ymax     (A)   :  6.84699965  35.2010002
+ zmin,zma      (A)   : -14.2009993  32.3969994
+ x,y,z range   (A)   :   25.4720001  28.3540001  46.5979996
+ object centre (A)   :   15.6940002  21.0240002  9.09799957
+ scale=0.3000000      
+ xcen=15.69400        ycen=21.02400        zcen=9.098000       
+ low,up x borders (A):  200.597321  200.597321
+ low,up y borders (A):  199.156326  199.156326
+ low,up z borders (A):  190.034332  190.034332
+ longest dimension of molecule(s) as % of box length:   10.9214067
+ minimum solvent border (A) :   190.034332
+   
+ total number of source charged atoms    :  66
+ net assigned source charge              :  -22.
+ assigned positive charge                :   0.
+ centred at (gu) :  60.2918015  58.6927986  62.2705994
+ assigned negative charge                :  -22.
+ centred at (gu) :  64.6825333  65.0579987  64.8430328
+    
+ assigning charges to grid...
+ # of atoms charged by trilinear interpolation: 22
+ # of atoms charged by anti-aliasing: 0
+ time to charge grid:  0.
+   
+ setting boundary conditions...
+   
+ Using fast dielectric mapping-no surface charge correction
+    
+ initializing dielectric and debye maps...
+    
+ lim in setout:  1
+ ibox in setout:  27
+ atoms in case 1 (num):  0
+ time to turn everything out is  0.
+ number of grid points on expanded surface=  314
+  finishing off dielectric map...
+  using kas code in fleps...
+ expanded surface maximum, minimum (g.u.)= 58 72
+ lim in fleps:  1
+ in fleps ibnum:  314
+ redo insides at   1.
+ lim in setin:  1
+ ibox in setin:  19
+ atoms in case 1 (num):  0
+ number of grid points on molecular surface=  279
+ time to turn everything in is  1.
+    
+ dumping dielectric and debye maps...
+    
+  generating compact epsilon array...
+ inside, outside dielectric points:  808 6439259
+  generating compact debye array...
+ inside, outside debye points:  152 2146537
+  writing to compact epsilon file
+  
+ dielectric map written to file
+ dapout.eps                                                                      
+  
+ debye factors:   0.  0.  0.  0.
+ dieletric factors:   0.142602488  0.00713012461
+   
+ total setup time was (sec)   1.
+   
+ using inexact Newton method to solve NLPB eqn...
+ dphi relaxation parameter:   1.5
+ dphi multigrid iterations:  2 4 8 16
+  
+ WARNING: # of charged points in salt:  100
+ these were set out of salt; scale should be increased
+ NEWTON ITERATION#,norm:  1  97.7832165
+ LEVEL  #it    Norm of dphi residual
+ 0        1   159.800168
+ 0        2   214.355184
+ 0        2    94.898033
+ 1        1    42.117772
+ 1        2    76.023140
+ 1        3    56.321521
+ 1        4    34.959854
+    pre1        5    17.882097
+      pre2        9     2.265540
+       post3       17     0.023764
+     post2        9     0.077980
+   post1        5     1.943949
+ 0        3    80.516525
+ 0        4    22.620115
+ 0        4     7.390412
+ NEWTON ITERATION#,norm:  2  7.39041198
+ LEVEL  #it    Norm of dphi residual
+ 0        1     8.497571
+ 0        2     3.480980
+ 0        2     1.296790
+ 1        1     0.519051
+ 1        2     0.955653
+ 1        3     0.780924
+ 1        4     0.653803
+    pre1        5     0.386634
+      pre2        9     0.163521
+       post3       17     0.002167
+     post2        9     0.005626
+   post1        5     0.041940
+ 0        3     1.137375
+ 0        4     0.388743
+ 0        4     0.167575
+ NEWTON ITERATION#,norm:  3  0.167574795
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.204713
+ 0        2     0.087646
+ 0        2     0.031550
+ 1        1     0.015457
+ 1        2     0.025906
+ 1        3     0.015851
+ 1        4     0.012608
+    pre1        5     0.007513
+      pre2        9     0.008440
+       post3       17     0.000135
+     post2        9     0.000288
+   post1        5     0.000980
+ 0        3     0.024240
+ 0        4     0.008382
+ 0        4     0.004528
+ NEWTON ITERATION#,norm:  4  0.00452808064
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.006010
+ 0        2     0.002992
+ 0        2     0.001139
+ 1        1     0.000592
+ 1        2     0.001155
+ 1        3     0.000881
+ 1        4     0.000742
+    pre1        5     0.000440
+      pre2        9     0.000304
+       post3       17     0.000005
+     post2        9     0.000010
+   post1        5     0.000055
+ 0        3     0.000819
+ 0        4     0.000225
+ 0        4     0.000136
+ final normal:   0.000136264731
+ total time for newton iterations (sec):   8.
+  
+ 0.5*sum(phi.q) (kT) =    321.771851
+ Interaction of source charges with themselves (kT)  321.771851
+ (Includes Grid+Coulombic+Solvation energy)
+ Equals Total energy for Linear PB only
+ For net fixed charge of :  -21.999342
+ potential map written to file
+ dapout.phi                                                                      
+   
+   
+ total cpu time was (sec)   10.
+   
+ QNIFFT QNIFF QNIF. QNI.. QN... Q....
+    
+ ------------------QNIFFT22--------------------------
+ * Version 2.2                                            *
+ * a program to solve the non-linear P-B equation         *
+ * 2 dielectric regions, ionic strength, periodic         *
+ * and focussing boundary conditions.                     *
+ * Does nonlinear salt analysis                           *
+ * uses mike holsts inexact newton method                 *
+ * implemented by jonathan hecht, new input style         *
+ * and multigridding by kas 6 sept, 1993                  *
+ * dielectric smoothing added july 95, kas                *
+ * 2nd, site potl. charge file added. Reads atom          *
+ * names of form 2H2                                      *
+ * charge anti-aliasing added may 96                      *
+ * Mixed salt NLPB added Oct 99 by Vinod Misra/KAS        *
+ * Mixed salt NLPB doesnt work with channel ionic diffrnce*
+ * reduce memory requirements- 7-feb-01                   *
+ * cleaned up mkmaps 14-feb-01                            *
+ * read radii, charges from *.atm file 10-apr-01          *
+ * compute atomic forces               10-apr-01          *
+ * output reaction field, potl.        27-apr-01          *
+ * improved surface mapping            18-may-01          *
+ * include reentrant surface remapping 28-may-01          *
+ ------------------QNIFFT22--------------------------
+   
+ max grid dimension:  129
+   
+  last modified:  Wed Jul 23 10:44:52 EDT 2003 
+  run on  7-Aug-03
+   
+ trying to read default file delphi.def in directory
+ /disks/node2/sharp/source/delphi
+  
+ Default parameter file 
+ ----------------------- 
+  
+  
+ lines read                          :  121
+ valid keywords found                :  46
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  0
+  
+ trying to read user parameter file 
+ parm2                                                                           
+  
+ User parameter file 
+ ----------------------- 
+  
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ NOTE: overriding previous value for SOLV*ENT_DIELECTRIC  
+ NOTE: overriding previous value for PDB_OUT*PUT_FILE     
+ NOTE: overriding previous value for CHAR*GE_FILE         
+ NOTE: overriding previous value for RADI*US_FILE         
+ NOTE: overriding previous value for CONV*ERGENCE         
+ NOTE: overriding previous value for RELA*XATION PARAMETER
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SIZI*NG              
+ NOTE: overriding previous value for NONL*INEAR_EQUATION  
+ NOTE: overriding previous value for ANAL*YSE_MAP         
+ NOTE: overriding previous value for FAST*_DIELECTRIC_MAP 
+ NOTE: overriding previous value for GRID*SIZE            
+ NOTE: overriding previous value for BOUN*DARY_CONDITION  
+ NOTE: overriding previous value for SALT*_CONCENTRATION  
+ NOTE: overriding previous value for ANI_MON*OVALENT      
+ NOTE: overriding previous value for CAT_MON*OVALENT      
+ NOTE: overriding previous value for PDB_IN*PUT_FILE      
+ NOTE: overriding previous value for PHI_OUT*PUT_FILE     
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SCAL*E               
+  
+ lines read                          :  22
+ valid keywords found                :  25
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  21
+  
+ values transferred to variables
+ NOTE: Using explicit anion, cation concentrations
+ and ignoring salt concentration variable       
+ Summary of parameter assignments
+ --------------------------------
+  
+ Name                  | Def |  Value
+ ----------------------------------------------------------
+                              real parameters
+ FILL*                 |     | ignored              
+ XCEN*TER              | no  |   15.6940002         
+ YCEN*TER              | no  |   21.0240002         
+ ZCEN*TER              | no  |   9.09799957         
+ SCAL*E                | no  |   0.300000012        
+ BORD*ER_SOLVENT       |     | ignored              
+ SOLV*ENT_DIELECTRIC   | no  |   80.                
+ SOLU*TE_DIELECTRIC    | no  |   4.                 
+ PROB*E_RADIUS         | yes |   1.39999998         
+ IONI*C_RADIUS         | yes |   2.                 
+ SALT*_CONCENTRATION   |     | ignored              
+ CONV*ERGENCE          | no  |   0.00100000005      
+ RELA*XATION PARAMETER | no  |   1.5                
+ TEMP*ERATURE          | yes |   298.               
+ LENG*TH_SMOOTH        |     | ignored              
+ ISALT*_CONCENTRATION  |     | ignored              
+ OSALT*_CONCENTRATION  |     | ignored              
+ IMEMB*RANE_POSITION   |     | ignored              
+ OMEMB*RANE_POSITION   |     | ignored              
+ CAT_DIV*ALENT         | yes |   0.                 
+ CAT_MON*OVALENT       | no  |   0.100000001        
+ ANI_DIV*ALENT         | yes |   0.                 
+ ANI_MON*OVALENT       | no  |   0.100000001        
+ FIELD*_BOUNDARY       |     | ignored              
+                           integer parameters
+ GRID*SIZE             | no  |  129                 
+ NEWT*ON_ITERATIONS    | yes |  20                  
+ LEVEL0*_MULTI_GRID_IT | yes |  2                   
+ LEVEL1*_MULTI_GRID_IT | yes |  4                   
+ LEVEL2*_MULTI_GRID_IT | yes |  8                   
+ LEVEL3*_MULTI_GRID_IT | yes |  16                  
+ CHEC*K_FREQUENCY      | yes |  2                   
+ SMOO*TH_DIELECTRIC    | yes |  0                   
+                           logical parameters
+ XPER*IODIC            | yes |  F                   
+ YPER*IODIC            | yes |  F                   
+ ZPER*IODIC            | yes |  F                   
+ NONL*INEAR_EQUATION   | no  |  T                   
+ CONC*ENTRATION OUTPUT | yes |  F                   
+ INSI*GHT_FORMAT       | yes |  F                   
+ SITE_POT*ENTIALS      | yes |  F                   
+ ATOM*_FILE_OUTPUT     | yes |  T                   
+ SPHE*RICAL_CHARGE_DIS | yes |  F                   
+ ANAL*YSE_MAP          | no  |  F                   
+ INPU*T_ATM*_FILE      | yes |  F                   
+ FAST*_DIELECTRIC_MAP  | no  |  T                   
+ FORC*E_CALCULATION    | yes |  F                   
+                             ascii parameters
+ SIZI*NG               | no  | scale                
+ BOUN*DARY_CONDITION   | no  | zero                 
+ TITL*E                | yes | untitled             
+ RADI*US_FILE          | no  | default.siz          
+ CHAR*GE_FILE          | no  | dapdna.crg           
+ PDB_IN*PUT_FILE       | no  | dna12.pdb            
+ PDB_OUT*PUT_FILE      | no  | temp.atm             
+ PHI_IN*PUT_FILE       |     | ignored              
+ PHI_OUT*PUT_FILE      | no  | dapout.phi           
+ DIEL*ECTRIC_MAP_FILE  | no  | dapout.eps           
+ SITE_IN*PUT_FILE      |     | ignored              
+ SITE_OUT*PUT_FILE     |     | ignored              
+ SITE_CH*ARGE_FILE     |     | ignored              
+  
+ # of assigned parameters            :  22
+ # of default parameters             :  23
+ # of missing parameters             :  0
+ # of ignored parameters             :  13
+  
+ cion:   0.  0.100000001  0.  0.100000001
+ zion:   2.  1. -2. -1.
+ Debye length (A):   9.6354599
+ reading radii from file
+ default.siz                                                                     
+ ! default extended atom radii based loosely                 
+ ! on mike connolly's MS program- note H's are 0             
+ # of radius parameter records: 15
+ reading charges from file
+ dapdna.crg                                                                      
+ ! charges only on nucleic acids                             
+ ! charge of -1.0 on each P atom                             
+ # of charge parameter records: 5
+    
+ assigning radii and charges to atoms...
+ using *.siz/*.crg files
+    
+ atomic coordinates, charges and radii written to
+ temp.atm                                                                        
+    
+ reading coordinates from file
+ dna12.pdb                                                                       
+    
+ number of atom coordinates read  :  758
+ total number of source charged atoms    :  66
+ net assigned source charge              :  -22.
+ assigned positive charge                :   0.
+ centred at (A)  :  0.  0.  0.
+ assigned negative charge                :  -22.
+ centred at (A)  :  14.6357718  21.2173176  8.57477188
+    
+   
+ scaling by specified scale and midpoint
+ xmin,xmax     (A)   :  2.95800018  28.4300003
+ ymin,ymax     (A)   :  6.84699965  35.2010002
+ zmin,zma      (A)   : -14.2009993  32.3969994
+ x,y,z range   (A)   :   25.4720001  28.3540001  46.5979996
+ object centre (A)   :   15.6940002  21.0240002  9.09799957
+ scale=0.3000000      
+ xcen=15.69400        ycen=21.02400        zcen=9.098000       
+ low,up x borders (A):  200.597321  200.597321
+ low,up y borders (A):  199.156326  199.156326
+ low,up z borders (A):  190.034332  190.034332
+ longest dimension of molecule(s) as % of box length:   10.9214067
+ minimum solvent border (A) :   190.034332
+   
+ total number of source charged atoms    :  66
+ net assigned source charge              :  -22.
+ assigned positive charge                :   0.
+ centred at (gu) :  60.2918015  58.6927986  62.2705994
+ assigned negative charge                :  -22.
+ centred at (gu) :  64.6825333  65.0579987  64.8430328
+    
+ assigning charges to grid...
+ # of atoms charged by trilinear interpolation: 22
+ # of atoms charged by anti-aliasing: 0
+ time to charge grid:  0.
+   
+ setting boundary conditions...
+   
+ Using fast dielectric mapping-no surface charge correction
+    
+ initializing dielectric and debye maps...
+    
+ lim in setout:  2
+ ibox in setout:  45
+ atoms in case 1 (num):  0
+ time to turn everything out is  0.
+ number of grid points on expanded surface=  314
+  finishing off dielectric map...
+  using kas code in fleps...
+ expanded surface maximum, minimum (g.u.)= 58 72
+ lim in fleps:  1
+ in fleps ibnum:  314
+ redo insides at   0.
+ lim in setin:  1
+ ibox in setin:  19
+ atoms in case 1 (num):  0
+ number of grid points on molecular surface=  279
+ time to turn everything in is  0.
+    
+ dumping dielectric and debye maps...
+    
+  generating compact epsilon array...
+ inside, outside dielectric points:  808 6439259
+  generating compact debye array...
+ inside, outside debye points:  405 2146284
+  writing to compact epsilon file
+  
+ dielectric map written to file
+ dapout.eps                                                                      
+  
+ debye factors:   0.  0.0853279978  0.0853279978  0.0853279978
+ dieletric factors:   0.142602488  0.00713012461
+   
+ total setup time was (sec)   1.
+   
+ using inexact Newton method to solve NLPB eqn...
+ dphi relaxation parameter:   1.5
+ dphi multigrid iterations:  2 4 8 16
+  
+ WARNING: # of charged points in salt:  9
+ these were set out of salt; scale should be increased
+ NEWTON ITERATION#,norm:  1  97.7832165
+ LEVEL  #it    Norm of dphi residual
+ 0        1   159.800168
+ 0        2   211.521996
+ 0        2    89.943752
+ 1        1    36.723175
+ 1        2    48.362744
+ 1        3    17.503745
+ 1        4     4.248093
+    pre1        5     1.483732
+      pre2        9     0.000157
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.030842
+ 0        3   118.015750
+ 0        4    31.708536
+ 0        4     9.796922
+ trial lambda, normal:   0.5  28.2808036
+ NEWTON ITERATION#,norm:  2  28.2808036
+ LEVEL  #it    Norm of dphi residual
+ 0        1    41.530847
+ 0        2    45.041155
+ 0        2    16.542766
+ 1        1     6.550087
+ 1        2     7.292058
+ 1        3     2.222605
+ 1        4     0.606868
+    pre1        5     0.234235
+      pre2        9     0.000023
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.004332
+ 0        3    18.765262
+ 0        4     6.428610
+ 0        4     1.937542
+ NEWTON ITERATION#,norm:  3  3.31573385
+ LEVEL  #it    Norm of dphi residual
+ 0        1     4.764313
+ 0        2     2.263412
+ 0        2     0.713815
+ 1        1     0.165959
+ 1        2     0.121500
+ 1        3     0.023711
+ 1        4     0.014067
+    pre1        5     0.004380
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000084
+ 0        3     0.665677
+ 0        4     0.259548
+ 0        4     0.096638
+ NEWTON ITERATION#,norm:  4  0.113319039
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.095065
+ 0        2     0.036249
+ 0        2     0.015174
+ 1        1     0.010328
+ 1        2     0.017648
+ 1        3     0.006282
+ 1        4     0.001089
+    pre1        5     0.000344
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000008
+ 0        3     0.022058
+ 0        4     0.006845
+ 0        4     0.002177
+ NEWTON ITERATION#,norm:  5  0.00221395817
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.002018
+ 0        2     0.000697
+ 0        2     0.000234
+ 1        1     0.000176
+ 1        2     0.000365
+ 1        3     0.000169
+ 1        4     0.000036
+    pre1        5     0.000006
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000000
+ 0        3     0.000404
+ 0        4     0.000151
+ 0        4     0.000073
+ final normal:   7.25336376E-05
+ total time for newton iterations (sec):   14.
+  
+ 0.5*sum(phi.q) (kT) =    247.030273
+ Interaction of source charges with themselves (kT)  247.030273
+ (Includes Grid+Coulombic+Solvation energy)
+ Equals Total energy for Linear PB only
+ For net fixed charge of :  -21.999342
+ potential map written to file
+ dapout.phi                                                                      
+   
+   
+ total cpu time was (sec)   16.
+   
+ QNIFFT QNIFF QNIF. QNI.. QN... Q....
+    
+ ------------------QNIFFT22--------------------------
+ * Version 2.2                                            *
+ * a program to solve the non-linear P-B equation         *
+ * 2 dielectric regions, ionic strength, periodic         *
+ * and focussing boundary conditions.                     *
+ * Does nonlinear salt analysis                           *
+ * uses mike holsts inexact newton method                 *
+ * implemented by jonathan hecht, new input style         *
+ * and multigridding by kas 6 sept, 1993                  *
+ * dielectric smoothing added july 95, kas                *
+ * 2nd, site potl. charge file added. Reads atom          *
+ * names of form 2H2                                      *
+ * charge anti-aliasing added may 96                      *
+ * Mixed salt NLPB added Oct 99 by Vinod Misra/KAS        *
+ * Mixed salt NLPB doesnt work with channel ionic diffrnce*
+ * reduce memory requirements- 7-feb-01                   *
+ * cleaned up mkmaps 14-feb-01                            *
+ * read radii, charges from *.atm file 10-apr-01          *
+ * compute atomic forces               10-apr-01          *
+ * output reaction field, potl.        27-apr-01          *
+ * improved surface mapping            18-may-01          *
+ * include reentrant surface remapping 28-may-01          *
+ ------------------QNIFFT22--------------------------
+   
+ max grid dimension:  129
+   
+  last modified:  Wed Jul 23 10:44:52 EDT 2003 
+  run on  7-Aug-03
+   
+ trying to read default file delphi.def in directory
+ /disks/node2/sharp/source/delphi
+  
+ Default parameter file 
+ ----------------------- 
+  
+  
+ lines read                          :  121
+ valid keywords found                :  46
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  0
+  
+ trying to read user parameter file 
+ parm2                                                                           
+  
+ User parameter file 
+ ----------------------- 
+  
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ NOTE: overriding previous value for SOLV*ENT_DIELECTRIC  
+ NOTE: overriding previous value for PDB_OUT*PUT_FILE     
+ NOTE: overriding previous value for CHAR*GE_FILE         
+ NOTE: overriding previous value for RADI*US_FILE         
+ NOTE: overriding previous value for CONV*ERGENCE         
+ NOTE: overriding previous value for RELA*XATION PARAMETER
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SIZI*NG              
+ NOTE: overriding previous value for NONL*INEAR_EQUATION  
+ NOTE: overriding previous value for ANAL*YSE_MAP         
+ NOTE: overriding previous value for FAST*_DIELECTRIC_MAP 
+ NOTE: overriding previous value for GRID*SIZE            
+ NOTE: overriding previous value for BOUN*DARY_CONDITION  
+ NOTE: overriding previous value for SALT*_CONCENTRATION  
+ NOTE: overriding previous value for ANI_MON*OVALENT      
+ NOTE: overriding previous value for CAT_MON*OVALENT      
+ NOTE: overriding previous value for PDB_IN*PUT_FILE      
+ NOTE: overriding previous value for PHI_OUT*PUT_FILE     
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SCAL*E               
+  
+ lines read                          :  22
+ valid keywords found                :  25
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  21
+  
+ values transferred to variables
+ NOTE: Using explicit anion, cation concentrations
+ and ignoring salt concentration variable       
+ Summary of parameter assignments
+ --------------------------------
+  
+ Name                  | Def |  Value
+ ----------------------------------------------------------
+                              real parameters
+ FILL*                 |     | ignored              
+ XCEN*TER              | no  |   15.6940002         
+ YCEN*TER              | no  |   21.0240002         
+ ZCEN*TER              | no  |   9.09799957         
+ SCAL*E                | no  |   0.300000012        
+ BORD*ER_SOLVENT       |     | ignored              
+ SOLV*ENT_DIELECTRIC   | no  |   80.                
+ SOLU*TE_DIELECTRIC    | no  |   4.                 
+ PROB*E_RADIUS         | yes |   1.39999998         
+ IONI*C_RADIUS         |     | ignored              
+ SALT*_CONCENTRATION   |     | ignored              
+ CONV*ERGENCE          | no  |   0.00100000005      
+ RELA*XATION PARAMETER | no  |   1.5                
+ TEMP*ERATURE          | yes |   298.               
+ LENG*TH_SMOOTH        |     | ignored              
+ ISALT*_CONCENTRATION  |     | ignored              
+ OSALT*_CONCENTRATION  |     | ignored              
+ IMEMB*RANE_POSITION   |     | ignored              
+ OMEMB*RANE_POSITION   |     | ignored              
+ CAT_DIV*ALENT         | yes |   0.                 
+ CAT_MON*OVALENT       | no  |   0.                 
+ ANI_DIV*ALENT         | yes |   0.                 
+ ANI_MON*OVALENT       | no  |   0.                 
+ FIELD*_BOUNDARY       |     | ignored              
+                           integer parameters
+ GRID*SIZE             | no  |  129                 
+ NEWT*ON_ITERATIONS    | yes |  20                  
+ LEVEL0*_MULTI_GRID_IT | yes |  2                   
+ LEVEL1*_MULTI_GRID_IT | yes |  4                   
+ LEVEL2*_MULTI_GRID_IT | yes |  8                   
+ LEVEL3*_MULTI_GRID_IT | yes |  16                  
+ CHEC*K_FREQUENCY      | yes |  2                   
+ SMOO*TH_DIELECTRIC    | yes |  0                   
+                           logical parameters
+ XPER*IODIC            | yes |  F                   
+ YPER*IODIC            | yes |  F                   
+ ZPER*IODIC            | yes |  F                   
+ NONL*INEAR_EQUATION   |     | ignored              
+ CONC*ENTRATION OUTPUT |     | ignored              
+ INSI*GHT_FORMAT       | yes |  F                   
+ SITE_POT*ENTIALS      | yes |  F                   
+ ATOM*_FILE_OUTPUT     | yes |  T                   
+ SPHE*RICAL_CHARGE_DIS | yes |  F                   
+ ANAL*YSE_MAP          | no  |  F                   
+ INPU*T_ATM*_FILE      | yes |  F                   
+ FAST*_DIELECTRIC_MAP  | no  |  T                   
+ FORC*E_CALCULATION    | yes |  F                   
+                             ascii parameters
+ SIZI*NG               | no  | scale                
+ BOUN*DARY_CONDITION   | no  | zero                 
+ TITL*E                | yes | untitled             
+ RADI*US_FILE          | no  | default.siz          
+ CHAR*GE_FILE          | no  | dapdna.crg           
+ PDB_IN*PUT_FILE       | no  | dapdna12.pdb         
+ PDB_OUT*PUT_FILE      | no  | temp.atm             
+ PHI_IN*PUT_FILE       |     | ignored              
+ PHI_OUT*PUT_FILE      | no  | dapout.phi           
+ DIEL*ECTRIC_MAP_FILE  | no  | dapout.eps           
+ SITE_IN*PUT_FILE      |     | ignored              
+ SITE_OUT*PUT_FILE     |     | ignored              
+ SITE_CH*ARGE_FILE     |     | ignored              
+  
+ # of assigned parameters            :  21
+ # of default parameters             :  21
+ # of missing parameters             :  0
+ # of ignored parameters             :  16
+  
+ cion:   0.  0.  0.  0.
+ zion:   2.  1. -2. -1.
+ Debye length infinite
+ reading radii from file
+ default.siz                                                                     
+ ! default extended atom radii based loosely                 
+ ! on mike connolly's MS program- note H's are 0             
+ # of radius parameter records: 15
+ reading charges from file
+ dapdna.crg                                                                      
+ ! charges only on nucleic acids                             
+ ! charge of -1.0 on each P atom                             
+ # of charge parameter records: 5
+    
+ assigning radii and charges to atoms...
+ using *.siz/*.crg files
+    
+ atomic coordinates, charges and radii written to
+ temp.atm                                                                        
+    
+ reading coordinates from file
+ dapdna12.pdb                                                                    
+    
+ number of atom coordinates read  :  796
+ total number of source charged atoms    :  68
+ net assigned source charge              :  -20.
+ assigned positive charge                :   2.
+ centred at (A)  :  10.2299995  23.1780014  7.46799994
+ assigned negative charge                :  -22.
+ centred at (A)  :  14.6357718  21.2173176  8.57477188
+    
+   
+ scaling by specified scale and midpoint
+ xmin,xmax     (A)   :  2.95800018  28.4300003
+ ymin,ymax     (A)   :  6.84699965  35.2010002
+ zmin,zma      (A)   : -14.2009993  32.3969994
+ x,y,z range   (A)   :   25.4720001  28.3540001  46.5979996
+ object centre (A)   :   15.6940002  21.0240002  9.09799957
+ scale=0.3000000      
+ xcen=15.69400        ycen=21.02400        zcen=9.098000       
+ low,up x borders (A):  200.597321  200.597321
+ low,up y borders (A):  199.156326  199.156326
+ low,up z borders (A):  190.034332  190.034332
+ longest dimension of molecule(s) as % of box length:   10.9214067
+ minimum solvent border (A) :   190.034332
+   
+ total number of source charged atoms    :  68
+ net assigned source charge              :  -20.
+ assigned positive charge                :   2.
+ centred at (gu) :  63.3607979  65.6462021  64.5110016
+ assigned negative charge                :  -22.
+ centred at (gu) :  64.6825333  65.0579987  64.8430328
+    
+ assigning charges to grid...
+ # of atoms charged by trilinear interpolation: 24
+ # of atoms charged by anti-aliasing: 0
+ time to charge grid:  0.
+   
+ setting boundary conditions...
+   
+ Using fast dielectric mapping-no surface charge correction
+    
+ initializing dielectric and debye maps...
+    
+ lim in setout:  1
+ ibox in setout:  27
+ atoms in case 1 (num):  0
+ time to turn everything out is  0.
+ number of grid points on expanded surface=  306
+  finishing off dielectric map...
+  using kas code in fleps...
+ expanded surface maximum, minimum (g.u.)= 58 72
+ lim in fleps:  1
+ in fleps ibnum:  306
+ redo insides at   0.
+ lim in setin:  1
+ ibox in setin:  19
+ atoms in case 1 (num):  0
+ number of grid points on molecular surface=  271
+ time to turn everything in is  0.
+    
+ dumping dielectric and debye maps...
+    
+  generating compact epsilon array...
+ inside, outside dielectric points:  827 6439240
+  generating compact debye array...
+ inside, outside debye points:  158 2146531
+  writing to compact epsilon file
+  
+ dielectric map written to file
+ dapout.eps                                                                      
+  
+ debye factors:   0.  0.  0.  0.
+ dieletric factors:   0.142602488  0.00713012461
+   
+ total setup time was (sec)   1.
+   
+ using inexact Newton method to solve NLPB eqn...
+ dphi relaxation parameter:   1.5
+ dphi multigrid iterations:  2 4 8 16
+  
+ WARNING: # of charged points in salt:  104
+ these were set out of salt; scale should be increased
+ NEWTON ITERATION#,norm:  1  112.614611
+ LEVEL  #it    Norm of dphi residual
+ 0        1   176.852451
+ 0        2   207.049167
+ 0        2    83.860225
+ 1        1    37.430804
+ 1        2    64.947651
+ 1        3    47.707267
+ 1        4    29.838217
+    pre1        5    15.335654
+      pre2        9     1.977979
+       post3       17     0.020768
+     post2        9     0.068017
+   post1        5     1.668077
+ 0        3    70.999167
+ 0        4    22.851774
+ 0        4     7.414993
+ NEWTON ITERATION#,norm:  2  7.41499274
+ LEVEL  #it    Norm of dphi residual
+ 0        1     8.571959
+ 0        2     3.508632
+ 0        2     1.325619
+ 1        1     0.565199
+ 1        2     1.153972
+ 1        3     0.975923
+ 1        4     0.802103
+    pre1        5     0.471269
+      pre2        9     0.177353
+       post3       17     0.002305
+     post2        9     0.006100
+   post1        5     0.051717
+ 0        3     1.092102
+ 0        4     0.305762
+ 0        4     0.125900
+ NEWTON ITERATION#,norm:  3  0.125900137
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.155763
+ 0        2     0.073310
+ 0        2     0.027726
+ 1        1     0.014042
+ 1        2     0.024869
+ 1        3     0.017533
+ 1        4     0.015401
+    pre1        5     0.009609
+      pre2        9     0.010441
+       post3       17     0.000163
+     post2        9     0.000356
+   post1        5     0.001234
+ 0        3     0.021185
+ 0        4     0.006590
+ 0        4     0.003305
+ NEWTON ITERATION#,norm:  4  0.00330513954
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.004466
+ 0        2     0.002334
+ 0        2     0.000911
+ 1        1     0.000492
+ 1        2     0.000963
+ 1        3     0.000751
+ 1        4     0.000658
+    pre1        5     0.000403
+      pre2        9     0.000424
+       post3       17     0.000007
+     post2        9     0.000014
+   post1        5     0.000054
+ 0        3     0.000649
+ 0        4     0.000180
+ 0        4     0.000104
+ final normal:   0.000104099291
+ total time for newton iterations (sec):   9.
+  
+ 0.5*sum(phi.q) (kT) =    350.476715
+ Interaction of source charges with themselves (kT)  350.476715
+ (Includes Grid+Coulombic+Solvation energy)
+ Equals Total energy for Linear PB only
+ For net fixed charge of :  -19.999403
+ potential map written to file
+ dapout.phi                                                                      
+   
+   
+ total cpu time was (sec)   12.
+   
+ QNIFFT QNIFF QNIF. QNI.. QN... Q....
+    
+ ------------------QNIFFT22--------------------------
+ * Version 2.2                                            *
+ * a program to solve the non-linear P-B equation         *
+ * 2 dielectric regions, ionic strength, periodic         *
+ * and focussing boundary conditions.                     *
+ * Does nonlinear salt analysis                           *
+ * uses mike holsts inexact newton method                 *
+ * implemented by jonathan hecht, new input style         *
+ * and multigridding by kas 6 sept, 1993                  *
+ * dielectric smoothing added july 95, kas                *
+ * 2nd, site potl. charge file added. Reads atom          *
+ * names of form 2H2                                      *
+ * charge anti-aliasing added may 96                      *
+ * Mixed salt NLPB added Oct 99 by Vinod Misra/KAS        *
+ * Mixed salt NLPB doesnt work with channel ionic diffrnce*
+ * reduce memory requirements- 7-feb-01                   *
+ * cleaned up mkmaps 14-feb-01                            *
+ * read radii, charges from *.atm file 10-apr-01          *
+ * compute atomic forces               10-apr-01          *
+ * output reaction field, potl.        27-apr-01          *
+ * improved surface mapping            18-may-01          *
+ * include reentrant surface remapping 28-may-01          *
+ ------------------QNIFFT22--------------------------
+   
+ max grid dimension:  129
+   
+  last modified:  Wed Jul 23 10:44:52 EDT 2003 
+  run on  7-Aug-03
+   
+ trying to read default file delphi.def in directory
+ /disks/node2/sharp/source/delphi
+  
+ Default parameter file 
+ ----------------------- 
+  
+  
+ lines read                          :  121
+ valid keywords found                :  46
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  0
+  
+ trying to read user parameter file 
+ parm2                                                                           
+  
+ User parameter file 
+ ----------------------- 
+  
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ NOTE: overriding previous value for SOLV*ENT_DIELECTRIC  
+ NOTE: overriding previous value for PDB_OUT*PUT_FILE     
+ NOTE: overriding previous value for CHAR*GE_FILE         
+ NOTE: overriding previous value for RADI*US_FILE         
+ NOTE: overriding previous value for CONV*ERGENCE         
+ NOTE: overriding previous value for RELA*XATION PARAMETER
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SIZI*NG              
+ NOTE: overriding previous value for NONL*INEAR_EQUATION  
+ NOTE: overriding previous value for ANAL*YSE_MAP         
+ NOTE: overriding previous value for FAST*_DIELECTRIC_MAP 
+ NOTE: overriding previous value for GRID*SIZE            
+ NOTE: overriding previous value for BOUN*DARY_CONDITION  
+ NOTE: overriding previous value for SALT*_CONCENTRATION  
+ NOTE: overriding previous value for ANI_MON*OVALENT      
+ NOTE: overriding previous value for CAT_MON*OVALENT      
+ NOTE: overriding previous value for PDB_IN*PUT_FILE      
+ NOTE: overriding previous value for PHI_OUT*PUT_FILE     
+ NOTE: overriding previous value for DIEL*ECTRIC_MAP_FILE 
+ NOTE: overriding previous value for SCAL*E               
+  
+ lines read                          :  22
+ valid keywords found                :  25
+ parsing errors                      :  0
+ invalid parameter keywords          :  0
+ invalid parameter values            :  0
+ parameter values overidden          :  21
+  
+ values transferred to variables
+ NOTE: Using explicit anion, cation concentrations
+ and ignoring salt concentration variable       
+ Summary of parameter assignments
+ --------------------------------
+  
+ Name                  | Def |  Value
+ ----------------------------------------------------------
+                              real parameters
+ FILL*                 |     | ignored              
+ XCEN*TER              | no  |   15.6940002         
+ YCEN*TER              | no  |   21.0240002         
+ ZCEN*TER              | no  |   9.09799957         
+ SCAL*E                | no  |   0.300000012        
+ BORD*ER_SOLVENT       |     | ignored              
+ SOLV*ENT_DIELECTRIC   | no  |   80.                
+ SOLU*TE_DIELECTRIC    | no  |   4.                 
+ PROB*E_RADIUS         | yes |   1.39999998         
+ IONI*C_RADIUS         | yes |   2.                 
+ SALT*_CONCENTRATION   |     | ignored              
+ CONV*ERGENCE          | no  |   0.00100000005      
+ RELA*XATION PARAMETER | no  |   1.5                
+ TEMP*ERATURE          | yes |   298.               
+ LENG*TH_SMOOTH        |     | ignored              
+ ISALT*_CONCENTRATION  |     | ignored              
+ OSALT*_CONCENTRATION  |     | ignored              
+ IMEMB*RANE_POSITION   |     | ignored              
+ OMEMB*RANE_POSITION   |     | ignored              
+ CAT_DIV*ALENT         | yes |   0.                 
+ CAT_MON*OVALENT       | no  |   0.100000001        
+ ANI_DIV*ALENT         | yes |   0.                 
+ ANI_MON*OVALENT       | no  |   0.100000001        
+ FIELD*_BOUNDARY       |     | ignored              
+                           integer parameters
+ GRID*SIZE             | no  |  129                 
+ NEWT*ON_ITERATIONS    | yes |  20                  
+ LEVEL0*_MULTI_GRID_IT | yes |  2                   
+ LEVEL1*_MULTI_GRID_IT | yes |  4                   
+ LEVEL2*_MULTI_GRID_IT | yes |  8                   
+ LEVEL3*_MULTI_GRID_IT | yes |  16                  
+ CHEC*K_FREQUENCY      | yes |  2                   
+ SMOO*TH_DIELECTRIC    | yes |  0                   
+                           logical parameters
+ XPER*IODIC            | yes |  F                   
+ YPER*IODIC            | yes |  F                   
+ ZPER*IODIC            | yes |  F                   
+ NONL*INEAR_EQUATION   | no  |  T                   
+ CONC*ENTRATION OUTPUT | yes |  F                   
+ INSI*GHT_FORMAT       | yes |  F                   
+ SITE_POT*ENTIALS      | yes |  F                   
+ ATOM*_FILE_OUTPUT     | yes |  T                   
+ SPHE*RICAL_CHARGE_DIS | yes |  F                   
+ ANAL*YSE_MAP          | no  |  F                   
+ INPU*T_ATM*_FILE      | yes |  F                   
+ FAST*_DIELECTRIC_MAP  | no  |  T                   
+ FORC*E_CALCULATION    | yes |  F                   
+                             ascii parameters
+ SIZI*NG               | no  | scale                
+ BOUN*DARY_CONDITION   | no  | zero                 
+ TITL*E                | yes | untitled             
+ RADI*US_FILE          | no  | default.siz          
+ CHAR*GE_FILE          | no  | dapdna.crg           
+ PDB_IN*PUT_FILE       | no  | dapdna12.pdb         
+ PDB_OUT*PUT_FILE      | no  | temp.atm             
+ PHI_IN*PUT_FILE       |     | ignored              
+ PHI_OUT*PUT_FILE      | no  | dapout.phi           
+ DIEL*ECTRIC_MAP_FILE  | no  | dapout.eps           
+ SITE_IN*PUT_FILE      |     | ignored              
+ SITE_OUT*PUT_FILE     |     | ignored              
+ SITE_CH*ARGE_FILE     |     | ignored              
+  
+ # of assigned parameters            :  22
+ # of default parameters             :  23
+ # of missing parameters             :  0
+ # of ignored parameters             :  13
+  
+ cion:   0.  0.100000001  0.  0.100000001
+ zion:   2.  1. -2. -1.
+ Debye length (A):   9.6354599
+ reading radii from file
+ default.siz                                                                     
+ ! default extended atom radii based loosely                 
+ ! on mike connolly's MS program- note H's are 0             
+ # of radius parameter records: 15
+ reading charges from file
+ dapdna.crg                                                                      
+ ! charges only on nucleic acids                             
+ ! charge of -1.0 on each P atom                             
+ # of charge parameter records: 5
+    
+ assigning radii and charges to atoms...
+ using *.siz/*.crg files
+    
+ atomic coordinates, charges and radii written to
+ temp.atm                                                                        
+    
+ reading coordinates from file
+ dapdna12.pdb                                                                    
+    
+ number of atom coordinates read  :  796
+ total number of source charged atoms    :  68
+ net assigned source charge              :  -20.
+ assigned positive charge                :   2.
+ centred at (A)  :  10.2299995  23.1780014  7.46799994
+ assigned negative charge                :  -22.
+ centred at (A)  :  14.6357718  21.2173176  8.57477188
+    
+   
+ scaling by specified scale and midpoint
+ xmin,xmax     (A)   :  2.95800018  28.4300003
+ ymin,ymax     (A)   :  6.84699965  35.2010002
+ zmin,zma      (A)   : -14.2009993  32.3969994
+ x,y,z range   (A)   :   25.4720001  28.3540001  46.5979996
+ object centre (A)   :   15.6940002  21.0240002  9.09799957
+ scale=0.3000000      
+ xcen=15.69400        ycen=21.02400        zcen=9.098000       
+ low,up x borders (A):  200.597321  200.597321
+ low,up y borders (A):  199.156326  199.156326
+ low,up z borders (A):  190.034332  190.034332
+ longest dimension of molecule(s) as % of box length:   10.9214067
+ minimum solvent border (A) :   190.034332
+   
+ total number of source charged atoms    :  68
+ net assigned source charge              :  -20.
+ assigned positive charge                :   2.
+ centred at (gu) :  63.3607979  65.6462021  64.5110016
+ assigned negative charge                :  -22.
+ centred at (gu) :  64.6825333  65.0579987  64.8430328
+    
+ assigning charges to grid...
+ # of atoms charged by trilinear interpolation: 24
+ # of atoms charged by anti-aliasing: 0
+ time to charge grid:  0.
+   
+ setting boundary conditions...
+   
+ Using fast dielectric mapping-no surface charge correction
+    
+ initializing dielectric and debye maps...
+    
+ lim in setout:  2
+ ibox in setout:  45
+ atoms in case 1 (num):  0
+ time to turn everything out is  0.
+ number of grid points on expanded surface=  306
+  finishing off dielectric map...
+  using kas code in fleps...
+ expanded surface maximum, minimum (g.u.)= 58 72
+ lim in fleps:  1
+ in fleps ibnum:  306
+ redo insides at   0.
+ lim in setin:  1
+ ibox in setin:  19
+ atoms in case 1 (num):  0
+ number of grid points on molecular surface=  271
+ time to turn everything in is  0.
+    
+ dumping dielectric and debye maps...
+    
+  generating compact epsilon array...
+ inside, outside dielectric points:  827 6439240
+  generating compact debye array...
+ inside, outside debye points:  407 2146282
+  writing to compact epsilon file
+  
+ dielectric map written to file
+ dapout.eps                                                                      
+  
+ debye factors:   0.  0.0853279978  0.0853279978  0.0853279978
+ dieletric factors:   0.142602488  0.00713012461
+   
+ total setup time was (sec)   1.
+   
+ using inexact Newton method to solve NLPB eqn...
+ dphi relaxation parameter:   1.5
+ dphi multigrid iterations:  2 4 8 16
+  
+ WARNING: # of charged points in salt:  9
+ these were set out of salt; scale should be increased
+ NEWTON ITERATION#,norm:  1  112.614611
+ LEVEL  #it    Norm of dphi residual
+ 0        1   176.852451
+ 0        2   204.437776
+ 0        2    79.546899
+ 1        1    32.528019
+ 1        2    40.655318
+ 1        3    14.593726
+ 1        4     3.542913
+    pre1        5     1.219468
+      pre2        9     0.000117
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.025837
+ 0        3   102.331685
+ 0        4    29.769214
+ 0        4     8.541834
+ trial lambda, normal:   0.5  30.7301364
+ NEWTON ITERATION#,norm:  2  30.7301364
+ LEVEL  #it    Norm of dphi residual
+ 0        1    44.882493
+ 0        2    45.858380
+ 0        2    16.200208
+ 1        1     6.485939
+ 1        2     7.136421
+ 1        3     2.256376
+ 1        4     0.595681
+    pre1        5     0.226181
+      pre2        9     0.000019
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.004313
+ 0        3    18.727690
+ 0        4     6.335778
+ 0        4     1.843548
+ NEWTON ITERATION#,norm:  3  2.8874901
+ LEVEL  #it    Norm of dphi residual
+ 0        1     4.080641
+ 0        2     1.959553
+ 0        2     0.651447
+ 1        1     0.154676
+ 1        2     0.112223
+ 1        3     0.022291
+ 1        4     0.013348
+    pre1        5     0.004127
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000079
+ 0        3     0.573502
+ 0        4     0.197283
+ 0        4     0.072860
+ NEWTON ITERATION#,norm:  4  0.083901005
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.075633
+ 0        2     0.032321
+ 0        2     0.013613
+ 1        1     0.009584
+ 1        2     0.017263
+ 1        3     0.006171
+ 1        4     0.001038
+    pre1        5     0.000324
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000008
+ 0        3     0.020447
+ 0        4     0.005429
+ 0        4     0.001738
+ NEWTON ITERATION#,norm:  5  0.00174973238
+ LEVEL  #it    Norm of dphi residual
+ 0        1     0.001609
+ 0        2     0.000611
+ 0        2     0.000206
+ 1        1     0.000182
+ 1        2     0.000388
+ 1        3     0.000180
+ 1        4     0.000038
+    pre1        5     0.000007
+      pre2        9     0.000000
+       post3       17     0.000000
+     post2        9     0.000000
+   post1        5     0.000000
+ 0        3     0.000395
+ 0        4     0.000149
+ 0        4     0.000072
+ final normal:   7.20690087E-05
+ total time for newton iterations (sec):   14.
+  
+ 0.5*sum(phi.q) (kT) =    291.506226
+ Interaction of source charges with themselves (kT)  291.506226
+ (Includes Grid+Coulombic+Solvation energy)
+ Equals Total energy for Linear PB only
+ For net fixed charge of :  -19.999403
+ potential map written to file
+ dapout.phi                                                                      
+   
+   
+ total cpu time was (sec)   16.
+   
+ QNIFFT QNIFF QNIF. QNI.. QN... Q....

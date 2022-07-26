@@ -1,0 +1,36 @@
+!assuming FE radius=0.65
+!amino acid radius file by ds     2/3/93
+!pauling radii
+!use with parse3.crg
+!to match Wolfendon's transfer energies of side chains   
+atom__res_radius_
+N           1.55
+C           1.8
+O           1.48 
+S           1.9 
+FE          0.65    
+H           1.468
+HN          0.8
+HE    ARG   0.8
+HH1   ARG   0.8
+HH2   ARG   0.8
+HH11  ARG   0.8
+HH12  ARG   0.8
+HH21  ARG   0.8
+HH22  ARG   0.8
+HD1   ASN   0.8
+HD2   ASN   0.8
+HD21  ASN   0.8
+HD22  ASN   0.8
+HE1   GLN   0.8
+HE2   GLN   0.8
+HE21  GLN   0.8
+HE22  GLN   0.8
+HD1   HIS   0.8
+HZ1   LYS   0.8  
+HZ2   LYS   0.8  
+HZ3   LYS   0.8  
+HG1   SER   0.8
+HG1   THR   0.8
+HE1   TRP   0.8
+HH    TYR   0.8

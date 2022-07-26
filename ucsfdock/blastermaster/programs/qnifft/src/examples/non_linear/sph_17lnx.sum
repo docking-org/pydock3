@@ -1,0 +1,42 @@
+grid=145     
+! focussing MUST be done with grid=65!!
+ Dielectric rxn field energy from surface Q (kT):  -2305.53369
+ Dielectric rxn field energy from surface Q (kT):  -2307.70190
+ Dielectric rxn field energy from surface Q (kT):  -2305.94897
+ Dielectric rxn field energy from surface Q (kT):  -2307.82397
+ Dielectric rxn field energy from surface Q (kT):  -2307.55322
+ Dielectric rxn field energy from surface Q (kT):  -2308.30054
+ Interaction of source charges with themselves (kT) 104561.445
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 371804.594
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 104552.070
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 371795.188
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 104548.102
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 371791.188
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ ionat4 for rhophi, dPI terms
+ dPI                        i:   2.31920695
+ E.D/2 - rho.phi - dPI      i:   10.835351
+ dPI                        i:   2.69903827
+ E.D/2 - rho.phi - dPI      i:   12.1136427
+ combines ionat3 method for E.D integration, and
+ includes, dS, E.D, osmotic pressure integrations
+ using eps map for E.D integration mask like ionat3
+ E.D by epsmap              i:   10.8050404
+ E.D/2 - rho.phi - dPI      i:   10.835351
+ E.D by epsmap              i:   12.5197353
+ E.D/2 - rho.phi - dPI      i:   12.1136427
+ rho.phi                    i:  -7.752038
+ E.D/2 - rho.phi - dPI      i:   10.835351
+ rho.phi                    i:  -8.55281353
+ E.D/2 - rho.phi - dPI      i:   12.1136427
+ total cpu time was (sec)  63.6621094
+ total cpu time was (sec)  70.7460938
+ total cpu time was (sec)  63.7988281
+ total cpu time was (sec)  70.9863281
+ total cpu time was (sec)  82.3027344
+ total cpu time was (sec)  90.1621094

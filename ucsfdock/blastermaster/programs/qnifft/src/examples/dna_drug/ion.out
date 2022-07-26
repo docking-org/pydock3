@@ -1,0 +1,89 @@
+ kim sharp, 2 feb 2001
+ integrates various ion atmosphere quantities
+ from potential output of delphi
+ combines ionat3 method for E.D integration, and
+ ionat4 for rhophi, dPI terms
+ includes, dS, E.D, osmotic pressure integrations
+ and donnan coefficients
+ also handles a series of focussing maps
+ start with innermost map and work outwards
+ if molecule is cylindrical, must align it on z axis
+ using eps map for E.D integration mask like ionat3
+ handles mixed salt
+ grid size:  65
+ C++,C+,C--,C- (M)?
+ debye length:   9.63545513
+ # linear PB ? 1=yes>>
+ name of epsilon file without .eps?
+ reading compact epsilon file...
+ kmap, scale, oldmid:  1  1.  15.6940002  21.0240002  9.09799957
+ reading debye map too...
+  setting up pointers...
+  generating real fine epsilon array...
+ inside, outside dielectric points:  21264 802611
+  generating debye array...
+ inside, outside debye points:  15068 259557
+  scale, molc. centre coordinates
+  1.  15.6940002  21.0240002  9.09799957
+  enter name of potential map file (w/o .phi)
+  reading potential file...
+ now starting phimap 
+  name of phi map is:
+untitled                                                    
+  end of phimap  
+  scale, molc. centre coordinates from *.phi file
+  1.  15.6940002  21.0240002  9.09799957
+  integrating normal field flux...
+  integrating normal cylindrical field flux...
+  
+ full, cyl int(E) residual charge:   2.25965548  1.14702523
+ integrating over zrange:  -21.9020004  40.0979996
+ layers :  2 64
+  
+ Q net                      i:   12.1834135
+ Q+ excess,ratio            i:   8.94458961  0.734161139
+ Q- excess,ratio            i:   3.23882413  0.265838772
+ TdS  (kT)                  i:  -14.3249016
+ rho.phi                    i:  -14.3249016
+ E.D by epsmap              i:   60.2056122
+ dPI                        i:   5.70576572
+ E.D/2 - rho.phi - dPI      i:   38.7219429
+  
+ continue with next outermost map? 1:yes
+ clip z integration to original box? 1: yes
+ name of epsilon file without .eps?
+ reading compact epsilon file...
+ kmap, scale, oldmid:  1  0.300000012  15.6940002  21.0240002  9.09799957
+ reading debye map too...
+  setting up pointers...
+  generating real fine epsilon array...
+ inside, outside dielectric points:  827 823048
+  generating debye array...
+ inside, outside debye points:  416 274209
+  scale, molc. centre coordinates
+  0.300000012  15.6940002  21.0240002  9.09799957
+  enter name of potential map file (w/o .phi)
+  reading potential file...
+ now starting phimap 
+  name of phi map is:
+untitled                                                    
+  end of phimap  
+  scale, molc. centre coordinates from *.phi file
+  0.300000012  15.6940002  21.0240002  9.09799957
+  integrating normal field flux...
+  integrating normal cylindrical field flux...
+  
+ full, cyl int(E) residual charge:   0.000405780505  0.000222036877
+ integrating over zrange:  -94.2353287  112.431328
+ layers :  2 64
+  
+ Q net                      i:   13.5364332
+ Q+ excess,ratio            i:   9.63477612  0.711766183
+ Q- excess,ratio            i:   3.90165663  0.288233697
+ TdS  (kT)                  i:  -14.3796425
+ rho.phi                    i:  -14.3796425
+ E.D by epsmap              i:   60.3349762
+ dPI                        i:   5.73311234
+ E.D/2 - rho.phi - dPI      i:   38.8140182
+  
+ continue with next outermost map? 1:yes

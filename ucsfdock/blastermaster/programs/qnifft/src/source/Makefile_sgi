@@ -1,0 +1,13 @@
+# iris
+FCOMP = f77
+# debug
+#FFLAGS = -g -C -col120
+# optimize
+FFLAGS = -O2  -s -col120
+#
+BIN = $(DELDIR)/bin
+#-----------------
+# rules- general
+.f.o:
+	$(FCOMP) -c $(FFLAGS) $*.f
+#-----------------

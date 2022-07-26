@@ -1,0 +1,16 @@
+ ionat4 for rhophi, dPI terms
+ dPI                        i:   3.50847852E+15
+ E.D/2 - rho.phi - dPI      i:   1.36837426E+17
+ dPI                        i:   6.487168E+15
+ E.D/2 - rho.phi - dPI      i:   2.53007813E+17
+ combines ionat3 method for E.D integration, and
+ includes, dS, E.D, osmotic pressure integrations
+ using eps map for E.D integration mask like ionat3
+ E.D by epsmap              i:   10109778.
+ E.D/2 - rho.phi - dPI      i:   1.36837426E+17
+ E.D by epsmap              i:   16623788.
+ E.D/2 - rho.phi - dPI      i:   2.53007813E+17
+ rho.phi                    i:  -1.40345908E+17
+ E.D/2 - rho.phi - dPI      i:   1.36837426E+17
+ rho.phi                    i:  -2.59494983E+17
+ E.D/2 - rho.phi - dPI      i:   2.53007813E+17

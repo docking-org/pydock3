@@ -1,0 +1,17 @@
+! file for subsrf
+! add areas only of matches
+! weighting not used at moment
+! polar atoms
+atom__resnumbc_weight_
+n*              1.00
+o*              1.00
+c               1.00
+hn              1.00
+h               1.00
+cg    asp       1.00
+cg    asn       1.00
+cz    arg       1.00
+cd    glu       1.00
+cd    gln       1.00
+his   ce1       1.00
+his   cd2       1.00

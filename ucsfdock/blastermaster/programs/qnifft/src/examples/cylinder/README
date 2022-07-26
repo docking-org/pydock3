@@ -1,0 +1,19 @@
+Test of non-linear PB code-mixed mono-valent/divalent
+-----------------------------
+
+Cylinder of radius 3A, charge +1e/A,
+of dielectric 1, surrounded by dielectric 80
+'Analytical' results by MIXED.f for non-linear case
+Numerical results from logfile/*.fld or analyzed using two step
+focussing, analysing phimaps using IONINT.f or IONINTM.f
+energy terms are per A length of cylinder, but calculated from qnifft for a 9A length
+
+
+3) 05,M ++, 0.5M +, 0.5M --, 0.5M -  non-linear PB
+      Anal. potl. at R= 3.1,4,5,6A	: 2.52, 1.13, 0.576, 0.310 kT/e
+	65^3 grid, linux/lf95		: 2.61, 1.13, 0.589, 0.317
+      193^3 grid, compaq/f77		: 2.45, 1.12, 0.573, 0.307
+
+      Anal. E.D, dPI, rho.phi, dG	: 0.548, 0.425, -0.903, 1.928 kT
+	65^3 grid, linux/lf95		: 0.600, 0.408, -0.847, 1.88 
+      193^3 grid, compaq/f77		: 0.530, 0.424, -0.905, 1.917

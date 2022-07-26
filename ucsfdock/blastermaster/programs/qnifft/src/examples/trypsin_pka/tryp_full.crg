@@ -1,0 +1,23 @@
+! CHARMM charges
+! full charges on side chains and termini only
+! histidines 0.0 nterminus +1, cterminus -1
+! except his 40 is neutral in source pdb file
+! and has partial charges in target pdb file (using chain
+! designator T
+atom__resnumbc_charge_
+hn1   ile  1     0.333
+hn2   ile  1     0.333
+hn3   ile  1     0.333
+nz    lys        1.0
+nh1   arg        0.5
+nh2   arg        0.5
+oe1   glu       -0.5
+oe2   glu       -0.5
+od1   asp       -0.5
+od2   asp       -0.5
+ot1             -0.50
+ot2             -0.50
+nd1   his        0.25
+ne2   his        0.25
+nd1   his 40     0.0
+ne2   his 40     0.0

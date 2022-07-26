@@ -1,0 +1,69 @@
+Alphabetical list of Delphi parameters with valid values. 
+------------------------------------------------------------
+Keywords are case insensitive. The asterisk indicates characters to
+the right which may be omitted: when abbreviating do not include
+an asterisk. Most keyword can be abbreviate3d to the 1st 4 letters.
+Filename strings are case sensitive
+The syntax of a valid keyword assignment phrase is:
+
+keyword=value
+
+with no embedded blanks or commas. Phrases are delimited by 
+one or more spaces, commas or an end of line
+
+Valid values are indicated by
+real =  any real number
++real =  positive real number
+int =  integer
++int =  positive integer
+string =  any ascii string without embedded space of commas
+specific alternatives are separated by /
+
+NAME					VALUE
+------------------------------------------------------------
+anal*yse_map            	t/f
+atom*_file_output			t/f
+bord*er_solvent			real
+boun*dary_condition		coulombic/focussing/zero/dipolar/coulombic/field
+char*ge_file			string
+chec*k_frequency			+int         
+conc*entration_output		t/f         
+conv*ergence			+real
+diel*ectric_map_file		string
+fill*					+real
+grid*size				+int (must be odd, between 9 and 65)
+insi*ght_format			t/f         
+ioni*c_radius			+real
+leng*th_smooth             	+real
+level0*_multi_grid_it		+int
+level1*_multi_grid_it		+int
+level2*_multi_grid_it		+int
+level3*_multi_grid_it		+int
+newt*on_iterations		+int
+nonl*inear_equation		t/f
+pdb_in*put_file			string
+pdb_out*put_file			string
+phi_in*put_file			string
+phi_out*put_file			string
+prob*e_radius			+real
+radi*us_file			string
+rela*xation_parameter		+real (between 0.5 and 2.)
+salt*_concentration		+real
+scal*e				+real
+site_ch*arge_file             string
+site_in*put_file			string
+site_out*put_file			string
+site_pot*entials			t/f
+sizi*ng				scale/fill/border
+smoo*th_dielectric        	0/1/2
+solu*te_dielectric		+real
+solv*ent_dielectric		+real
+sphe*rical_charge_dist		t/f
+temp*erature			+real
+titl*e				string
+xcen*ter				+real
+xper*iodic				t/f
+ycen*ter				+real
+yper*iodic				t/f
+zcen*ter				+real
+zper*iodic				t/f

@@ -1,0 +1,25 @@
+!
+! typical delphi parameter file: contains things that change frequently
+! e.g. file names.  also we can overide any default value by
+! assigning a value in this file
+! parameters can be grouped acording to type, and more than one per line
+!
+grid=65     
+! focussing MUST be done with grid=65!!
+!
+! scaling stuff
+!
+sizing=fill  fill=10.
+probe=0.  ionic=.0
+solute=1 solvent=80 salt=0.1 nonlin=t
+ani_mon=0.1 cat_mon=0.1
+title=test_run_for_sphere
+analyse=t
+fast=t
+!
+! files 
+!
+radius=sph.siz charge=sph.crg pdb_in=sph.pdb
+phi_out=sph1.phi dielectric=sph.eps pdb_out=sph.atm
+! site_ch=sph.crg 
+site_in=sph.pdb site_out=sph.fld

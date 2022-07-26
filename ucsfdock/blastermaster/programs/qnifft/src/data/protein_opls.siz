@@ -1,0 +1,124 @@
+! jorgensens opls parameters 
+! as used by clark still, and us, based on jacs, v110,p1657 (1988)
+! but truncated at cb for use with wolfenden's analogues
+atom__res_radius_
+n         1.82       !regular backbone
+hn        0.0
+ca        2.2
+c         2.1
+o         1.66
+cb    ar0 2.19          !arginine (neutral)
+cg    ar0 2.19
+cd    ar0 2.19
+ne    ar0 1.82
+he    ar0 0.0
+cz    ar0 1.82
+nh    ar0 1.82
+hh    ar0 0.0
+cb    arg 2.19          !arginine
+cg    arg 2.19
+cd    arg 2.19
+ne    arg 1.82
+he    arg 0.0
+cz    arg 1.82
+nh    arg 1.82
+hh    arg 0.0
+cb    as0 2.19        !aspartic acid (neutral)
+cg    as0 2.10
+od1   as0 1.66
+od2   as0 1.66
+hd    as0 0.00
+cb    asp 2.19        !aspartic acid
+cg    asp 2.10
+od1   asp 1.66
+od2   asp 1.66
+cb    asn 2.19        !asparagine
+cg    asn 2.10
+od    asn 1.66
+nd    asn 1.82
+hd    asn 0.00
+cb    cys 2.19            !cysteine
+sg    cys 1.99
+hg    cys 0.0
+cb    gln 2.19       !glutamine
+cg    gln 2.19
+cd    gln 2.10
+oe    gln 1.66
+ne    gln 1.82
+he    gln 0.00
+cb    gl0 2.19       !glutamic acid (neut)
+cg    gl0 2.19
+cd    gl0 2.10
+oe1   gl0 1.66
+oe2   gl0 1.66
+he    gl0 0.0
+cb    glu 2.19       !glutamic acid (-1)
+cg    glu 2.19 
+cd    glu 2.10
+oe1   glu 1.66
+oe2   glu 1.66
+cb    hi0 2.19             !histidine (neut, h delta)
+cg    hi0 2.10
+nd    hi0 1.82
+hd    hi0 0.0
+he    hi0 0.0
+cd    hi0 2.10
+ce    hi0 2.10
+ne    hi0 1.82
+cb    ly0 2.19        !lysine (neut)
+cg    ly0 2.19
+cd    ly0 2.19
+ce    ly0 2.19
+nz    ly0 1.82
+hz    ly0 0.0
+cb    lys 2.19        !lysine (+1)
+cg    lys 2.19
+cd    lys 2.19
+ce    lys 2.19
+nz    lys 1.82
+hz    lys 0.0
+cb    met 2.19            !methionine
+cg    met 2.13
+sd    met 1.99
+ce    met 2.13
+cb    phe 2.19        !phenyl alanine
+cg    phe 2.1        
+cd    phe 2.1        
+ce    phe 2.1        
+cz    phe 2.1        
+hd    phe 0.0
+he    phe 0.0
+hz    phe 0.0
+n     pro 1.82       !proline 
+ca    pro 2.13
+c     pro 2.1
+o     pro 1.66
+cb    pro 2.19
+cg    pro 2.19
+cd    pro 2.19
+cb    ser 2.12       !serine
+og    ser 1.72
+hg    ser 0.0
+cb    thr 2.19       !threonine
+cg    thr 2.12
+og    thr 1.72
+hg    thr 0.0
+cb    trp 2.19             !tryptophan
+cg    trp 2.10
+chd   trp 2.10
+cd    trp 2.10
+ne    trp 1.82
+he    trp 0.0
+ce    trp 2.10
+che   trp 2.10
+cz    trp 2.10
+ch    trp 2.10
+cb    tyr 2.1      !tyrosine
+cg    tyr 2.1
+cd    tyr 2.1      
+ce    tyr 2.1      
+cz    tyr 2.1      
+hd    tyr 0.0
+he    tyr 0.0
+oh    tyr 1.72
+hh    tyr 0.0

@@ -1,0 +1,25 @@
+xtal-lig.pdb
+nu
+-100000
+Y
+all 
+rec.pdb
+all
+Y
+9.0 
+rec.site
+0
+EOI
+# 'ligand file name'.
+# nanu (nu)
+# number of residue numbers to look ahead in filtering
+# MS run? (N)
+# atom name/number: all
+# 'receptor file name'. (spheres file)
+# internal filtering? (no if nanu=na)
+# na
+# -100000
+# N
+# C C
+# ../systems/systems/2ptn/spheres/junk.pdb
+# C NOT C

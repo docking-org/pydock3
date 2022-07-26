@@ -1,0 +1,35 @@
+Example of use of non-linear delphi, applied to drug DAPI (+2)
+binding to 12 bp DNA. run by:
+
+dapi.com
+
+This runs the delphi program, qnifft11, then the non-linear 
+analysis program ionint (in utility directory). finally
+pertinent values from the log files/including ionint output
+are searched out using grep (in grepit.com) and dumped
+into dapi.sum. results from this file are used in following analysis
+to obtain electrostatic binding energy in absence, presence
+of salt, and various contributions (All in kT at 25oC = 0.59 kcal/mole)
+
+
+Raw data:
+
+row	quantity		dapi		dna		complex	Difference
+----------------------------------------------------------------------
+1	Net charge		2		-22		-20		0	
+2	q.p/2 Salt=0	170.1		2129.3	2295.7	-3.6	
+3	q.p/2 Salt=0.1M	169.3		2063.4	2243.9	11.2	
+4	rho.phi		-0.5		-28.7		-22.5		6.7
+5	dPI			0.24		10.3		8.6		-1.94
+----------------------------------------------------------------------
+
+Work up using differences:
+row	quantity			value		method
+----------------------------------------------------------------------
+6	ddG(Salt=0)			-3.6		row (2)
+7	ddG(Salt=0.1M)		9.8		rows (3) - (4)/2. - (5)
+8	d(ddG)/dln(Salt)		1.94		row (5)
+9	TddS(cratic)		4.7		rows (4)+(5)
+10	ddG(ions/molecules)	29.6		rows 2x(3)-2x(2)
+11	ddG(ions-ions)		-11.5		rows ((4)-(10))/2
+12	ddG(Salt-check)		9.8		rows (6)+(10)+(11)-(9)

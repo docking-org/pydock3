@@ -1,0 +1,6 @@
+#
+# compaq debug, opt
+#FFLAGS = -g -old_f77 -check_bounds -extend_source -check overflow -check underflow 
+FFLAGS = -old_f77 -extend_source  -O -fast 
+FCOMP = f77
+#

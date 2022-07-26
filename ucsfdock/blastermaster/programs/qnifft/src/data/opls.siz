@@ -1,0 +1,72 @@
+! extended atom radii for small molecules from 
+! jorgensens opls parameters as used by clark still, and us
+! note H's are 0
+atom__res_radius_
+ch3   mth 2.117       !methanol
+h     mth 0.0
+oh    mth 1.722
+ch3   eth 2.188       !ethanol
+ch2   eth 2.188
+oh    eth 1.722
+h     eth 0.0
+ch3   act 2.19        !acetone
+c     act 2.10
+o     act 1.66
+ch3   isp 2.19        !isopropanol
+ch    isp 2.16
+oh    isp 1.722
+h     isp 0.0
+ch3   mac 2.19            !methyl acetate
+c     mac 2.10  
+o     mac 1.66
+oes   mac 1.68
+me    mac 2.13
+ch3   aca 2.19        !acetic acid
+c     aca 2.10
+o     aca 1.66
+oh    aca 1.68
+h     aca 0.00
+ch3   aci 2.19        !acetate ion
+c     aci 2.10
+o     aci 1.66
+ch3   dma 2.19        !dimethyl acetamide
+c     dma 2.10
+o     dma 1.66
+nh    dma 1.82
+me    dma 2.13
+ch3   mad 2.19        !acetamide
+c     mad 2.10
+o     mad 1.66
+nh    mad 1.82
+me    mad 2.13
+h     mad 0.00
+ch3   acd 2.19        !acetamide
+c     acd 2.10
+o     acd 1.66
+nh    acd 1.82
+h     acd 0.00
+ch3   acd 2.19        !acetamide
+c     acd 2.10
+o     acd 1.66
+nh    acd 1.82
+h     acd 0.00
+c     adp 2.10        ! alanine dipeptide
+o     adp 1.66
+nh    adp 1.82
+h     adp 0.00
+ch    adp 2.13
+ch3   adp 2.19
+ch3n  adp 2.13        !methyl next to o/n ie ester, amide
+chr   bnz 1.99        !benzene
+h     bnz 1.36
+chr   tol 1.99        !toluene
+h     tol 1.36
+chm   tol 1.99        !substituted carbon
+ch3   tol 2.19
+chr   phl 1.99        !phenol
+h     phl 1.36
+oh    phl 1.72
+ho    phl 0.0
+coh   phl 1.99      !carbon with oh group on
+nh4   amm 1.82        !ammonium ion
+h     amm 0.00

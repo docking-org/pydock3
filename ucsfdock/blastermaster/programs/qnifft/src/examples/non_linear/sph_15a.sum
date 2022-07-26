@@ -1,0 +1,34 @@
+ Dielectric rxn field energy from surface Q (kT):  -2302.48438
+ Dielectric rxn field energy from surface Q (kT):  -2308.06519
+ Dielectric rxn field energy from surface Q (kT):  -2302.93481
+ Dielectric rxn field energy from surface Q (kT):  -2308.22729
+ Dielectric rxn field energy from surface Q (kT):  -2304.38794
+ Dielectric rxn field energy from surface Q (kT):  -2309.01831
+ Interaction of source charges with themselves (kT) 68901.0703
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 247093.563
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 68891.7266
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 247084.156
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 68887.8281
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 247080.141
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ ionat4 for rhophi, dPI terms
+ dPI                        i:   2.32886767
+ E.D/2 - rho.phi - dPI      i:   10.8329382
+ dPI                        i:   2.73181462
+ E.D/2 - rho.phi - dPI      i:   12.2061739
+ combines ionat3 method for E.D integration, and
+ includes, dS, E.D, osmotic pressure integrations
+ using eps map for E.D integration mask like ionat3
+ E.D by epsmap              i:   10.6794033
+ E.D/2 - rho.phi - dPI      i:   10.8329382
+ E.D by epsmap              i:   12.5216064
+ E.D/2 - rho.phi - dPI      i:   12.2061739
+ rho.phi                    i:  -7.82210398
+ E.D/2 - rho.phi - dPI      i:   10.8329382
+ rho.phi                    i:  -8.67718506
+ E.D/2 - rho.phi - dPI      i:   12.2061739

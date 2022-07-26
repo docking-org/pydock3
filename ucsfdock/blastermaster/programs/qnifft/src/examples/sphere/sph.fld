@@ -1,0 +1,15 @@
+ output from QMIFF   
+ grid size,percent fill:          65   10.00000    
+ inner,outer dielectric:   2.000000       79.99999    
+ ionic strength (M):  1.0000000E-03
+ ion excl., probe radius:  0.0000000E+00  0.0000000E+00
+ level 0, newton iterations:           3          20
+ boundary condition:           4
+     
+ title: 
+ test_run_for_sphere                                         
+         coordinates            charge   potential  coulomb  mapping     field (kT/e/Ang.)
+     x         y         z       (e)      (kT/e)   (kT/e)  (kT/e)        Ex       Ey        Ez
+ 0.000E+00 0.000E+00 0.000E+00  5.00     0.427E+04 0.000E+00 -456.     0.000E+00-0.651E-04 0.651E-04
+ before surface charges mapping  sum(phi.q) =    21342.92     kT
+ after  surface charges mapping  sum(phi.q) =   -2280.535     kT

@@ -1,0 +1,82 @@
+ kim sharp, 2 feb 2001
+ integrates various ion atmosphere quantities
+ from potential output of delphi
+ combines ionat3 method for E.D integration, and
+ ionat4 for rhophi, dPI terms
+ includes, dS, E.D, osmotic pressure integrations
+ and donnan coefficients
+ also handles a series of focussing maps
+ start with innermost map and work outwards
+ if molecule is cylindrical, must align it on z axis
+ using eps map for E.D integration mask like ionat3
+ handles mixed salt
+ C++,C+,C--,C- (M)?
+ debye length:   1.92709196
+ # linear PB ? 1=yes>>
+ name of epsilon file without .eps?
+ reading compact epsilon file...
+ reading debye map too...
+  setting up pointers...
+  generating real fine epsilon array...
+  generating debye array...
+  scale, molc. centre coordinates
+  6.4000001  0.  0.  0.
+  enter name of potential map file (w/o .phi)
+  reading potential file...
+ now starting phimap 
+  name of phi map is:
+test_run_for_sphere                                         
+  end of phimap  
+  scale, molc. centre coordinates from *.phi file
+  6.4000001  0.  0.  0.
+  integrating normal field flux...
+  integrating normal cylindrical field flux...
+  
+ full, cyl int(E) residual charge:  -17.1961937 -0.983279109
+ integrating over zrange:  -4.84375  4.84375
+ layers :  2 64
+  
+ Q net                      i:  -7.6298337
+ Q+ excess,ratio            i:  -0.4323892 -0.0566708632
+ Q- excess,ratio            i:  -7.19744444 -0.943329275
+ TdS  (kT)                  i:  -14.5731077
+ rho.phi                    i:  -14.5731077
+ E.D by epsmap              i:   8.31569004
+ dPI                        i:   3.55576873
+ E.D/2 - rho.phi - dPI      i:   15.1751842
+  
+ continue with next outermost map? 1:yes
+ clip z integration to original box? 1: yes
+ name of epsilon file without .eps?
+ reading compact epsilon file...
+ reading debye map too...
+  setting up pointers...
+  generating real fine epsilon array...
+  generating debye array...
+  scale, molc. centre coordinates
+  3.20000005  0.  0.  0.
+  enter name of potential map file (w/o .phi)
+  reading potential file...
+ now starting phimap 
+  name of phi map is:
+test_run_for_sphere                                         
+  end of phimap  
+  scale, molc. centre coordinates from *.phi file
+  3.20000005  0.  0.  0.
+  integrating normal field flux...
+  integrating normal cylindrical field flux...
+  
+ full, cyl int(E) residual charge:  -23.4195614 -0.305315793
+ integrating over zrange:  -4.6875  4.6875
+ layers :  18 48
+  
+ Q net                      i:  -8.39292145
+ Q+ excess,ratio            i:  -0.743806481 -0.0886230841
+ Q- excess,ratio            i:  -7.64911509 -0.911377072
+ TdS  (kT)                  i:  -14.7329454
+ rho.phi                    i:  -14.7329454
+ E.D by epsmap              i:   8.54394054
+ dPI                        i:   3.63351846
+ E.D/2 - rho.phi - dPI      i:   15.371397
+  
+ continue with next outermost map? 1:yes

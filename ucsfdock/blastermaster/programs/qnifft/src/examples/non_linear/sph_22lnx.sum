@@ -1,0 +1,78 @@
+grid=145     
+! focussing MUST be done with grid=65!!
+ Dielectric rxn field energy from surface Q (kT):  -2307.536706332522
+ dielectric rxn field energy from surface Q (kT):  -2307.536718602533
+ ionic rxn field energy from (surface) rho (kT):  0.000000000000000E+00
+ Dielectric rxn field energy from surface Q (kT):  -2308.160887134365
+ dielectric rxn field energy from surface Q (kT):  -2308.160975080335
+ ionic rxn field energy from (surface) rho (kT):  0.000000000000000E+00
+ Dielectric rxn field energy from surface Q (kT):  -2307.945248334478
+ dielectric rxn field energy from surface Q (kT):  -2307.945260613099
+ ionic rxn field energy from (surface) rho (kT):  -0.7716855622187132
+ Dielectric rxn field energy from surface Q (kT):  -2308.272614393585
+ dielectric rxn field energy from surface Q (kT):  -2308.272702343657
+ ionic rxn field energy from (surface) rho (kT):  -0.2288601811021377
+ Dielectric rxn field energy from surface Q (kT):  -2309.555152094430
+ dielectric rxn field energy from surface Q (kT):  -2309.555164402182
+ ionic rxn field energy from (surface) rho (kT):  -3.679631379715492
+ Dielectric rxn field energy from surface Q (kT):  -2308.802519402816
+ dielectric rxn field energy from surface Q (kT):  -2308.802607372465
+ ionic rxn field energy from (surface) rho (kT):  -1.301344748081695
+ Interaction of source charges with themselves (kT) 104561.445
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+  Interaction between reaction potl. and target charges (kT)  0.000000000000000E+00
+ Interaction of source charges with themselves (kT) 371804.594
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+  Interaction between reaction potl. and target charges (kT)  0.000000000000000E+00
+ Interaction of source charges with themselves (kT) 104552.070
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+  Interaction between reaction potl. and target charges (kT)  0.000000000000000E+00
+ Interaction of source charges with themselves (kT) 371795.188
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+  Interaction between reaction potl. and target charges (kT)  0.000000000000000E+00
+ Interaction of source charges with themselves (kT) 104548.102
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+  Interaction between reaction potl. and target charges (kT)  0.000000000000000E+00
+ Interaction of source charges with themselves (kT) 371791.188
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+  Interaction between reaction potl. and target charges (kT)  0.000000000000000E+00
+ ionat4 for rhophi, dPI terms
+ dPI                        i:   2.31920695
+ E.D/2 - rho.phi - dPI      i:   10.835351
+ dPI                        i:   2.69903827
+ E.D/2 - rho.phi - dPI      i:   12.1136427
+ combines ionat3 method for E.D integration, and
+ includes, dS, E.D, osmotic pressure integrations
+ using eps map for E.D integration mask like ionat3
+ E.D by epsmap              i:   10.8050404
+ E.D/2 - rho.phi - dPI      i:   10.835351
+ E.D by epsmap              i:   12.5197353
+ E.D/2 - rho.phi - dPI      i:   12.1136427
+ rho.phi                    i:  -7.752038
+ E.D/2 - rho.phi - dPI      i:   10.835351
+ rho.phi                    i:  -8.55281353
+ E.D/2 - rho.phi - dPI      i:   12.1136427
+ cpu time (s) used so far in mapgen:  0.968750000
+ total mapgen cpu time (s):  1.82031250
+ ionic pressure cpu time (s):  0.500000000
+ total cpu time was (sec)  79.2929688
+ cpu time (s) used so far in mapgen:  1.26562500
+ total mapgen cpu time (s):  1.87109375
+ ionic pressure cpu time (s):  0.492187500
+ total cpu time was (sec)  83.6406250
+ cpu time (s) used so far in mapgen:  0.957031250
+ total mapgen cpu time (s):  1.46093750
+ ionic pressure cpu time (s):  1.17187500
+ total cpu time was (sec)  73.5781250
+ cpu time (s) used so far in mapgen:  1.05078125
+ total mapgen cpu time (s):  1.67187500
+ ionic pressure cpu time (s):  1.05468750
+ total cpu time was (sec)  81.4296875
+ cpu time (s) used so far in mapgen:  0.863281250
+ total mapgen cpu time (s):  1.35546875
+ ionic pressure cpu time (s):  1.79687500
+ total cpu time was (sec)  90.8750000
+ cpu time (s) used so far in mapgen:  1.03515625
+ total mapgen cpu time (s):  1.62890625
+ ionic pressure cpu time (s):  1.59375000
+ total cpu time was (sec)  97.4179688

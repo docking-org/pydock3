@@ -1,0 +1,18 @@
+! file for MESH
+! default extended atom radii based loosely
+! on mike connolly's MS program- note H's are 0
+atom__resnumbc_radius_
+c*             1.90
+a*             1.75
+o*             1.60
+n*             1.65
+h*             0.00
+p*             1.90
+s*             1.90
+mg             1.86
+m5             1.90
+ca             1.86
+cu             1.25
+zn             1.34
+fe             1.30
+l*             0.00

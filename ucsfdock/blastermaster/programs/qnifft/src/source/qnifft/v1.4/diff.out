@@ -1,0 +1,115 @@
+104c104
+<      &  exrad,rionst,rionsti,rionsto,zin,zout,conv,omega,rtemp,igrid,nitmx,nit0,
+---
+>      &  exrad,rionst,conv,omega,rtemp,igrid,nitmx,nit0,
+109,116d108
+< c
+< c debug:
+< c
+< c	print *,'rionst,rionsti,rionsto,zin,zout: '
+< c	print *,rionst,rionsti,rionsto,zin,zout
+< 	if(igrid.gt.ngrid)then
+< 	  print *,'ERROR: grid size greater than max of ',ngrid
+< 	end if
+553c545
+< c
+---
+> 
+555,566d546
+< 	if((rionsti.ne.rionst).or.(rionsto.ne.rionst))then
+< 	  print *,'setting ionic strength in membrane channel and outer solution'
+< 	  print *,'ionic strength in membrane region (zin < z < zout)'
+< 	  print *,'and outer region (z > zout):   ',rionsti,rionsto
+< 	  print *,'boundaries in Z direction (A): ',zin,zout
+< 	  debfcti = epsout*rionsti/(dfact*scale)**2
+< 	  debfcto = epsout*rionsto/(dfact*scale)**2
+< 	  call debmemb(debfct,debfcti,debfcto,zin,zout)
+< 	else
+< 	  debfcti = debfct
+< 	  debfcto = debfct
+< 	end if
+908c888
+< 	call wrteps(epsfil,debfct,debfcti,debfcto)
+---
+> 	call wrteps(epsfil)
+2c2
+<      &  exrad,rionst,rionsti,rionsto,zin,zout,conv,omega,rtemp,igrid,nitmx,nit0,
+---
+>      &  exrad,rionst,conv,omega,rtemp,igrid,nitmx,nit0,
+75,78d74
+< 	data names(16,1)  /'isalt*_concentration '/
+< 	data names(17,1)  /'osalt*_concentration '/
+< 	data names(18,1)  /'imemb*rane_position  '/
+< 	data names(19,1)  /'omemb*rane_position  '/
+306,310d301
+< 	rionsti   = valrl(16)
+< 	rionsto   = valrl(17)
+< 	zin       = valrl(18)
+< 	zout      = valrl(19)
+< c
+319d309
+< c
+330d319
+< c
+454,473d442
+< 	  hasdef(3,16,1)=.true.
+< 	  hasdef(3,17,1)=.true.
+< 	  hasdef(3,18,1)=.true.
+< 	  hasdef(3,19,1)=.true.
+< 	end if
+< c
+< c if no definition for inside and outside ionic strengths
+< c then set to standard inic strength
+< c
+< 	if((hasdef(1,16,1).eq..false.).and.(hasdef(2,16,1).eq..false.))then
+< 	  rionsti = rionst
+< 	  zin = 1.e6
+< 	  hasdef(3,16,1)=.true.
+< 	  hasdef(3,17,1)=.true.
+< 	end if
+< 	if((hasdef(1,17,1).eq..false.).and.(hasdef(2,17,1).eq..false.))then
+< 	  rionsto = rionst
+< 	  zout = 1.e6
+< 	  hasdef(3,18,1)=.true.
+< 	  hasdef(3,19,1)=.true.
+495a465
+> c
+597d566
+< 	integer fndeq
+628,663d627
+< 
+< 	subroutine debmemb(debfct,debfcti,debfcto,zin,zout)
+< 	include "qdiffpar.h"
+< c
+< c set ionic strength in inner region (zin< z < zout)
+< c and outer region (z > zout) to rionsti, rionsto (debfcti,debfcto)
+< c respectively
+< c
+< 	goff = (igrid+1.)/2.
+< 	do iz = 1,igrid
+< 	  zz = (iz - goff)/scale + oldmid(3)
+< c	  print *,'left: ',iz
+< 	  if(zz.gt.zin)then
+< 	    if(zz.gt.zout)then
+< c	      print *,'right: ',iz
+< 	      do iy = 1,igrid
+< 	        do ix = 1,igrid
+< 		    if(debmap(ix,iy,iz).ne.0.)then
+< 			debmap(ix,iy,iz) = debfcto
+< 		    end if
+< 	        end do
+< 	      end do
+< 	    else
+< c	      print *,'middle: ',iz
+< 	      do iy = 1,igrid
+< 	        do ix = 1,igrid
+< 		    if(debmap(ix,iy,iz).ne.0.)then
+< 			debmap(ix,iy,iz) = debfcti
+< 		    end if
+< 	        end do
+< 	      end do
+< 	    end if
+< 	  end if
+< 	end do
+< 	return
+< 	end

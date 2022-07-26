@@ -1,0 +1,6 @@
+grid=193
+charge=amb2.crg.oxt
+radius=vdw.siz
+pdb_input=rec+sph2.crg
+pdb_output_file=qnifft2.atm
+phi_output_file=rec+sph2.qnifft.phi

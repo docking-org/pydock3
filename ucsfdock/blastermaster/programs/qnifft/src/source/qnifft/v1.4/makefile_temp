@@ -1,0 +1,18 @@
+DEST = $(DELDIR)/bin
+FFLAGS_R8 = -s -col120 -64 -O3 -mips4 
+#
+#-----------------------
+# rules- iris:
+.f.o:
+	f77 -c $(FFLAGS_R8) $*.f
+#-----------------------
+#
+OBJ = elb.o qnifft12.o up.o cent.o cfind.o ichash.o irhash.o rent.o rfind.o \
+ phintp.o scaler.o chrgit.o setbc.o expand6.o wrteps.o cputime.o  mkmaps.o \
+ smtheps.o phierg.o inewt.o getpar.o qhelp.o chrgal.o
+#
+qnifft_r8l: $(OBJ)
+	f77 $(FFLAGS_R8) -o qnifft $(OBJ)
+	mv qnifft $(DEST)/qnifft12_r8L
+$(OBJ): qdiffpar.h
+#

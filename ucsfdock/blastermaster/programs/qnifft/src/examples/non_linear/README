@@ -1,0 +1,25 @@
+Test of non-linear PB code
+-----------------------------
+Charge of +5 in centre of 3A sphere
+of dielectric 1, surrounded by dielectric 80
+'Analytical' results by Born or NDEB.f for non-linear case
+Numerical results from logfile or analyzed using two step
+focussing, analysing phimaps using IONINT.f or IONINTM.f
+
+1) No salt- expected reaction field energy (kT) from Born   : -2308.28
+	65^3 grid, linux/lf95						
+	 Dielectric rxn field energy from surface Q (kT)	:  -2308.03809
+
+2) 1M salt, linear PB
+      Anal. potl. at R= 3,4,5,6A	: 5.90, 3.18, 1.83, 1.10 kT/e
+	65^3 grid, linux/lf95		: 5.76, 3.29, 1.90, 1.12
+      193^3 grid, compaq/f77		: 5.95, 3.20, 1.84, 1.10
+
+3) 1M salt, non-linear PB
+      Anal. potl. at R= 3.1,4,5,6A	: 3.92, 2.07, 1.16, 0.687 kT/e
+	65^3 grid, linux/lf95		: 4.05, 2.17, 1.22, 0.713
+      193^3 grid, compaq/f77		: 3.95, 2.08, 1.17, 0.693
+
+      Anal. E.D, dPI, rho.phi, dG	: 12.8, 2.73, -8.7, 12.36 kT
+	65^3 grid, linux/lf95		: 12.0, 2.62, -8.4, 11.77
+      193^3 grid, compaq/f77		: 12.4, 2.64, -8.5, 11.95

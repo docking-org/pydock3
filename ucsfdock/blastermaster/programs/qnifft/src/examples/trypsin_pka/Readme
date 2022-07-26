@@ -1,0 +1,45 @@
+Qnifft11 example- calculating shift in pKa of His 40 in rat trypsin
+
+execute trypsin.com
+
+The results are in *.log and *.fld files
+
+Numbers needed for pKa calculation have been pulled out into trypsin.sum file:
+
+=========================
+Neutral HIs40 in water
+=========================
+tryp0_hisn.log: Interaction of source charges with themselves (kT)   37.41749    
+
+=========================
+Protonated HIs40 in water
+=========================
+tryp0_hisp.log: Interaction of source charges with themselves (kT)   55.29925    
+
+=========================
+Neutral His40 in protein, protein initially uncharged- then charged for
+analysis
+=========================
+tryp_hisn.log: Interaction of source charges with themselves (kT)   39.29287    
+tryp_hisn.log: Interaction between source and target charges (kT)  -8.098629    
+
+=========================
+Protonated HIs40 in protein, protein initially uncharged- then charged for
+analysis
+=========================
+tryp_hisp.log: Interaction of source charges with themselves (kT)   74.60247    
+tryp_hisp.log: Interaction between source and target charges (kT)  -25.44155    
+
+Change in solvation dG of charged His40 due to protein 74.6 - 55.3 = 19.3 kT
+Change in solvation dG of neutral His40 due to protein 39.3 - 37.4 = 1.9  kT
+Net solvation contribution to pKa shift: (1.9 - 19.3)/2.303 = -7.64 pK units
+Change in interaction of His with protein charges upon de-protonation:
+-8.1 - -25.4 = +17.3 kT = +7.5 pK units
+Net pKa shift -7.64 + 7.5 = -0.14 = 0 within error (+/- about 1kT or 1/2.303 pK typical)
+
+The *.fld files list the charge, potential and field on an atom by
+atom basis. the utility program sums q.phi for each residue, so one
+can analyse strength of interaction between source and target charges
+on a residue by residue basis. Looking at the output of this, in the
+*.int file, we see that most of the interaction is between his 40
+and Asp 84 of the catalytic triad.

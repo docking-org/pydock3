@@ -1,0 +1,94 @@
+list of Delphi parameters by type 
+------------------------------------
+NAME						Variable type
+------------------------------------------------------------------------
+!
+!==================================
+! grid 
+!==================================
+!
+gridsize					positive integer
+!
+!==================================
+! scaling options
+!==================================
+!
+sizing					ascii string
+scale						positive real
+Xcenter					real
+Ycenter					real
+Zcenter					real
+border_solvent				positive real
+!
+!==================================
+! boundary condition options
+!==================================
+!
+boundary_condition			ascii string
+xperiodic					logical
+yperiodic					logical
+zperiodic					logical
+!
+!==================================
+! solute parameters
+!==================================
+!
+solute_dielectric				positive real
+spherical_charge_dist			logical
+!
+!==================================
+! solvent parameters
+!==================================
+!
+solvent_dielectric			positive real
+salt_concentration			positive real
+probe_radius				positive real
+ionic_radius				positive real
+!
+!==================================
+! algorithm/system parameters
+!==================================
+!
+temperature					positive real
+nonlinear_equation			logical
+convergence					positive real
+relaxation_parameter			positive real
+check_frequency				positive integer
+newton_iteration				positive integer
+level0_multi_grid_it			positive integer
+level1_multi_grid_it			positive integer
+level2_multi_grid_it			positive integer
+level3_multi_grid_it			positive integer
+length_smooth				+real
+smooth_dielectric         		0/1/2
+!
+!==================================
+! output parameters
+!==================================
+!
+concentration_output			logical
+insight_format				logical
+site_potentials				logical
+atom_file_output				logical
+analyse_map					logical
+title						ascii string
+!
+!=============================
+! input files
+!=============================
+!
+radius_file					ascii string
+site_charge_file				ascii string
+charge_file					ascii string
+pdb_input_file				ascii string
+phi_input_file				ascii string
+site_input_file				ascii string
+!
+!=============================
+! output files
+!=============================
+!
+pdb_output_file				ascii string
+phi_output_file				ascii string
+dielectric_map_file			ascii string
+site_output_file				ascii string

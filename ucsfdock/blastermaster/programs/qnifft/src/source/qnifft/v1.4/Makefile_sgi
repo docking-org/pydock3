@@ -1,0 +1,37 @@
+# debug
+#FFLAGS = -g -C -col120
+FFLAGS = -s -O2 -col120
+#
+#SHELL=/bin/csh
+DEST = $(DELDIR)/bin
+#
+#-----------------------
+# rules- iris:
+.f.o:
+	f77 -c $(FFLAGS) $*.f
+#-----------------------
+#
+OBJ = qnifft14.o elb.o up.o charge.o radius.o getpdb.o \
+ phintp.o scaler.o chrgit.o setbc.o expand6.o wrteps.o cputime.o  mkmaps.o \
+ smtheps.o phierg.o inewt.o getpar.o qhelp.o chrgal.o dtstmp.o
+OBJ1 = qnifft14.o elb.o up.o charge.o radius.o getpdb.o \
+ phintp.o scaler.o chrgit.o setbc.o expand6.o wrteps.o cputime.o  mkmaps.o \
+ smtheps.o phierg2.o inewt2.o getpar.o qhelp.o chrgal.o dtstmp.o
+FOBJ = qnifft14.f elb.f up.f charge.f radius.f getpdb.f \
+ phintp.f scaler.f chrgit.f setbc.f expand6.f wrteps.f cputime.f  mkmaps.f \
+ smtheps.f phierg.f inewt2.f getpar.f qhelp.f chrgal.f dtstmp.f
+#
+# optimized for R3000/R4000
+#
+qnifft: $(OBJ1)
+	echo "      data lstmod / ' `date`'/" > lstmod.h
+	f77 $(FFLAGS) -c dtstmp.f
+	f77 $(FFLAGS) -o qnifft $(OBJ1)
+	mv qnifft $(DEST)/qnifft14
+$(OBJ1): qdiffpar.h
+qnifft_old: $(OBJ)
+	echo "      data lstmod / ' `date`'/" > lstmod.h
+	touch dtstmp.f
+	f77 $(FFLAGS) -o qnifft $(OBJ)
+	mv qnifft $(DEST)/qnifft14
+#$(FOBJ): qdiffpar.h

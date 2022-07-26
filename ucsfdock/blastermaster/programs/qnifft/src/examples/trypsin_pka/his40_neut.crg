@@ -1,0 +1,17 @@
+! CHARMM charges
+! his 40 only is charged in neutral form
+ATOM__RES_NUM_C_CHARGE_                                                         
+CB    HIS 40    0.00       !  HISTIDINE (UNCHARGed WITH PROtON ON ND1)        
+CG    HIS 40    0.10      
+CD2   HIS 40    0.10                                                            
+ND1   HIS 40   -0.40                                                            
+HD1   HIS 40    0.30                                                            
+CE1   HIS 40    0.30                                                            
+NE2   HIS 40   -0.40                                                            
+CB    HSD 40    0.00       !  HISTIDINE ISOMER  ( PROTON AT NE2 )               
+CG    HSD 40    0.10                                                            
+CD2   HSD 40    0.10                                                            
+ND1   HSD 40   -0.40                                                            
+CE1   HSD 40    0.30                                                            
+NE2   HSD 40   -0.40                                                            
+HE1   HSD 40    0.30                                                            

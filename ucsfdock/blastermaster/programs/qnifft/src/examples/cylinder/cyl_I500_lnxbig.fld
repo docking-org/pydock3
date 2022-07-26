@@ -1,0 +1,20 @@
+ output from QNIFFT   
+ grid size,percent fill: 97 260.000000
+ inner,outer dielectric: 1.00000000 79.9999924
+ ionic strength (M): 2.50000000
+ ion excl., probe radius: 0.00000000E+00 0.00000000E+00
+ level 0, newton iterations: 2 20
+ boundary condition: 3
+     
+ title: 
+ test_run_for_sphere                                         
+         coordinates          charge   potential  field (kT/e/Ang.)
+     x         y       z       (e)     (kT/e)    Ex        Ey       Ez    Atom Res C   #
+     0.0000     0.0000     0.0000     0.0000 18171.5352     0.0070     0.0070     0.0000   x    SPH    1
+     3.0000     0.0000     0.0000     0.0000     9.1491   192.3170     0.0001     0.0000   x    SPH    1
+     3.1000     0.0000     0.0000     0.0000     2.3567    40.1264     0.0001     0.0000   x    SPH    1
+     4.0000     0.0000     0.0000     0.0000     0.9168     1.0853     0.0002     0.0000   x    SPH    1
+     5.0000     0.0000     0.0000     0.0000     0.0000     0.4211     0.0000     0.0000   x    SPH    1
+     6.0000     0.0000     0.0000     0.0000     0.0000     0.0000     0.0000     0.0000   x    SPH    1
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ (Includes Grid+Coulombic+Solvation energy)

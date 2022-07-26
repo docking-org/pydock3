@@ -1,0 +1,121 @@
+! CHARMM charges
+! all full and partial charges included, except on
+! his40 which is neutral in source *.pdb file
+! and partially charged in the target file 
+! through chain designator T
+ATOM__RES_NumC_cHArGe_                                                         
+N              -0.35                                                            
+HN              0.25                                                            
+CA              0.10                                                            
+C               0.55                                                            
+O              -0.55                                                            
+N     PRO      -0.20                                                            
+CD    PRO       0.10                                                            
+Hn1   ile   1   0.35         !n term
+Hn2   ile   1   0.35         
+Hn3   ile   1   0.35                                                            
+N     ile   1  -0.30                                                            
+CA    ile   1   0.25                                                            
+C     ASN 223   0.14         !c-term
+OT1   ASN 223  -0.57         
+OT2   ASN 223  -0.57                                                            
+CD    ARG       0.10                                                            
+NE    ARG      -0.40                                                            
+HE    ARG       0.30                                                            
+CZ    ARG       0.50                                                            
+NH1   ARG      -0.45                                                            
+HH1   ARG       0.35                                                            
+NH2   ARG      -0.45                                                            
+HH2   ARG       0.35                                                            
+CG    ASN       0.55                                                            
+OD1   ASN      -0.55                                                            
+ND2   ASN      -0.60                                                            
+HD2   ASN       0.30                                                            
+CB    ASP      -0.16                                                            
+CG    ASP       0.36                                                            
+OD1   ASP      -0.60                                                            
+OD2   ASP      -0.60                                                            
+CB    CYS       0.19                                                            
+SG    CYS      -0.19                                                            
+CD    GLN       0.55                                                            
+OE1   GLN      -0.55                                                            
+NE2   GLN      -0.60                                                            
+HE2   GLN       0.30                                                            
+CG    GLU      -0.16                                                            
+CD    GLU       0.36                                                            
+OE1   GLU      -0.60                                                            
+OE2   GLU      -0.60                                                            
+CE    LYS       0.25                                                            
+NZ    LYS      -0.30                                                            
+HZ1   LYS       0.35                                                            
+HZ2   LYS       0.35                                                            
+HZ3   LYS       0.35                                                            
+CG    MET       0.06                                                            
+SD    MET      -0.12                                                            
+CE    MET       0.06                                                            
+CB    SER       0.25                                                            
+OG    SER      -0.65                                                            
+HG    SER       0.40                                                            
+CB    THR       0.25                                                            
+OG1   THR      -0.65                                                            
+HG1   THR       0.40                                                            
+CG    TRP      -0.03                                                            
+CD2   TRP       0.10                                                            
+CE2   TRP      -0.04                                                            
+CE3   TRP      -0.03                                                            
+CD1   TRP       0.06                                                            
+NE1   TRP      -0.36                                                            
+HE1   TRP       0.30                                                            
+CZ    TYR       0.25                                                            
+OH    TYR      -0.65                                                            
+HH    TYR       0.40                                                            
+CB    HIS       0.00       !  HISTIDINE (UNCHARGed WITH PROtON ON ND1)
+CG    HIS       0.10      
+CD2   HIS       0.10                                                            
+ND1   HIS      -0.40                                                            
+HD1   HIS       0.30                                                            
+CE1   HIS       0.30                                                            
+NE2   HIS      -0.40                                                            
+CB    HIS 40    0.00       !  uncharged target +his40 in input *.pdb
+CG    HIS 40    0.00                                                            
+CD2   HIS 40    0.00                                                            
+ND1   HIS 40    0.00                                                            
+HD1   HIS 40    0.00                                                            
+CE1   HIS 40    0.00                                                            
+NE2   HIS 40    0.00                                                            
+HE1   HIS 40    0.00                                                            
+N     HIS 40    0.00       
+HN    HIS 40    0.00                                                            
+CA    HIS 40    0.00                                                            
+C     HIS 40    0.00                                                            
+O     HIS 40    0.00                                                            
+CB    HIS 40 T  0.10       !  charged +his40 for *.frc file output
+CG    HIS 40 T  0.15                                                            
+CD2   HIS 40 T  0.20                                                            
+ND1   HIS 40 T -0.30                                                            
+HD1   HIS 40 T  0.35                                                            
+CE1   HIS 40 T  0.45                                                            
+NE2   HIS 40 T -0.30                                                            
+HE1   HIS 40 T  0.35                                                            
+CB    HSD 40    0.00       !  uncharged target neut his40 in input *.pdb
+CG    HSD 40    0.00                                                            
+CD2   HSD 40    0.00                                                            
+ND1   HSD 40    0.00                                                            
+HD1   HSD 40    0.00                                                            
+CE1   HSD 40    0.00                                                            
+NE2   HSD 40    0.00                                                            
+HE1   HSD 40    0.00                                                            
+N     HSD 40    0.00       
+HN    HSD 40    0.00                                                            
+CA    HSD 40    0.00                                                            
+C     HSD 40    0.00                                                            
+O     HSD 40    0.00                                                            
+OH2   TIP      -0.834      ! TIPS3P WATER MODEL                                 
+H1    TIP       0.417                                                           
+H2    TIP       0.417                                                           
+OH2   OH2      -0.834      ! TIPS3P WATER MODEL                                 
+H1    OH2       0.417                                                           
+H2    OH2       0.417                                                           
+OH2   WAT      -0.834      ! TIPS3P WATER MODEL                                 
+H1    WAT       0.417                                                           
+H2    WAT       0.417                                                           

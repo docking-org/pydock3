@@ -1,0 +1,33 @@
+#
+# sgi
+#
+#FFLAGS = -g -C -col120
+FFLAGS = -s -O2 -col120
+FCOMP = f77
+#
+# lahey lf95 flags for debugging
+#FFLAGS = --verbose --sav --trace --trap diou --warn --wide --chk
+# lahey lf95 flags for optimal code
+#FFLAGS = --verbose --sav --trace --trap diou --warn --wide -O
+#FCOMP = lf95
+#
+# gnu f77 flags for debugging
+#
+#FFLAGS = -g -O -Wuninitialized -ffixed-line-length-132
+#FFLAGS = -fno-ugly -O2 -Wall -ffixed-line-length-132
+#FCOMP = f77
+#
+# compaq debug, opt
+#FFLAGS = -g -old_f77 -check_bounds -extend_source -check overflow -check underflow 
+#FFLAGS = -old_f77 -extend_source  -O -fast 
+#FCOMP = f77
+#
+LFLAGS = 
+#LIBS =  /home/sharp/lib/numrec.a /home/sharp/lib/utility.a
+DEST = $(DELDIR)/bin
+#
+#-----------------------
+# rules- iris:
+.f.o:
+	$(FCOMP) -c $(FFLAGS) $*.f
+#-----------------------

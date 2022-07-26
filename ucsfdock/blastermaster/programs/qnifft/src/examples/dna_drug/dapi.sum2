@@ -1,0 +1,66 @@
+doing local cshrc file
+charmm27 is zap version
+/disks/node2/sharp/source/pvm3
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ 0.5*sum(phi.q) (kT) =    172.634979
+ 0.5*sum(phi.q) (kT) =    172.634979
+ 0.5*sum(phi.q) (kT) =    172.634979
+ 0.5*sum(phi.q) (kT) =    2087.60498
+ 0.5*sum(phi.q) (kT) =    2087.60498
+ 0.5*sum(phi.q) (kT) =    2087.60498
+ 0.5*sum(phi.q) (kT) =    2273.75195
+ 0.5*sum(phi.q) (kT) =    2273.75195
+ 0.5*sum(phi.q) (kT) =    2273.75195
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -1.20692073E-06
+ rho.phi                    i:  -1.20692164E-06
+ rho.phi                    i:  -1.20692084E-05
+ rho.phi                    i:  -1.20692175E-05
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -0.000444035337
+ rho.phi                    i:  -0.000444035424
+ rho.phi                    i:  -0.00444035372
+ rho.phi                    i:  -0.00444035465
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -0.000423899328
+ rho.phi                    i:  -0.000423899415
+ rho.phi                    i:  -0.0042389934
+ rho.phi                    i:  -0.00423899433
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   6.03449109E-07
+ dPI                        i:   6.02164278E-07
+ dPI                        i:   6.03449143E-06
+ dPI                        i:   6.02164346E-06
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   0.000220482718
+ dPI                        i:   0.000220482383
+ dPI                        i:   0.00220482727
+ dPI                        i:   0.00220482401
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   0.000210544546
+ dPI                        i:   0.000210543614
+ dPI                        i:   0.0021054456
+ dPI                        i:   0.00210543629

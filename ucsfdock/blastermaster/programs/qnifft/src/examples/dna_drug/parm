@@ -1,0 +1,14 @@
+solute=4.  solvent=80.
+pdb_out=temp.atm
+charge=dapdna.crg
+radius=default.siz
+conv=0.001 relax=1.5
+dielectric=dapdna.eps
+sizing=scale scale=0.8 xcen=15.694  ycen=21.024  zcen=9.098
+nonlinear=t
+analyse=f
+#sphere=t
+#smooth=2 length=1.3
+#temp=288. solvent=83.96
+fast=t
+grid=193

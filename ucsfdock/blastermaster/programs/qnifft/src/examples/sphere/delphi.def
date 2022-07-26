@@ -1,0 +1,18 @@
+!==================================
+! Typical delphi default parameter file
+!==================================
+!
+! these things dont change frequently so we stuff them in a default file
+!
+gridsize=65              ! this is a comment, which is ignored
+sizing=border border_solvent=10.                  
+boundary_condition=coulombic            
+xperiodic=f               yperiodic=f            zperiodic=f
+spherical_charge_dist=f         
+temperature=298.
+nonlinear_equation=f        
+concentration_output=f         
+insight_format=f         
+site_potentials=f         
+atom_file_output=t         
+analyse=t

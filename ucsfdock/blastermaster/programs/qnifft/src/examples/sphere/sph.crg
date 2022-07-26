@@ -1,0 +1,11 @@
+! sphere
+atom__resnumbc_charge_
+q               5.
+q+              10.
+sph              0.
+sp1             -1.
+sp2              1.
+sp3             -1.
+sp4              .7
+sp5              .7
+sp6             -.4

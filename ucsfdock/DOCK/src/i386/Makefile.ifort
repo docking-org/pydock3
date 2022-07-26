@@ -1,0 +1,105 @@
+# -- ifort Compiler options 
+
+ifeq ($(COMPILER), ifort)
+
+# Tools
+# Path needs to be to 64bit compiler to compile 64b targets 
+PGPATH = /opt/intel/Compiler/11.1/064/bin/intel64/
+
+F77 = $(PGPATH)/ifort
+CC = $(PGPATH)/pgcc
+PROF = $(PGPATH)/pgprof
+GPROF = gprof
+
+
+
+# === OPTIMIZATION FLAGS ===
+# Optimizations for specific 32b/64b targets
+OPT64 = -xT
+OPT32 = -mtune=pentium4
+
+# Switches for Profile directed compilation.  Dont change these.
+FBGEN = -prof-gen
+FBOPT = -prof-use
+
+# http://www.intel.com/software/products/compilers/docs/flin/ifort_txt.htm
+
+ifndef DEBUG
+# -- FULL optimizations
+#OPT =  -O3 -fastsse -Minline -Mipa=fast,inline:10,libinline,libopt,vestigial -Munroll=c:8,m:4,n:8 -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align -Msmartalloc=huge
+OPT =  -O3  -fast   -inline  -safe-cray-ptr 
+#-fp-model fast=2
+
+# -- Optimizations for profiling
+# -- Turn off inlining so function boundaries are visible, though this will reduce performance
+OPTPROF =  $(OPT) -vec-report3
+else
+# -- DEBUG optimizations
+#OPT =  -g -Mfprelaxed -Mcache_align -Mdclchk -Mbounds
+OPT = -g -traceback
+# -- Optimizations for profiling
+# -- Turn off inlining so function boundaries are visible, though this will reduce performance
+OPTPROF =  -O0 
+endif
+# ==========================
+
+
+ 
+# === HW / ARCHITECTURE OPTIONS ===
+# Set ARCH32 and ARCH64 to the highest architecture setting possible that 
+# is the lowest common denominator of all the 64b (or 32b) servers in the 
+# server grid.
+# pgf77 -help to get a list.  Setting this too high will cause
+# "illegal instruction" type errors.
+ARCH64 = 
+ARCH32 = 
+# =================================
+
+
+# === COMPILER FLAGS ===
+#FFLAGS_COMMON =  -byteswapio $(ARCH) 
+FFLAGS_COMMON = -sox -convert big_endian $(ARCH) 
+CFLAGS_COMMON = $(ARCH)  
+FFLAGS =  $(FFLAGS_COMMON) -g $(OPT)
+CFLAGS =  $(CFLAGS_COMMON) -g $(OPT)
+# FFLAGS for Profiling.  Add in -g symbols
+# Portland Group Profiler
+# -Mpgicoff -Mprof=func,line 
+FFLAGS_PROF =  $(FFLAGS_COMMON) $(OPTPROF) -g -Mprof=func
+# GNU gprof
+FFLAGS_GPROF = $(FFLAGS_COMMON) $(OPTPROF) -pg  
+# Intel VTune
+FFLAGS_VTUNE =  $(FFLAGS_COMMON) $(OPTPROF) -g 
+CFLAGS_VTUNE =  $(CFLAGS_COMMON) $(OPTPROF) -g 
+# ======================
+
+# === LINKER OPTIONS ===
+# Linker libraries
+FFLIBS =  -lfgz$(SIZE) -lz
+LDFLAGS = -Bstatic
+# ======================
+
+
+
+
+
+# The name of the generated feedback file so makefile knows to generate it.
+FB_FNAME=foo.dyn
+
+move_fb_output:
+	@echo skipping move_fb_output...
+copy_fb_output:
+	@echo skipping copy_fb_output
+copy_vtune_fb_output:
+	@echo skipping copy_vtune_fb_output
+fb_cleanup:
+	@echo skipping fb_cleanup
+clean_fb_output:
+	$(RM) *.dyn
+
+endif #IFORT
+
+
+
+
+

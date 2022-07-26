@@ -1,0 +1,5 @@
+! charge of -0.5 on each P oxygen, type o#p
+atom__resnumbc_charge_
+p                0.0
+o1p             -0.5
+o2p             -0.5

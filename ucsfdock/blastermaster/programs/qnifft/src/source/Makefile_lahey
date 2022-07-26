@@ -1,0 +1,12 @@
+# lahey lf95 flags for debugging
+#FFLAGS = --verbose --sav --trace --trap diou --warn --wide --chk
+# lahey lf95 flags for optimal code
+FFLAGS = --verbose --sav --trace --trap diou --warn --wide -O
+FCOMP = lf95
+#
+BIN = $(DELDIR)/bin
+#-----------------
+# rules- general
+.f.o:
+	$(FCOMP) -c $(FFLAGS) $*.f
+#-----------------

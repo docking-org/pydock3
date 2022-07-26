@@ -1,0 +1,51 @@
+!
+! grid and scaling parameters
+!
+!
+!==================================
+! scaling options
+!==================================
+!
+sizing=scale scale=1.08996   Xcenter=4.094 Ycenter=37.266 Zcenter=78.053
+!
+!==================================
+! boundary condition options
+!==================================
+!
+boundary_condition=coulombic            !option A
+!
+!==================================
+! solute parameters
+!==================================
+!
+solute_dielectric=4.
+!
+!==================================
+! solvent parameters
+!==================================
+!
+solvent_dielectric=80.    salt_concentration=0.145
+probe_radius=1.4          ionic_radius=2.0
+!
+!==================================
+! algorithm parameters
+!==================================
+!
+temperature=298.
+nonlinear_equation=f       
+relax=1.0
+!
+!==================================
+! output parameters & files
+!==================================
+!
+concentration_output=f         
+insight_format=f         
+atom_file_output=t         pdb_output_file=rat_ptb_his40.atm
+site_potentials=t
+title=rat_trypsin
+!
+radius_file=def.siz
+phi_output_file=tryp.phi
+dielectric_map_file=tryp.eps
+analyse_map=t sphere=t smooth=2 length=1.0

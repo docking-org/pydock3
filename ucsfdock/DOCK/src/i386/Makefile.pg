@@ -1,0 +1,110 @@
+# -- Portland Group Compiler options (optimized for version 9 of the compiler)
+
+ifeq ($(COMPILER), pgf)
+# Tools
+# Path needs to be to 64bit compiler to compile 64b targets 
+
+# According to PGF Documentation, -fastsse with pgf95 yields fastest results. (vs pgf90, 77, etc)
+F77 = pgf95
+CC = pgcc
+PROF = pgprof
+GPROF = gprof
+
+
+# === OPTIMIZATION FLAGS ===
+# Optimizations for specific 32b/64b targets
+OPT = 
+
+# Switches for Profile directed compilation.  Dont change these.
+FBGEN = -Mpfi
+FBOPT = -Mpfo
+
+ifndef DEBUG
+  # -- FULL optimizations
+  ifeq ($(SIZE),64)
+    # -Msmartalloc=huge removed to prevent nfs locking issues
+    # OPT =  -O3 -fastsse -Minline -Mipa=fast,inline:10,libinline,libopt,vestigial -Munroll=c:8,m:4,n:8 -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align -Msmartalloc=huge
+    #OPT =  -O3 -fastsse -Minline -Mipa=fast,inline:10,libinline,libopt,vestigial -Munroll=c:8,m:4,n:8 -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align
+    OPT =  -O3 -fastsse -Minline -Munroll=c:8,m:4,n:8 -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align
+  else
+    #OPT =  -O3 -fastsse -Minline -Mipa=fast,inline:10,libinline,libopt,vestigial -Munroll=c:8,m:4,n:8 -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align 
+    OPT =  -O3 -fastsse -Minline -Munroll=c:8,m:4,n:8 -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align 
+  endif
+
+  # -- Optimizations for profiling
+  # -- Turn off inlining so function boundaries are visible, though this will reduce performance
+  #OPTPROF =  -O3 -Minfo -Mneginfo -fastsse -Mipa=fast -Munroll=c:8,m:4,n:8 -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align -Msmartalloc=huge
+  OPTPROF =  -O3 -Minfo -Mneginfo -fastsse -Mfprelaxed -Mvect=sse,assoc,altcode,short -Mcache_align -Msmartalloc=huge
+else
+  # -- DEBUG optimizations
+  OPT =  -O0 -g -Mfprelaxed -Mcache_align -Mdclchk -Mbounds
+  # -- Optimizations for profiling
+  # -- Turn off inlining so function boundaries are visible, though this will reduce performance
+  OPTPROF =  -O0 -Minfo -Mneginfo -Mfprelaxed  -Mcache_align 
+endif
+# ==========================
+
+
+ 
+# === HW / ARCHITECTURE OPTIONS ===
+# Set ARCH32 and ARCH64 to the highest architecture setting possible that 
+# is the lowest common denominator of all the 64b (or 32b) servers in the 
+# server grid.
+# pgf77 -help to get a list.  Setting this too high will cause
+# "illegal instruction" type errors.
+#ARCH64 = -tp penryn-64 
+ARCH64 = -tp px-64
+#ARCH32 = -tp piv
+ARCH32 = -tp px-32
+# =================================
+
+
+# === COMPILER FLAGS ===
+# i think we want to use -Mallocatable=03 but testing it with/without. rgc.
+FFLAGS_COMMON =  -byteswapio -Mallocatable=03 $(ARCH) 
+#FFLAGS_COMMON =  -byteswapio $(ARCH) 
+CFLAGS_COMMON = $(ARCH)  
+FFLAGS =  $(FFLAGS_COMMON) -gopt $(OPT)
+CFLAGS =  $(CFLAGS_COMMON) -gopt $(OPT)
+# FFLAGS for Profiling.  Add in -g symbols
+# Portland Group Profiler
+# -Mpgicoff -Mprof=func,line 
+FFLAGS_PROF =  $(FFLAGS_COMMON) $(OPTPROF) -g -Mprof=func
+# GNU gprof
+FFLAGS_GPROF = $(FFLAGS_COMMON) $(OPTPROF) -pg  
+# Intel VTune
+FFLAGS_VTUNE =  $(FFLAGS_COMMON) $(OPTPROF) -g -Mdwarf2
+CFLAGS_VTUNE =  $(CFLAGS_COMMON) $(OPTPROF) -g -Mdwarf2 
+# ======================
+
+# === LINKER OPTIONS ===
+# Linker libraries
+FFLIBS =  -lfgz$(SIZE) -lz
+LDFLAGS = -Bstatic_pgi
+# ======================
+
+
+
+# Compiler specific maintanence targets for Feedback optimized version
+
+# The name of the generated feedback file so makefile knows to generate it.
+FB_FNAME=pgfi$(SIZE).out
+
+move_fb_output:
+	@$(MV) $(DOCK_RUN_DIR)/pgfi.out ./pgfi$(SIZE).out
+copy_fb_output:
+	@cp ./pgfi$(SIZE).out ./pgfi.out
+copy_vtune_fb_output:
+	@cp ./pgfi_vtune$(SIZE).out ./pgfi.out
+fb_cleanup:
+	@$(RM) pgfi.out
+clean_fb_output:
+	/bin/rm -f 	pgfi.out pgfi32.out pgfi64.out
+
+
+
+
+
+endif #PGF
+
+

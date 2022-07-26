@@ -1,0 +1,10 @@
+ Dielectric rxn field energy from surface Q (kT):  -18918.8008
+ Dielectric rxn field energy from surface Q (kT):  -8458.31934
+ Interaction of source charges with themselves (kT) 73248.8203
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 62913.0898
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ ionat4 for rhophi, dPI terms
+ combines ionat3 method for E.D integration, and
+ includes, dS, E.D, osmotic pressure integrations
+ using eps map for E.D integration mask like ionat3

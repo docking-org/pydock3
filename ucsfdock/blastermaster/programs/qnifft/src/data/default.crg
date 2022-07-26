@@ -1,0 +1,23 @@
+! full charges for proteins and nucleic acids
+! charges on amino acid side chains and termini
+! some common divalent metals
+! charges on nucleic acid non-bridigng phosphates
+atom__resnumbc_charge_
+nz    lys        1.0
+nh1   arg        0.5
+nh2   arg        0.5
+oe1   glu       -0.5
+oe2   glu       -0.5
+od1   asp       -0.5
+od2   asp       -0.5
+nd1   his        0.25
+ne2   his        0.25
+n          1     1.00
+oxt             -1.00
+cu               2.0
+zn               2.0
+fe               2.0
+mn               2.0
+ca    ca         2.0
+o1p             -0.5
+o2p             -0.5

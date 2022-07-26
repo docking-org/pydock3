@@ -1,0 +1,26 @@
+!compiler options, changed by Makefile
+      module version
+
+      implicit none
+
+      character (len=10), parameter :: SVNVERSION=''
+c adjusted by the makefile to the current svn version number.
+
+      character (len=10), parameter :: COMPDATE='20220107'
+c     COMPDATE: Adjusted by the makefile to the date DOCK is compiled
+
+      character (len=10), parameter :: ARCHSIZE='64,'
+c     ARCHSIZE: Adjusted by makefile to reflect if this was 32b\64b
+c     compilation.
+
+      character (len=1000), parameter :: FFLAGS = 'foo'
+c     FFLAGS:  Adjusted by makefile as a record of compilation options.
+c not actually used at the moment
+      end module version
+
+c----------------------------------------------------------------------
+c
+c       Copyright (C) 2008 Michael Mysinger and Brian K. Shoichet
+c               University of California at San Francisco
+c                         All Rights Reserved.
+c----------------------------------------------------------------------

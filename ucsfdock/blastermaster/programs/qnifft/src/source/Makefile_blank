@@ -1,0 +1,16 @@
+# iris
+# set FCOMP to the name of your fortran compiler
+#FCOMP = f77
+# debug
+#FFLAGS = -g -C -col120
+# optimize
+# set FFLAGS as necessary for your compiler
+# to optimize, and use wide (120 columns of more) source
+#FFLAGS = -O2  -s -col120
+#
+BIN = $(DELDIR)/bin
+#-----------------
+# rules- general
+.f.o:
+	$(FCOMP) -c $(FFLAGS) $*.f
+#-----------------

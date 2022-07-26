@@ -1,0 +1,8 @@
+! charges only on nucleic acids
+! charge of -1.0 on each P atom 
+atom__resnumbc_charge_
+p               -1.0
+o1p              0.0
+o2p              0.0
+c10   D         +1.0
+c11   D         +1.0

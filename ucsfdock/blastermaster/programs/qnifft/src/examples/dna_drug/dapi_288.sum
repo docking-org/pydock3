@@ -1,0 +1,32 @@
+doing local cshrc file
+To run CONGEN type: run_congen input_file_name
+ net assigned source charge              :    2.000000    
+ net assigned source charge              :   -22.00000    
+ net assigned source charge              :   -20.00000    
+ 0.5*sum(phi.q) (kT) =     175.7294    
+ 0.5*sum(phi.q) (kT) =     175.4604    
+ 0.5*sum(phi.q) (kT) =     174.9931    
+ 0.5*sum(phi.q) (kT) =     2197.037    
+ 0.5*sum(phi.q) (kT) =     2152.658    
+ 0.5*sum(phi.q) (kT) =     2132.365    
+ 0.5*sum(phi.q) (kT) =     2370.226    
+ 0.5*sum(phi.q) (kT) =     2337.014    
+ 0.5*sum(phi.q) (kT) =     2319.328    
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:  -0.3146689    
+ rho.phi                    i:  -0.4957274    
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:   -38.61094    
+ rho.phi                    i:   -28.37309    
+ rho.phi                    i:   0.0000000E+00
+ rho.phi                    i:   -29.78210    
+ rho.phi                    i:   -22.27537    
+ dPI                        i:   0.0000000E+00
+ dPI                        i:   0.1501045    
+ dPI                        i:   0.2382460    
+ dPI                        i:   0.0000000E+00
+ dPI                        i:    10.58975    
+ dPI                        i:    10.24288    
+ dPI                        i:   0.0000000E+00
+ dPI                        i:    8.875838    
+ dPI                        i:    8.572829    

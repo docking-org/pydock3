@@ -1,0 +1,58 @@
+ Dielectric rxn field energy from surface Q (kT):  -18126.8535
+ Dielectric rxn field energy from surface Q (kT):  -9525.44629
+ Interaction of source charges with themselves (kT) 50477.8477
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ Interaction of source charges with themselves (kT) 38021.1328
+ Interaction of source charges with themselves (kT) 0.00000000E+00
+ dPI                     (kT):  7.91978073
+    dPI(++)                 (kT):  -0.588587344
+    dPI(+)                  (kT):  -0.382936954
+    dPI(--)                 (kT):  7.74153996
+    dPI(-)                  (kT):  1.14976478
+ E.D/2 - rho.phi - dPI   (kT):  34.8170700
+ dPI                     (kT):  3.97173977
+    dPI(++)                 (kT):  -0.160693929
+    dPI(+)                  (kT):  -0.117836416
+    dPI(--)                 (kT):  3.76580644
+    dPI(-)                  (kT):  0.484463781
+ E.D/2 - rho.phi - dPI   (kT):  17.5876255
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ SOLU*TE_DIELECTRIC    | no  |   1.00000000         
+ FIELD*_BOUNDARY       |     | ignored              
+ SPHE*RICAL_CHARGE_DIS | yes |   F                  
+ E.D                     (kT):  19.9575214
+ E.D/2 - rho.phi - dPI   (kT):  34.8170700
+ NOTE: overriding previous value for SOLU*TE_DIELECTRIC   
+ SOLU*TE_DIELECTRIC    | no  |   1.00000000         
+ FIELD*_BOUNDARY       |     | ignored              
+ SPHE*RICAL_CHARGE_DIS | yes |   F                  
+ E.D                     (kT):  9.09247017
+ E.D/2 - rho.phi - dPI   (kT):  17.5876255
+ rho.phi or TdS          (kT):  -32.7580910
+    rho.phi(++)             (kT):  -0.816379249
+    rho.phi(+)              (kT):  -0.310384452
+    rho.phi(--)             (kT):  -29.9915752
+    rho.phi(-)              (kT):  -1.63975263
+ E.D/2 - rho.phi - dPI   (kT):  34.8170700
+ rho.phi or TdS          (kT):  -17.0131302
+    rho.phi(++)             (kT):  -0.353606761
+    rho.phi(+)              (kT):  -0.139516667
+    rho.phi(--)             (kT):  -15.7145672
+    rho.phi(-)              (kT):  -0.805438697
+ E.D/2 - rho.phi - dPI   (kT):  17.5876255
+ ionat4 for rhophi, dPI terms
+ dPI                        i:   3.97173977
+ E.D/2 - rho.phi - dPI      i:   17.581171
+ dPI                        i:   4.05238628
+ E.D/2 - rho.phi - dPI      i:   17.7840996
+ combines ionat3 method for E.D integration, and
+ includes, dS, E.D, osmotic pressure integrations
+ using eps map for E.D integration mask like ionat3
+ E.D by epsmap              i:   9.07956028
+ E.D/2 - rho.phi - dPI      i:   17.581171
+ E.D by epsmap              i:   9.31477261
+ E.D/2 - rho.phi - dPI      i:   17.7840996
+ rho.phi                    i:  -17.0131302
+ E.D/2 - rho.phi - dPI      i:   17.581171
+ rho.phi                    i:  -17.1791
+ E.D/2 - rho.phi - dPI      i:   17.7840996

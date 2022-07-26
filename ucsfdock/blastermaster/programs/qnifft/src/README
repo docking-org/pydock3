@@ -1,0 +1,172 @@
+Author: Kim Sharp, Dept. of Biochemistry, U. Pennsylvania
+-----------------------------------------------------------------
+This is a macromolecular electrostatics program based on finite difference
+solutions to the Poisson-Boltzmann eqn. It is an outgrowth of 
+the DelPhi macromolecular electrostatics software. 
+
+In any published work using this program, please cite to the appropriate references
+at the end of this document
+=============================================================
+SUPPORTED by NSF Grant MCB02-35440
+=============================================================
+
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+The core program is QNIFFT22 
+(Q for charge, N for non-linear, 22 for version 2.2)
+An older version, 14. is included for 'safety'
+
+The major changes in version 2.2
+
+*Reads EITHER a *.atm file with coords, charge and radii record (output from a previous qnifft run or created
+  by some other program)(set input=t)
+  OR a pdb file plus a radius parameter file and charge parameter file
+
+*Less memory usage- grid sizes upto 191 cubed can run on typical linux boxes
+*A more accurate, essentially scale independent surface generation algorithm (fast=f)
+  which is however quite slow to generate for large molecules, especially with cavities and rugged surface
+*Calculates solvent forces
+
+-------------------------------------------------------------------------------
+It differs from the DelPhi versions distributed under license from Barry Honig
+and Columbia University, and by Biosym, primarily in the format of the input
+(see the delphi.def file and *.lis files)
+and the analysis of results (see the programs ionint and ionintm). 
+It has been developed for 
+academic research purposes by Kim Sharp, Dept. of Biochemistry, 
+University of Pensylvania. It is distributed free of charge to
+academic researchers, and due to my extremely limited resources, I
+cannot provide support. It is not intended to be a substitute
+for either the Columbia or Accelerys versions of DelPhi, which
+come with support (at a price).
+-------------------------------------------------------------------------------
+
+It is assumed that you are familiar
+with unix, and the basic concepts of macromolecular electrostatics
+as described in references below.
+
+
+
+To compile the delphi program QNIFFT22 and the two utility programs
+IONINTM (for nonlinear PB analysis) and CHKCHG (checks net charge
+on each residue using *.atm output from QNIFFT22 (with site=t
+parameter set):
+
+1) Modify Makefiles in source/utility and source/qnifft/v2.2 directory
+ to match your compiler name and flags. Examples are given for SGI, linux/G77 and compaq
+
+2) Run Install.com
+
+Install.com will compile three qnifft22 executables with max grids of 65, 129 and 161
+named qnifft22_65 qnifft22_129 and qnifft22_161
+respectively- use the 65 grid version for small systems, and to produce potential
+maps that can be read into grasp.  Larger versions can use smaller grid sizes up to max,
+but produce large files which cannot be read by GRASP.
+Install.com will temporarily define an environment variable DELDIR pointing to this
+directory- executables are put in $DELDIR/bin. you should
+permanently define this variable (DELDIR) in your login file so you can
+run programs, and put $DELDIR/bin in your path.
+
+-------------------------------------------------------------------------------
+Install.com will compile the utility programs:
+ionintm:   	Does non-linear PB energy analysis- see dna-drug example
+		reads default qnifft22 output with grid size 65 unless modified and recompiled
+sumfld:  	finds sum(q.phi) over residues in *.fld file output from qnifft
+		 or average phi for each residue- useful for getting s-b-components of interaction energy
+chkchg: 	sums assigned atomic charge over residues- reads the *.atm output from qnifft (which is a pdb 
+		file with radius, charge in occupancy and B-factor fields).  VERY useful for checking that 
+		you have assigned charge correctly
+qequil_pdb:	Uses the charge equilibration by equalization of electronegativity method of Rappe & Goddard
+		to give approximate atomic charges- read in a pdb file, outputs a *.atm file that can be read 
+		into qnifft22- useful for quick generation of charges for new functional groups/cofactors
+		not been tested! 
+
+-------------------------------------------------------------------------------
+There is no manual! Learning is by example.
+QNIFFT22 will give help on parameters- type:
+
+qnifft22_65 help
+-------------------------------------------------------------------------------
+
+There are examples in the directory examples, & various readme files
+It is strongly suggested that you work through all examples, to learn
+how program is controlled, format of input files, and analysis of results.
+-------------------------------------------------------------------------------
+
+Sample Charge and radius input files are in the data directory.
+The charge file in particular is usually heavily modified for
+each application, as illustrated by the examples, so as to
+assign charge to the required molecule of fragment for potential
+calculation or analysis.
+
+-------------------------------------------------------------------------------
+NOTE: it is important to check your charge assignments carefully- 
+this is the source of many beginner errors- usually a mismatch between
+atom names (especially hydrogens) in the *.crg and *.pdb files
+there are several things to help you here: the net charge printed in the logfile,
+the *.atm file output, with the assigned radii/charge in the occupancy/B-factor field
+(set atomfile_output=t), and chkchg (chkchg < myfile.atm > check.out)
+which prints net charge per group.  usually these will identify the problem
+-------------------------------------------------------------------------------
+
+
+For more on the theory and algorithms behind delphi:
+
+
+General Electrostatic references
+
+Gilson, M., Sharp, K. A., Honig, B. (1988). "Calculating
+the Electrostatic Potential of 
+Molecules in Solution: Method and Error 
+Assessment". J. Comp. Chem. 9:327-335.
+
+Sharp, K., Honig, B. (1990). "Calculating total 
+electrostatic energies with the non-linear 
+Poisson-Boltzmann Equation". J. Phys. Chem 94:7684-7692.
+
+Sharp, K., Honig, B. (1990). "Electrostatic 
+Interactions in Macromolecules: Theory and 
+Applications". Ann. Rev. Biophys. Biophys. Chem 19:301-332.
+
+DNA, nonlinear PB:
+
+Jayaram, B., Sharp, K. A., Honig, B. (1989). 
+"The Electrostatic Potential of B-DNA". 
+Biopolymers 28:975-93.
+
+Misra, V., Hecht, J., Sharp, K., Friedman, R., 
+Honig, B. (1994). "Salt effects on Protein-
+DNA interactions: The Lambda cI repressor and 
+Eco R1 endonuclease". J. Mol. Biol. 238:264-280.
+
+Misra, V., Sharp, K., Friedman, R., Honig, B. (1994). 
+"Salt effects on ligand-DNA 
+binding: Minor groove antibiotics". J. Mol. Biol. 238:245-263.
+
+Sharp, K. A. (1995). "Polyelectrolyte electrostatics: Salt 
+dependence, entropic 
+and enthalpic contributions to free energy in the 
+nonlinear Poisson-Boltzmann model". 
+Biopolymers 36:227-243.
+
+Sharp, K. A., Friedman, R., Misra, V., Hecht, J., 
+Honig, B. (1995). "Salt effects on 
+polyelectrolyte-ligand binding: Comparison of 
+Poisson-Boltzmann and limiting law 
+counterion binding models". Biopolymers 36:245-262.
+
+pKa's:
+
+Yang, A., Gunner, M., Sampogna, R., Sharp, K., 
+Honig, B. (1993). "On the 
+Calculation of Pk(a)s in Proteins". Proteins-Structure 
+Function and Genetics. 15:252- 265.
+
+Charge & Radius parameters:
+
+Sitkoff et al, J. Phys. Chem, 1994.v 98, 1978-88 "ACCURATE CALCULATION 
+OF HYDRATION FREE-ENERGIES USING MACROSCOPIC SOLVENT MODELS"
+=============================================================
+SUPPORTED by NSF Grant MCB02-35440
+=============================================================

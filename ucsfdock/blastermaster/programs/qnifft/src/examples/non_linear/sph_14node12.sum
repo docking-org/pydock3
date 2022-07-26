@@ -1,0 +1,72 @@
+grid=65     
+! focussing MUST be done with grid=65!!
+ Dielectric rxn field energy from surface Q (kT):  -2305.34212
+ dielectric rxn field energy from surface Q (kT):  -2319.75218
+ ionic rxn field energy from (surface) rho (kT):   0.
+  Interaction of rxn potl. and target q (kT)   0.
+ Dielectric rxn field energy from surface Q (kT):  -2307.07045
+ dielectric rxn field energy from surface Q (kT):  -2320.67215
+ ionic rxn field energy from (surface) rho (kT):   0.
+  Interaction of rxn potl. and target q (kT)   0.
+ Dielectric rxn field energy from surface Q (kT):  -2306.56963
+ dielectric rxn field energy from surface Q (kT):  -2320.93909
+ ionic rxn field energy from (surface) rho (kT):  -1.58836726
+  Interaction of rxn potl. and target q (kT)   0.
+ Dielectric rxn field energy from surface Q (kT):  -2307.32528
+ dielectric rxn field energy from surface Q (kT):  -2320.92436
+ ionic rxn field energy from (surface) rho (kT):  -0.503186414
+  Interaction of rxn potl. and target q (kT)   0.
+ Dielectric rxn field energy from surface Q (kT):  -2305.04422
+ dielectric rxn field energy from surface Q (kT):  -2319.29766
+ ionic rxn field energy from (surface) rho (kT):  -6.17732513
+  Interaction of rxn potl. and target q (kT)   0.
+ Dielectric rxn field energy from surface Q (kT):  -2308.40476
+ dielectric rxn field energy from surface Q (kT):  -2321.99487
+ ionic rxn field energy from (surface) rho (kT):  -2.61215122
+  Interaction of rxn potl. and target q (kT)   0.
+ Interaction of source charges with themselves (kT)  45177.
+ Interaction of source charges with themselves (kT)  0.
+  Interaction of rxn potl. and target q (kT)   0.
+ Interaction of source charges with themselves (kT)  163945.156
+ Interaction of source charges with themselves (kT)  0.
+  Interaction of rxn potl. and target q (kT)   0.
+ Interaction of source charges with themselves (kT)  45167.5391
+ Interaction of source charges with themselves (kT)  0.
+  Interaction of rxn potl. and target q (kT)   0.
+ Interaction of source charges with themselves (kT)  163935.75
+ Interaction of source charges with themselves (kT)  0.
+  Interaction of rxn potl. and target q (kT)   0.
+ Interaction of source charges with themselves (kT)  45157.6758
+ Interaction of source charges with themselves (kT)  0.
+  Interaction of rxn potl. and target q (kT)   0.
+ Interaction of source charges with themselves (kT)  163931.781
+ Interaction of source charges with themselves (kT)  0.
+  Interaction of rxn potl. and target q (kT)   0.
+ ionat4 for rhophi, dPI terms
+ dPI                        i:   2.29426956
+ E.D/2 - rho.phi - dPI      i:   10.693037
+ dPI                        i:   2.61829638
+ E.D/2 - rho.phi - dPI      i:   11.7733059
+ combines ionat3 method for E.D integration, and
+ includes, dS, E.D, osmotic pressure integrations
+ using eps map for E.D integration mask like ionat3
+ E.D by epsmap              i:   10.5708399
+ E.D/2 - rho.phi - dPI      i:   10.693037
+ E.D by epsmap              i:   12.0256395
+ E.D/2 - rho.phi - dPI      i:   11.7733059
+ rho.phi                    i:  -7.70188618
+ E.D/2 - rho.phi - dPI      i:   10.693037
+ rho.phi                    i:  -8.37878227
+ E.D/2 - rho.phi - dPI      i:   11.7733059
+ ionic pressure cpu time (s):   0.
+ total cpu time was (sec)   2.
+ ionic pressure cpu time (s):   0.
+ total cpu time was (sec)   2.
+ ionic pressure cpu time (s):   0.
+ total cpu time was (sec)   1.
+ ionic pressure cpu time (s):   0.
+ total cpu time was (sec)   2.
+ ionic pressure cpu time (s):   0.
+ total cpu time was (sec)   3.
+ ionic pressure cpu time (s):   0.
+ total cpu time was (sec)   2.

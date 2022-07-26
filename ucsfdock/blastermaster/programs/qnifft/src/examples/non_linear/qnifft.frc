@@ -1,0 +1,19 @@
+ start Coulomb forces (kT/A): 
+     0    0.000000    0.000000    0.000000
+     1    0.000000    0.000000    0.000000
+ end coulombic energy in uniform Epsin (kT):   0.
+ start dielectric boundary forces (kT/A): 
+     0    0.000000    0.000000    0.000000
+     1    0.000007    0.000007    0.000007
+ end dielectric rxn field energy from surface Q (kT):  -2321.99487
+ start Rxn field atomic forces (kT/A): 
+     0    0.000000    0.000000    0.000000
+     1    0.000001    0.000001    0.000001
+ end 
+ start ionic boundary force (kT/A): 
+     0    0.000000    0.000000    0.000000
+     1    0.000000    0.000000    0.000000
+ end ionic rxn field energy from (surface) rho (kT):  -2.61215122
+ start total solvation forces (kcal/mole/A): 
+     1    0.000000    0.000000    0.000000
+ end 

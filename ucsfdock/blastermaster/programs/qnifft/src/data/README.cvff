@@ -1,0 +1,66 @@
+Residue names for using cvff parameter sets for qnifft
+================================================================
+Standard Amino Acids:
+Residue name	Type
+---------------------------------------------------------
+ALA		alanine
+ARG		arginine (+1)
+ASN		asparagine
+ASP		aspartic acid (-1)
+CYS		cystine in a disulfide bond
+CYH		reduced cystine
+GLU		glutamic acid (-1)
+GLN		glutamine
+GLY		glycine
+HIS		neutral histidine
+ILE		isoleucine
+LEU		leucine
+LYS		lysine (+1)
+MET		methionine
+PHE		phenylalanine
+PRO		proline
+SER		serine
+THR		threonine
+TRP		tryptophan
+TYR		tyrosine
+VAL		valine
+
+Special Cases:
+==============
+N TERMINUS (for all others, change res# in .crg file to # of N term. res)
+Residue name	Type
+---------------------------------------------------------
+AS+		aspartic acid (-1) on N terminus (+1)
+AS1		aspartic acid (-1) on neutral N terminus
+GL+		glutamic acid (-1) on N terminus (+1)
+GL1		glutamic acid (-1) on neutral N terminus
+GY+		glycine on N terminus (+1)
+GY1		glycine on neutral N terminus
+H++		histidine (+1) on N terminus (+1)
+H+1		histidine (+1) on neutral N terminus
+IL+		isoleucine on N terminus (+1)
+ME+		methionine on N terminus (+1)
+PR+		proline on N terminus (+1)
+PR1		proline on neutral N terminus
+SE1		serine on neutral N terminus
+VA+		valine on N terminus (+1)
+ACE		acetyl on N terminus
+
+C TERMINUS (for all other residues, rename C,O,OXT=>CX,OX1,OXT in pdb file)
+Residue name	Type
+---------------------------------------------------------------
+ARX		arginine (+1) on C terminus (-1)
+ASX		aspartic acid (-1) on C terminus (-1)		
+GLX		glutamic acid (-1) on C terminus (-1)
+H+X		histidine (+1) on C terminus (-1)
+LEX		leucine on C terminus (-1)
+
+OTHERS
+Residue name	Type
+---------------------------------------------------------
+AR0		neutral arginine
+AS0		neutral aspartic acid
+GL0		neutral glutamic acid
+HI+		histidine (+1)
+HID		histidine with H on ND
+LY0		neutral lysine

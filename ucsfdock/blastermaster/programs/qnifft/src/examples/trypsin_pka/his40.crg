@@ -1,0 +1,11 @@
+! CHARMM charges
+! his 40 only is charged
+ATOM__RES_NUM_C_CHARGE_                                                         
+CB    his 40    0.10       !  PROTONATED HIS                                    
+CG    his 40    0.15                                                            
+CD2   his 40    0.20                                                            
+ND1   his 40   -0.30                                                            
+HD1   his 40    0.35                                                            
+CE1   his 40    0.45                                                            
+NE2   his 40   -0.30                                                            
+HE1   his 40    0.35                                                            

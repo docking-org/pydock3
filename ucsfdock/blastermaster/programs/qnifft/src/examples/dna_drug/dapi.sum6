@@ -1,0 +1,129 @@
+doing local cshrc file
+charmm27 is zap version
+/disks/node2/sharp/source/pvm3
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :   2.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ net assigned source charge              :  -20.
+ 0.5*sum(phi.q) (kT) =    170.129471
+ 0.5*sum(phi.q) (kT) =    169.28215
+ 0.5*sum(phi.q) (kT) =    2138.54736
+ 0.5*sum(phi.q) (kT) =    2063.41309
+ 0.5*sum(phi.q) (kT) =    2303.40308
+ 0.5*sum(phi.q) (kT) =    2243.98071
+ 0.5*sum(phi.q) (kT) =    170.129471
+ 0.5*sum(phi.q) (kT) =    169.28215
+ 0.5*sum(phi.q) (kT) =    2138.54736
+ 0.5*sum(phi.q) (kT) =    2063.41309
+ 0.5*sum(phi.q) (kT) =    2303.40308
+ 0.5*sum(phi.q) (kT) =    2243.98071
+ 0.5*sum(phi.q) (kT) =    557.335815
+ 0.5*sum(phi.q) (kT) =    556.568298
+ 0.5*sum(phi.q) (kT) =    6819.92334
+ 0.5*sum(phi.q) (kT) =    6754.08105
+ 0.5*sum(phi.q) (kT) =    7372.50732
+ 0.5*sum(phi.q) (kT) =    7320.64648
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -0.492947817
+ rho.phi                    i:  -0.492947817
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -28.7802258
+ rho.phi                    i:  -28.7802258
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -22.6884785
+ rho.phi                    i:  -22.6884785
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -0.492947817
+ rho.phi                    i:  -0.492947817
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -28.7802258
+ rho.phi                    i:  -28.7802258
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -22.6884785
+ rho.phi                    i:  -22.6884785
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -0.496350169
+ rho.phi                    i:  -0.497951716
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -28.1134396
+ rho.phi                    i:  -28.3117981
+ rho.phi                    i:   0.
+ rho.phi                    i:   0.
+ rho.phi                    i:  -22.0019035
+ rho.phi                    i:  -22.1783466
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   0.236436009
+ dPI                        i:   0.236430883
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   10.3217239
+ dPI                        i:   10.321703
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   8.66319466
+ dPI                        i:   8.66317272
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   0.236436009
+ dPI                        i:   0.236430883
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   10.3217239
+ dPI                        i:   10.321703
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   8.66319466
+ dPI                        i:   8.66317272
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   0.224560857
+ dPI                        i:   0.225360319
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   9.95936871
+ dPI                        i:   10.0582962
+ dPI                        i:   0.
+ dPI                        i:   0.
+ dPI                        i:   8.33613014
+ dPI                        i:   8.42405701

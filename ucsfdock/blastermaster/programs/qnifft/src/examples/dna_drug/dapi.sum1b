@@ -1,0 +1,27 @@
+doing local cshrc file
+charmm27 is zap version
+/disks/node2/sharp/source/pvm3
+ net assigned source charge              :   2.
+ net assigned source charge              :  -22.
+ net assigned source charge              :  -20.
+ 0.5*sum(phi.q) (kT) =    169.193176
+ 0.5*sum(phi.q) (kT) =    2060.3208
+ 0.5*sum(phi.q) (kT) =    2241.28345
+ rho.phi                    i:   0.
+ rho.phi                    i:  -0.0355488658
+ rho.phi                    i:  -0.355488688
+ rho.phi                    i:   0.
+ rho.phi                    i:  -1.82938302
+ rho.phi                    i:  -18.2938309
+ rho.phi                    i:   0.
+ rho.phi                    i:  -1.43816888
+ rho.phi                    i:  -14.38169
+ dPI                        i:   0.
+ dPI                        i:   0.0171212237
+ dPI                        i:   0.171212241
+ dPI                        i:   0.
+ dPI                        i:   0.686869025
+ dPI                        i:   6.86869049
+ dPI                        i:   0.
+ dPI                        i:   0.573308468
+ dPI                        i:   5.73308516

@@ -1,0 +1,13 @@
+# gnu
+# debug
+#FFLAGS = -g -O -Wuninitialized -ffixed-line-length-132
+# optimize
+FFLAGS = -fno-ugly -O2 -Wall -ffixed-line-length-132 -m32
+FCOMP = gfortran
+#
+BIN = $(DELDIR)/bin
+#-----------------
+# rules- general
+.f.o:
+	$(FCOMP) -c $(FFLAGS) $*.f
+#-----------------

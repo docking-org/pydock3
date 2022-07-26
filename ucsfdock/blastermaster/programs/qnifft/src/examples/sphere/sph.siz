@@ -1,0 +1,22 @@
+! sphere
+atom__res_radius_
+dum         0.00
+q           3.00
+q+          2.00
+s           2.00
+c           1.90
+a           1.75
+o           1.60
+n           1.65
+h           0.00
+p           1.90
+s           1.90
+mg          1.86
+m5          1.90
+ca          1.86
+cu          1.25
+zn          1.34
+fe          1.30
+o     hoh   0.00
+o     wat   0.00
+o     h2o   0.00

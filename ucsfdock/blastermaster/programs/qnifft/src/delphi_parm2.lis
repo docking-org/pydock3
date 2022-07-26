@@ -1,0 +1,20 @@
+list of Delphi parameters rarely changed from default values
+--------------------------------------------------------------
+gridsize			
+probe_radius	
+ionic_radius
+temperature
+nonlinear_equation
+convergence	
+relaxation_parameter	
+check_frequency	
+newton_iteration
+level0_multi_grid_it		
+level1_multi_grid_it	
+level2_multi_grid_it
+level3_multi_grid_it		
+concentration_output	
+insight_format	
+spherical_charge_dist
+smooth_dielectric
+length_smooth
