@@ -1224,7 +1224,7 @@ numpy = ">=1.17.3,<1.25.0"
 name = "seaborn"
 version = "0.11.2"
 description = "seaborn: statistical data visualization"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -1480,7 +1480,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "5b59a431ca45a47d3626c297f47f48752b94c788dc99997c89432e4cb6ac8916"
+content-hash = "8da5f8494719f7cf4da65717e7294c278ce751147937ed9ca5576675053d4842"
 
 [metadata.files]
 2to3 = [
