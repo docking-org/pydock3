@@ -318,7 +318,7 @@ class Dockmaster(object):
     DECOYS_TGZ_FILE_NAME = "decoys.tgz"
     DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(DOCKMASTER_INIT_FILE_PATH), "default_dockmaster_config.yaml")
     WORKING_DIR_NAME = "working"
-    RETRO_DOCKING_DIR_NAME= "dockfiles"
+    RETRO_DOCKING_DIR_NAME= "retro_docking"
 
     def __init__(
             self,
@@ -410,7 +410,7 @@ class Dockmaster(object):
         except KeyError:
             logger.error(f"The following environmental variables are required to use the SGE job scheduler: {SCHEDULER_NAME_TO_CLASS_DICT[scheduler].required_env_var_names}")
             return
-            
+
         #
         if actives_tgz_file_path is not None:
             actives_tgz_file = File(path=actives_tgz_file_path)
