@@ -45,6 +45,7 @@ def system_call(command_str, cwd=os.getcwd(), timeout_seconds=None, env_vars_dic
 def get_logger_for_script(log_file_path, debug=False):
     # get highest-level logger
     logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
 
     #
     sh = logging.StreamHandler(sys.stdout)
