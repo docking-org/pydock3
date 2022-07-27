@@ -11,15 +11,15 @@ from matplotlib.backends.backend_pdf import PdfPages
 from ucsfdock.metrics import BalancedEnrichmentScore
 
 
-def generate_blaster_opt_job_report(blaster_opt_job_dir_path=".", pdf_path="blaster_opt_job_report.pdf", opt_results_csv_file_name="optimization_results.csv", enrichment_metric=BalancedEnrichmentScore.METRIC_NAME):
-    opt_results_csv_file_path = os.path.join(blaster_opt_job_dir_path, opt_results_csv_file_name)
+def generate_dockmaster_job_report(dockmaster_job_dir_path=".", pdf_path="dockmaster_job_report.pdf", opt_results_csv_file_name="optimization_results.csv", enrichment_metric=BalancedEnrichmentScore.METRIC_NAME):
+    opt_results_csv_file_path = os.path.join(dockmaster_job_dir_path, opt_results_csv_file_name)
     df = pd.read_csv(opt_results_csv_file_path)
 
     with PdfPages(pdf_path) as f:
         #
         fig = plt.figure(figsize=(11.0, 8.5))
 
-        image_file_path = os.path.join(blaster_opt_job_dir_path, "best_retro_docking_job", "plot.png")
+        image_file_path = os.path.join(dockmaster_job_dir_path, "best_retro_docking_job", "roc.png")
         image = mpimg.imread(image_file_path)
         plt.axis('off')
         plt.suptitle("Best Log ROC")
@@ -63,4 +63,4 @@ def generate_blaster_opt_job_report(blaster_opt_job_dir_path=".", pdf_path="blas
 
 
 if __name__ == '__main__':
-    fire.Fire(generate_blaster_opt_job_report)
+    fire.Fire(generate_dockmaster_job_report)

@@ -31,7 +31,7 @@ from ucsfdock.blastermaster.util import BlasterWorkingDir, BlasterFile, DockFile
 from ucsfdock.metrics import get_roc_points, get_enrichment_analysis, BalancedEnrichmentScore, UnbalancedEnrichmentScore, BalancedLogAUC, UnbalancedLogAUC
 from ucsfdock.jobs import RetrospectiveDockingJob
 from ucsfdock.job_schedulers import SlurmJobScheduler, SGEJobScheduler
-from ucsfdock.dockmaster.report import generate_blaster_opt_job_report
+from ucsfdock.dockmaster.report import generate_dockmaster_job_report
 from ucsfdock.dockmaster import __file__ as DOCKMASTER_INIT_FILE_PATH
 
 
@@ -656,7 +656,7 @@ class Dockmaster(object):
             plt.ylim(bottom=0.0, top=1.0)
             
             # save image of plot and close the fig to save memory
-            plot_image_path = os.path.join(docking_job_dir.path, "plot.png")
+            plot_image_path = os.path.join(docking_job_dir.path, "roc.png")
             plt.savefig(plot_image_path)
             plt.close(fig)
 
@@ -683,9 +683,9 @@ class Dockmaster(object):
         shutil.copytree(df['job_dir_path'].iloc[0], best_job_dir_path)
 
         # generate report
-        generate_blaster_opt_job_report(
-            blaster_opt_job_dir_path=job_dir.path,
-            pdf_path=os.path.join(job_dir.path, "blaster_opt_job_report.pdf"),
+        generate_dockmaster_job_report(
+            dockmaster_job_dir_path=job_dir.path,
+            pdf_path=os.path.join(job_dir.path, "dockmaster_job_report.pdf"),
             opt_results_csv_file_name=optimization_results_csv_file_path,
             enrichment_metric=enrichment_metric_name,
         )
