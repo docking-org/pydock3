@@ -473,16 +473,16 @@ class Blastermaster(object):
         # TODO
 
         # copy dock files to output directory
-        logger.debug("Copying dock files to dock files directory...")
+        logger.info("Copying dock files to dock files directory...")
         for dock_file_field in fields(blaster_files.dock_files):
             dock_file = getattr(blaster_files.dock_files, dock_file_field.name)
             File.copy_file(dock_file.path, os.path.join(dock_files_dir.path, dock_file.name))
-        logger.debug("done.")
+        logger.info("done.")
 
         # make INDOCK file, using phi_size
-        logger.debug("Making indock file...")
+        logger.info("Making indock file...")
         indock_file.write(blaster_files.dock_files, config.param_dict)
-        logger.debug("done.")
+        logger.info("done.")
 
 
 # TODO: flex blastermaster
