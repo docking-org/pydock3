@@ -94,9 +94,9 @@ echo SBATCH_ARGS=$SBATCH_ARGS
 
 echo "sleeping for 5 seconds before submitting, ctrl-C to stop"
 if ! [ -z $SLURM_SETTINGS ]; then
-        source $SLURM_SETTINGS
+  source $SLURM_SETTINGS
 fi
 
 sleep 5
 echo "submitting jobs"
-$SBATCH_EXEC $SBATCH_ARGS --signal=B:USR1@120 --array=1-$njobs $RUNDOCK_PATH
+$SBATCH_EXEC --export=ALL $SBATCH_ARGS --signal=B:USR1@120 --array=1-$njobs $RUNDOCK_PATH
