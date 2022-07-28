@@ -391,7 +391,7 @@ class Dockmaster(object):
         if decoys_tgz_file_path is None:
             decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
         try:
-            File.validate_file_exists(config_file_path)-
+            File.validate_file_exists(config_file_path)
         except FileNotFoundError:
             logger.error("Config file not found. Are you in the job directory?")
             return
