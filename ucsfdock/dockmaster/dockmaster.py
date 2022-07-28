@@ -507,9 +507,9 @@ class Dockmaster(object):
             indock_file.write(new_dock_files, parameter_dict)
         self.logger.debug("done")
 
-        # write actives tgz and decoys tgz file paths to opt.sdi
-        self.logger.info("Writing opt.sdi file pointing to tgz input files...")
-        docking_input_file = File(path=os.path.join(job_dir.path, "opt.sdi"))
+        # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi
+        self.logger.info("Writing actives_and_decoys.sdi file...")
+        docking_input_file = File(path=os.path.join(job_dir.path, "actives_and_decoys.sdi"))
         with open(docking_input_file.path, 'w') as f:
             f.write(f"{actives_tgz_file.path}\n")
             f.write(f"{decoys_tgz_file.path}\n")
@@ -618,7 +618,7 @@ class Dockmaster(object):
             df = df.drop_duplicates(subset=["db2_file_path"], keep="first", ignore_index=True)
 
             # save dataframe
-            job_results_csv_file_path = os.path.join(docking_job_dir.path, "job_results.csv")
+            job_results_csv_file_path = os.path.join(docking_job_dir.path, "retro_docking_job_results.csv")
             df.to_csv(job_results_csv_file_path)
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
@@ -684,7 +684,7 @@ class Dockmaster(object):
         df = df.sort_values(by=enrichment_metric_name, ascending=False, ignore_index=True)
 
         # save optimization job results dataframe to csv
-        optimization_results_csv_file_path = os.path.join(job_dir.path, "optimization_results.csv")
+        optimization_results_csv_file_path = os.path.join(job_dir.path, "dockmaster_job_results.csv")
         self.logger.debug(f"Saving optimization job results to {optimization_results_csv_file_path}")
         df.to_csv(optimization_results_csv_file_path)
 

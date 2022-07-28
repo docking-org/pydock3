@@ -11,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from ucsfdock.metrics import BalancedEnrichmentScore
 
 
-def generate_dockmaster_job_report(dockmaster_job_dir_path=".", pdf_path="dockmaster_job_report.pdf", opt_results_csv_file_name="optimization_results.csv", enrichment_metric=BalancedEnrichmentScore.METRIC_NAME):
+def generate_dockmaster_job_report(dockmaster_job_dir_path=".", pdf_path="dockmaster_job_report.pdf", opt_results_csv_file_name="dockmaster_job_results.csv", enrichment_metric=BalancedEnrichmentScore.METRIC_NAME):
     opt_results_csv_file_path = os.path.join(dockmaster_job_dir_path, opt_results_csv_file_name)
     df = pd.read_csv(opt_results_csv_file_path)
 
