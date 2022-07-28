@@ -332,7 +332,11 @@ class LogFile(File):
 
 
 class IndockFile(File):
-    """#TODO"""
+    """
+    The INDOCK file is the main parameters file for the DOCK program.
+
+    `config_param_dict` corresponds to the key-values of blastermaster_config.yaml
+    """
 
     def __init__(self, path):
         super().__init__(path=path)
@@ -340,58 +344,7 @@ class IndockFile(File):
     def write(
         self,
         dock_files,
-        ligand_atom_file,
-        output_file_prefix,
-        match_method,
-        distance_tolerance,
-        match_goal,
-        distance_step,
-        distance_maximum,
-        timeout,
-        nodes_maximum,
-        nodes_minimum,
-        bump_maximum,
-        bump_rigid,
-        mol2_score_maximum,
-        chemical_matching,
-        case_sensitive,
-        atom_minimum,
-        atom_maximum,
-        number_save,
-        number_write,
-        flush_int,
-        check_clashes,
-        do_premax,
-        do_clusters,
-        ligand_desolvation,
-        ligand_desolv_scale,
-        electrostatic_scale,
-        vdw_scale,
-        internal_scale,
-        per_atom_scores,
-        dockovalent,
-        bond_len,
-        bond_ang1,
-        bond_ang2,
-        len_range,
-        len_step,
-        ang1_range,
-        ang2_range,
-        ang1_step,
-        ang2_step,
-        minimize,
-        sim_itmax,
-        sim_trnstep,
-        sim_rotstep,
-        sim_need_to_restart,
-        sim_cnvrge,
-        min_cut,
-        iseed,
-        flexible_receptor,
-        total_receptors,
-        rec_number,
-        rec_group,
-        rec_group_option,
+        config_param_dict,
         flex_groups=None,
         flex_0_file=None,
         use_flex=False,
@@ -414,69 +367,69 @@ class IndockFile(File):
 #####################################################
 # NOTE: split_database_index is reserved to specify a list of files
 # defults for large scale docking.
-ligand_atom_file               {ligand_atom_file}
+ligand_atom_file               {config_param_dict['indock.ligand_atom_file']}
 #####################################################
 #                             OUTPUT
-output_file_prefix            {output_file_prefix}
+output_file_prefix            {config_param_dict['indock.output_file_prefix']}
 #####################################################
 #                             MATCHING
-match_method                  {match_method}
-distance_tolerance            {distance_tolerance}
-match_goal                    {match_goal}
-distance_step                 {distance_step}
-distance_maximum              {distance_maximum}
-timeout                       {timeout}
-nodes_maximum                 {nodes_maximum}
-nodes_minimum                 {nodes_minimum}
-bump_maximum                  {bump_maximum}
-bump_rigid                    {bump_rigid}
-mol2_score_maximum            {mol2_score_maximum}
+match_method                  {config_param_dict['indock.match_method']}
+distance_tolerance            {config_param_dict['indock.distance_tolerance']}
+match_goal                    {config_param_dict['indock.match_goal']}
+distance_step                 {config_param_dict['indock.distance_step']}
+distance_maximum              {config_param_dict['indock.distance_maximum']}
+timeout                       {config_param_dict['indock.timeout']}
+nodes_maximum                 {config_param_dict['indock.nodes_maximum']}
+nodes_minimum                 {config_param_dict['indock.nodes_minimum']}
+bump_maximum                  {config_param_dict['indock.bump_maximum']}
+bump_rigid                    {config_param_dict['indock.bump_rigid']}
+mol2_score_maximum            {config_param_dict['indock.mol2_score_maximum']}
 #####################################################
 #                             COLORING
-chemical_matching             {chemical_matching}
-case_sensitive                {case_sensitive}
+chemical_matching             {config_param_dict['indock.chemical_matching']}
+case_sensitive                {config_param_dict['indock.case_sensitive']}
 #####################################################
 #                             SEARCH MODE
-atom_minimum                  {atom_minimum}
-atom_maximum                  {atom_maximum}
-number_save                   {number_save}
-number_write                  {number_write}
-flush_int                     {flush_int}
+atom_minimum                  {config_param_dict['indock.atom_minimum']}
+atom_maximum                  {config_param_dict['indock.atom_maximum']}
+number_save                   {config_param_dict['indock.number_save']}
+number_write                  {config_param_dict['indock.number_write']}
+flush_int                     {config_param_dict['indock.flush_int']}
 #molecules_maximum            100000
-check_clashes                 {check_clashes}
-do_premax                     {do_premax}
-do_clusters                   {do_clusters}
+check_clashes                 {config_param_dict['indock.check_clashes']}
+do_premax                     {config_param_dict['indock.do_premax']}
+do_clusters                   {config_param_dict['indock.do_clusters']}
 #####################################################
 #                             SCORING
-ligand_desolvation            {ligand_desolvation}
+ligand_desolvation            {config_param_dict['indock.ligand_desolvation']}
 #vdw_maximum                   1.0e10
-ligand_desolv_scale           {ligand_desolv_scale}
-electrostatic_scale           {electrostatic_scale}
-vdw_scale                     {vdw_scale}
-internal_scale                {internal_scale}
-per_atom_scores               {per_atom_scores}
+ligand_desolv_scale           {config_param_dict['indock.ligand_desolv_scale']}
+electrostatic_scale           {config_param_dict['indock.electrostatic_scale']}
+vdw_scale                     {config_param_dict['indock.vdw_scale']}
+internal_scale                {config_param_dict['indock.internal_scale']}
+per_atom_scores               {config_param_dict['indock.per_atom_scores']}
 ##################################################### 
 #                             DOCKovalent 
-dockovalent                   {dockovalent}
-bond_len                      {bond_len}
-bond_ang1                     {bond_ang1}
-bond_ang2                     {bond_ang2}
-len_range                     {len_range}
-len_step                      {len_step}
-ang1_range                    {ang1_range}
-ang2_range                    {ang2_range}
-ang1_step                     {ang1_step}
-ang2_step                     {ang2_step}
+dockovalent                   {config_param_dict['indock.dockovalent']}
+bond_len                      {config_param_dict['indock.bond_len']}
+bond_ang1                     {config_param_dict['indock.bond_ang1']}
+bond_ang2                     {config_param_dict['indock.bond_ang2']}
+len_range                     {config_param_dict['indock.len_range']}
+len_step                      {config_param_dict['indock.len_step']}
+ang1_range                    {config_param_dict['indock.ang1_range']}
+ang2_range                    {config_param_dict['indock.ang2_range']}
+ang1_step                     {config_param_dict['indock.ang1_step']}
+ang2_step                     {config_param_dict['indock.ang2_step']}
 #####################################################
 #                    MINIMIZATION
-minimize                      {minimize}
-sim_itmax                     {sim_itmax}
-sim_trnstep                   {sim_trnstep}
-sim_rotstep                   {sim_rotstep}
-sim_need_to_restart           {sim_need_to_restart}
-sim_cnvrge                    {sim_cnvrge}
-min_cut                       {min_cut}
-iseed                         {iseed}
+minimize                      {config_param_dict['indock.minimize']}
+sim_itmax                     {config_param_dict['indock.sim_itmax']}
+sim_trnstep                   {config_param_dict['indock.sim_trnstep']}
+sim_rotstep                   {config_param_dict['indock.sim_rotstep']}
+sim_need_to_restart           {config_param_dict['indock.sim_need_to_restart']}
+sim_cnvrge                    {config_param_dict['indock.sim_cnvrge']}
+min_cut                       {config_param_dict['indock.min_cut']}
+iseed                         {config_param_dict['indock.iseed']}
 ##################################################### 
 ##                 Monte Carlo OPTIMIZATION
 #monte_carlo                   no 
@@ -501,12 +454,12 @@ iseed                         {iseed}
             )
             f.write(f"delphi_nsize                  {phi_size}\n")
             if not use_flex:  # normal docking, no flexible sidechains
-                f.write(f"flexible_receptor             {flexible_receptor}\n")
-                f.write(f"total_receptors               {total_receptors}\n")
+                f.write(f"flexible_receptor             {config_param_dict['indock.flexible_receptor']}\n")
+                f.write(f"total_receptors               {config_param_dict['indock.total_receptors']}\n")
                 f.write("############## grids/data for one receptor\n")
-                f.write(f"rec_number                    {rec_number}\n")
-                f.write(f"rec_group                     {rec_group}\n")
-                f.write(f"rec_group_option              {rec_group_option}\n")
+                f.write(f"rec_number                    {config_param_dict['indock.rec_number']}\n")
+                f.write(f"rec_group                     {config_param_dict['indock.rec_group']}\n")
+                f.write(f"rec_group_option              {config_param_dict['indock.rec_group_option']}\n")
                 f.write(
                     f"solvmap_file                  {dock_files.ligand_desolvation_heavy_file.path}\n"
                 )
