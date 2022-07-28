@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # req:
 # EXPORT_DEST
 # INPUT_SOURCE
