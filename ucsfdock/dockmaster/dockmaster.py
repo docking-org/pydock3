@@ -16,9 +16,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 
-from ucsfdock.util import get_logger_for_script, CleanExit
+from ucsfdock.util import get_logger_for_script, CleanExit, get_dataclass_as_dict
 from ucsfdock.config import Parameter
-from ucsfdock.blastermaster.blastermaster import BlasterFiles, get_blaster_steps, copy_blaster_files_into_dir
+from ucsfdock.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
 from ucsfdock.dockmaster.config import DockmasterParametersConfiguration
 from ucsfdock.files import (
     Dir,
@@ -27,12 +27,13 @@ from ucsfdock.files import (
     OutdockFile,
     INDOCK_FILE_NAME,
 )
-from ucsfdock.blastermaster.util import BlasterWorkingDir, BlasterFile, DockFiles
+from ucsfdock.blastermaster.util import WorkingDir, BlasterFile, DockFiles, BlasterFileNames
 from ucsfdock.metrics import get_roc_points, get_enrichment_analysis, BalancedEnrichmentScore, UnbalancedEnrichmentScore, BalancedLogAUC, UnbalancedLogAUC
 from ucsfdock.jobs import RetrospectiveDockingJob
 from ucsfdock.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from ucsfdock.dockmaster.report import generate_dockmaster_job_report
 from ucsfdock.dockmaster import __file__ as DOCKMASTER_INIT_FILE_PATH
+from ucsfdock.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 
 
 #
@@ -319,6 +320,7 @@ class Dockmaster(object):
     DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(DOCKMASTER_INIT_FILE_PATH), "default_dockmaster_config.yaml")
     WORKING_DIR_NAME = "working"
     RETRO_DOCKING_DIR_NAME= "retro_docking"
+    DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(
             self,
@@ -341,17 +343,28 @@ class Dockmaster(object):
         return wrapper
 
     def configure(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
-        #
+        # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
-        working_dir = BlasterWorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
+
+        # create working dir
+        blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
+        backup_blaster_file_paths = [os.path.join(self.DEFAULT_FILES_DIR_PATH, blaster_file_name) for blaster_file_name
+                                     in blaster_file_names]
+        file_names_to_copy_in = blaster_file_names + [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]  # copy in actives and decoys as well as blaster files
+        file_names_in_cwd = [f for f in file_names_to_copy_in if os.path.isfile(f)]
+        files_to_copy_str = '\n\t'.join(file_names_in_cwd)
+        if file_names_in_cwd:
+            logger.info(f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}")
+        working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False,
+                                 files_to_copy_in=file_names_in_cwd,
+                                 backup_files_to_copy_in=backup_blaster_file_paths)
+
+        # create retro docking dir
         retro_docking_dir = Dir(path=os.path.join(job_dir.path, self.RETRO_DOCKING_DIR_NAME), create=True, reset=False)
 
         # write fresh config file from default file
         save_path = os.path.join(job_dir.path, self.CONFIG_FILE_NAME)
         DockmasterParametersConfiguration.write_config_file(save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite)
-
-        # copy detected blaster files into working dir
-        copy_blaster_files_into_dir(working_dir)
 
     @handle_run_func.__get__(0)
     def run(self,
@@ -391,7 +404,7 @@ class Dockmaster(object):
 
         #
         job_dir = Dir(job_dir_path, create=True, reset=False)
-        working_dir = BlasterWorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
+        working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
         retro_docking_dir = Dir(path=os.path.join(job_dir.path, self.RETRO_DOCKING_DIR_NAME), create=True, reset=False)
 
         #

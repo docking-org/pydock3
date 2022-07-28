@@ -36,8 +36,10 @@ from ucsfdock.files import (
     IndockFile,
     INDOCK_FILE_NAME,
 )
-from ucsfdock.blastermaster.util import BlasterWorkingDir, BlasterFiles, BlasterFileNames
+from ucsfdock.blastermaster.util import WorkingDir, BlasterFiles, BlasterFileNames
 from ucsfdock.blastermaster import __file__ as BLASTERMASTER_INIT_FILE_PATH
+from ucsfdock.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
+
 
 #
 logger = logging.getLogger(__name__)
@@ -390,22 +392,13 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     return tuple(steps)
 
 
-def copy_blaster_files_into_dir(dst_dir):
-    blaster_file_names_dict = get_dataclass_as_dict(BlasterFileNames())
-    files_to_copy = [f for f in os.listdir() if os.path.isfile(f) and f in blaster_file_names_dict.values()]
-    files_to_copy_str = '\n\t'.join(files_to_copy)
-    if files_to_copy:
-        logger.info(f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}")
-        for file_name in files_to_copy:
-            dst_dir.copy_in_file(file_name)
-
-
 class Blastermaster(object):
     JOB_DIR_NAME = "blastermaster_job"
     CONFIG_FILE_NAME = "blastermaster_config.yaml"
     DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(BLASTERMASTER_INIT_FILE_PATH), "default_blastermaster_config.yaml")
     WORKING_DIR_NAME = "working"
     DOCK_FILES_DIR_NAME = "dockfiles"
+    DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(self,
                  log_file="blastermaster.log",
@@ -415,17 +408,24 @@ class Blastermaster(object):
         self.logger = get_logger_for_script(log_file, debug=debug)
                 
     def configure(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
-        #
+        # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
-        working_dir = BlasterWorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
+
+        # create working dir
+        blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
+        backup_blaster_file_paths = [os.path.join(self.DEFAULT_FILES_DIR_PATH, blaster_file_name) for blaster_file_name in blaster_file_names]
+        blaster_file_names_in_cwd = [f for f in blaster_file_names if os.path.isfile(f)]
+        files_to_copy_str = '\n\t'.join(blaster_file_names_in_cwd)
+        if blaster_file_names_in_cwd:
+            logger.info(f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}")
+        working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False, files_to_copy_in=blaster_file_names_in_cwd, backup_files_to_copy_in=backup_blaster_file_paths)
+
+        # create dock files dir
         dock_files_dir = Dir(path=os.path.join(job_dir.path, self.DOCK_FILES_DIR_NAME), create=True, reset=False)
 
         # write fresh config file from default file
         save_path = os.path.join(job_dir.path, self.CONFIG_FILE_NAME)
         BlastermasterParametersConfiguration.write_config_file(save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite)
-
-        # copy detected blaster files into working dir
-        copy_blaster_files_into_dir(working_dir)
 
     def run(self, job_dir_path=".", config_file_path=None, use_graph_state=True, write_graph_image=False):
         # validate args
@@ -439,7 +439,7 @@ class Blastermaster(object):
 
         # load directories
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
-        working_dir = BlasterWorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
+        working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
         dock_files_dir = Dir(path=os.path.join(job_dir.path, self.DOCK_FILES_DIR_NAME), create=True, reset=True)  # reset dock files dir in case re-running
 
         #

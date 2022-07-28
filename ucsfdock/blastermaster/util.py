@@ -10,9 +10,8 @@ from ucsfdock.util import validate_variable_type, system_call
 from ucsfdock.config import Parameter
 from ucsfdock.files import File, Dir, LogFile
 from ucsfdock.blastermaster.programs import __file__ as PROGRAMS_INIT_FILE_PATH
+
 PROGRAMS_DIR_PATH = os.path.dirname(PROGRAMS_INIT_FILE_PATH)
-from ucsfdock.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
-DEFAULTS_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
 
 #
@@ -112,50 +111,27 @@ class BlasterFile(File):
         self.datetime_marked_complete_in_most_recent_job = None
 
 
-class BlasterWorkingDir(Dir):
+class WorkingDir(Dir):
     """#TODO"""
 
-    def __init__(self, path, create=False, reset=False):
+    def __init__(self, path, create=False, reset=False, files_to_copy_in=None, backup_files_to_copy_in=None):
         super().__init__(path, create=create, reset=reset)
 
         #
-        blaster_file_names = BlasterFileNames()
+        if files_to_copy_in is None:
+            files_to_copy_in = []
+        if backup_files_to_copy_in is None:
+            backup_files_to_copy_in = []
 
-        #
-        logger.debug(f"Copying default files (e.g. amb.crg.oxt) into {self.path} ...")
-        add_h_dict_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.add_h_dict_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "reduce_wwPDB_het_dict.txt"),
-        )
-        binding_site_residues_parameters_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.binding_site_residues_parameters_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "filt.params"),
-        )
-        molecular_surface_radii_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.molecular_surface_radii_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "radii"),
-        )
-        electrostatics_charge_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.electrostatics_charge_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "amb.crg.oxt"),
-        )
-        electrostatics_radius_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.electrostatics_radius_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "vdw.siz"),
-        )
-        electrostatics_delphi_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.electrostatics_delphi_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "delphi.def"),
-        )
-        vdw_parameters_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.vdw_parameters_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "vdw.parms.amb.mindock"),
-        )
-        vdw_protein_table_file = BlasterFile(
-            path=os.path.join(self.path, blaster_file_names.vdw_protein_table_file_name),
-            src_file_path=os.path.join(DEFAULTS_DIR_PATH, "prot.table.ambcrg.ambH"),
-        )
-        logger.debug("done.")
+        # copy in specified files if they exist, otherwise try to copy in backup files
+        file_names_to_copy_in = [File.get_file_name_of_file(file_path) for file_path in files_to_copy_in]
+        for backup_file_path in backup_files_to_copy_in:
+            if File.get_file_name_of_file(backup_file_path) not in file_names_to_copy_in:
+                if File.file_exists(backup_file_path):
+                    self.copy_in_file(backup_file_path)
+        for file_path in files_to_copy_in:
+            if File.file_exists(file_path):
+                self.copy_in_file(file_path)
 
 
 @dataclass
