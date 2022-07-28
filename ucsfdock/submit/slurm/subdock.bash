@@ -7,7 +7,7 @@
 # SHRTCACHE
 # LONGCACHE
 
-RUNDOCK_PATH=$(dirname $0)/../rundock.bash
+RUNDOCK_PATH=$(dirname $0)/rundock.bash
 
 failed=0
 function exists {
