@@ -358,12 +358,15 @@ class Dockmaster(object):
         working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False, files_to_copy_in=blaster_file_names_in_cwd, backup_files_to_copy_in=backup_blaster_file_paths)
 
         # copy in actives and decoys TGZ files
-        tgz_file_names_in_cwd = [f for f in [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME] if os.path.isfile(f)]
-        files_to_copy_str = '\n\t'.join(tgz_file_names_in_cwd)
+        tgz_files = [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]
+        tgz_file_names_in_cwd = [f for f in tgz_files if os.path.isfile(f)]
+        tgz_file_names_not_in_cwd = [f for f in tgz_files if not os.path.isfile(f)]
         if tgz_file_names_in_cwd:
+            files_to_copy_str = '\n\t'.join(tgz_file_names_in_cwd)
             logger.info(f"Copying the following files from current directory into job directory:\n\t{files_to_copy_str}")
-        else:
-            logger.info(f"Actives and/or decoys TGZ files not detected in current working directory. Be sure to add it/them manually before running the job.")
+        if tgz_file_names_not_in_cwd:
+            files_missing_str = '\n\t'.join(tgz_file_names_not_in_cwd)
+            logger.info(f"The following required files were not found in current working directory. Be sure to add them manually to the job directory before running the job.\n\t{files_missing_str}")
 
         # create retro docking dir
         retro_docking_dir = Dir(path=os.path.join(job_dir.path, self.RETRO_DOCKING_DIR_NAME), create=True, reset=False)
