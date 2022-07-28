@@ -82,7 +82,7 @@ class SlurmJobScheduler(JobScheduler):
         if self.SLURM_SETTINGS is not None:
             env_vars_dict["SLURM_SETTINGS"] = self.SLURM_SETTINGS
 
-        sbatch_args_str = f"-J {job_name} -o {output_dir.path}/{job_name}_%A_%a.out -e {output_dir.path}/{job_name}_%A_%a.err"
+        sbatch_args_str = f"-J {job_name} -o {output_dir.path}/{job_name}_%A_%a.out -e {output_dir.path}/{job_name}_%A_%a.err "
 
         if job_timeout_minutes is None:
             sbatch_args_str += "--time=0 "
@@ -139,7 +139,7 @@ class SGEJobScheduler(JobScheduler):
         if self.SGE_SETTINGS is not None:
             env_vars_dict["SGE_SETTINGS"] = self.SGE_SETTINGS
 
-        qsub_args_str = f"-N {job_name} -o {output_dir.path} -e {output_dir.path}"
+        qsub_args_str = f"-N {job_name} -o {output_dir.path} -e {output_dir.path} "
 
         if job_timeout_minutes is not None:
             job_timeout_seconds = 60 * job_timeout_minutes
