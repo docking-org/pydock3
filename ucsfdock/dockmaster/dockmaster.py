@@ -337,7 +337,7 @@ class Dockmaster(object):
         @wraps(run_func)
         def wrapper(self, *args, **kwargs):
             with CleanExit():
-                self.logger.info(f"Running {self.__class__.__name__}.run()")
+                self.logger.info(f"Running {self.__class__.__name__}")
                 run_func(self, *args, **kwargs)
 
         return wrapper
