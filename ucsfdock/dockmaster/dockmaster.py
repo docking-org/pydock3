@@ -364,6 +364,8 @@ class Dockmaster(object):
         if tgz_file_names_in_cwd:
             files_to_copy_str = '\n\t'.join(tgz_file_names_in_cwd)
             logger.info(f"Copying the following files from current directory into job directory:\n\t{files_to_copy_str}")
+            for tgz_file_name in tgz_file_names_in_cwd:
+                job_dir.copy_in_file(tgz_file_name)
         if tgz_file_names_not_in_cwd:
             files_missing_str = '\n\t'.join(tgz_file_names_not_in_cwd)
             logger.info(f"The following required files were not found in current working directory. Be sure to add them manually to the job directory before running the job.\n\t{files_missing_str}")
