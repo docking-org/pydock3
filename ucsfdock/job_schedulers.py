@@ -16,13 +16,11 @@ logger.setLevel(logging.DEBUG)
 
 
 class JobScheduler(ABC):
+    SUBMISSION_SCRIPT_PATH = None
+    REQUIRED_ENV_VAR_NAMES = []
+
     def __init__(self, name):
         self.name = name
-
-    @property
-    @abstractmethod
-    def required_env_var_names(self):
-        raise NotImplementedError
 
     @abstractmethod
     def run(self, job_name, dock_executable_path, working_dir, input_file, dock_files_dir, output_dir, job_timeout_minutes=None):
@@ -34,13 +32,11 @@ class JobScheduler(ABC):
 
 
 class NoJobScheduler(JobScheduler):
+    SUBMISSION_SCRIPT_PATH = None
+    REQUIRED_ENV_VAR_NAMES = []
+
     def __init__(self, name):
         super().__init__(name)
-        
-    @property
-    @abstractmethod
-    def required_env_var_names(self):
-        raise NotImplementedError
 
     def run(self, job_name, dock_executable_path, working_dir, input_file, dock_files_dir, output_dir, job_timeout_minutes=None):
         raise NotImplementedError
@@ -51,6 +47,12 @@ class NoJobScheduler(JobScheduler):
 
 class SlurmJobScheduler(JobScheduler):
     SUBMISSION_SCRIPT_PATH = os.path.join(DOCK_SUBMISSION_SLURM_DIR_PATH, "subdock.bash")
+    REQUIRED_ENV_VAR_NAMES = [
+        "SHRTCACHE",
+        "LONGCACHE",
+        "SBATCH_EXEC",
+        "SQUEUE_EXEC",
+    ]
 
     def __init__(self):
         super().__init__(name="Slurm")
@@ -63,15 +65,6 @@ class SlurmJobScheduler(JobScheduler):
 
         # set optional env vars
         self.SLURM_SETTINGS = os.environ.get("SLURM_SETTINGS")
-        
-    @property
-    def required_env_var_names(self):
-        return [
-            "SHRTCACHE",
-            "LONGCACHE",
-            "SBATCH_EXEC",
-            "SQUEUE_EXEC",
-        ]
 
     def run(self, job_name, dock_executable_path, working_dir, input_file, dock_files_dir, output_dir, job_timeout_minutes=None):
         command_str = f"bash {self.SUBMISSION_SCRIPT_PATH}"
@@ -111,6 +104,12 @@ class SlurmJobScheduler(JobScheduler):
 
 class SGEJobScheduler(JobScheduler):
     SUBMISSION_SCRIPT_PATH = os.path.join(DOCK_SUBMISSION_SGE_DIR_PATH, "subdock.bash")
+    REQUIRED_ENV_VAR_NAMES = [
+        "SHRTCACHE",
+        "LONGCACHE",
+        "QSUB_EXEC",
+        "QSTAT_EXEC",
+    ]
 
     def __init__(self):
         super().__init__(name="SGE")
@@ -123,15 +122,6 @@ class SGEJobScheduler(JobScheduler):
 
         # set optional env vars
         self.SGE_SETTINGS = os.environ.get("SGE_SETTINGS")
-        
-    @property
-    def required_env_var_names(self):
-        return [
-            "SHRTCACHE",
-            "LONGCACHE",
-            "QSUB_EXEC",
-            "QSTAT_EXEC",
-        ]
 
     def run(self, job_name, dock_executable_path, working_dir, input_file, dock_files_dir, output_dir, job_timeout_minutes=None):
         command_str = f"bash {self.SUBMISSION_SCRIPT_PATH}"

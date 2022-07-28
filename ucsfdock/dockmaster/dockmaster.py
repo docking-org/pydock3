@@ -432,7 +432,7 @@ class Dockmaster(object):
         try:
             scheduler = SCHEDULER_NAME_TO_CLASS_DICT[scheduler]()
         except KeyError:
-            logger.error(f"The following environmental variables are required to use the SGE job scheduler: {SCHEDULER_NAME_TO_CLASS_DICT[scheduler].required_env_var_names}")
+            logger.error(f"The following environmental variables are required to use the {scheduler} job scheduler: {SCHEDULER_NAME_TO_CLASS_DICT[scheduler].REQUIRED_ENV_VAR_NAMES}")
             return
 
         #
