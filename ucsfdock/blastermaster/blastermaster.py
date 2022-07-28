@@ -411,7 +411,7 @@ class Blastermaster(object):
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
-        # create working dir
+        # create working dir & copy in blaster files
         blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
         backup_blaster_file_paths = [os.path.join(self.DEFAULT_FILES_DIR_PATH, blaster_file_name) for blaster_file_name in blaster_file_names]
         blaster_file_names_in_cwd = [f for f in blaster_file_names if os.path.isfile(f)]

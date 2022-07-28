@@ -346,18 +346,24 @@ class Dockmaster(object):
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
-        # create working dir
+        # create working dir & copy in blaster files
         blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
-        backup_blaster_file_paths = [os.path.join(self.DEFAULT_FILES_DIR_PATH, blaster_file_name) for blaster_file_name
-                                     in blaster_file_names]
-        file_names_to_copy_in = blaster_file_names + [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]  # copy in actives and decoys as well as blaster files
-        file_names_in_cwd = [f for f in file_names_to_copy_in if os.path.isfile(f)]
-        files_to_copy_str = '\n\t'.join(file_names_in_cwd)
-        if file_names_in_cwd:
+        backup_blaster_file_paths = [os.path.join(self.DEFAULT_FILES_DIR_PATH, blaster_file_name) for blaster_file_name in blaster_file_names]
+        blaster_file_names_in_cwd = [f for f in blaster_file_names if os.path.isfile(f)]
+        files_to_copy_str = '\n\t'.join(blaster_file_names_in_cwd)
+        if blaster_file_names_in_cwd:
             logger.info(f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}")
-        working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False,
-                                 files_to_copy_in=file_names_in_cwd,
-                                 backup_files_to_copy_in=backup_blaster_file_paths)
+        else:
+            logger.info(f"No blaster files detected in current working directory. Be sure to add them manually before running the job.")
+        working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False, files_to_copy_in=blaster_file_names_in_cwd, backup_files_to_copy_in=backup_blaster_file_paths)
+
+        # copy in actives and decoys TGZ files
+        tgz_file_names_in_cwd = [f for f in [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME] if os.path.isfile(f)]
+        files_to_copy_str = '\n\t'.join(tgz_file_names_in_cwd)
+        if tgz_file_names_in_cwd:
+            logger.info(f"Copying the following files from current directory into job directory:\n\t{files_to_copy_str}")
+        else:
+            logger.info(f"Actives and/or decoys TGZ files not detected in current working directory. Be sure to add it/them manually before running the job.")
 
         # create retro docking dir
         retro_docking_dir = Dir(path=os.path.join(job_dir.path, self.RETRO_DOCKING_DIR_NAME), create=True, reset=False)
@@ -385,7 +391,7 @@ class Dockmaster(object):
         if decoys_tgz_file_path is None:
             decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
         try:
-            File.validate_file_exists(config_file_path)
+            File.validate_file_exists(config_file_path)-
         except FileNotFoundError:
             logger.error("Config file not found. Are you in the job directory?")
             return
