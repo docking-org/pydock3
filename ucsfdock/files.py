@@ -3,6 +3,10 @@ import os
 import shutil
 import pathlib
 from datetime import datetime
+import tarfile
+import gzip
+import re
+import uuid
 
 import numpy as np
 import pandas as pd
@@ -174,16 +178,16 @@ class File(FileSystemEntity):
     def delete(self):
         self.delete_file(self.path)
 
-    def is_newer_than_file(self, file_path):
-        File.validate_path(file_path)
-        return self.get_datetime_file_was_last_modified(self.path) > self.get_datetime_file_was_last_modified(file_path)
-
-    def differs_from_file(self, file_path, verbose=False):
-        return self.files_differ(self.path, file_path, verbose=verbose)
-
     def validate_is_not_empty(self):
         if self.is_empty:
             raise Exception(f"File is empty: {self}")
+
+    def read_lines(self):
+        return self.read_file_lines(self.path)
+
+    @property
+    def is_gzipped(self):
+        return self.file_is_gzipped(self.path)
 
     @staticmethod
     def get_datetime_file_was_last_modified(file_path):
@@ -262,6 +266,17 @@ class File(FileSystemEntity):
         return os.path.isfile(file_path)
 
     @staticmethod
+    def read_file_lines(file_path):
+        with open(file_path, 'r') as f:
+            lines = [line.strip() for line in f.readlines()]
+        return lines
+
+    @staticmethod
+    def file_is_gzipped(file_path):
+        with open(file_path, 'rb') as f:
+            return f.read(2) == b'\x1f\x8b'
+
+    @staticmethod
     def validate_file_exists(file_path):
         if not File.file_exists(file_path):
             raise FileNotFoundError(f"File {file_path} does not exist.")
@@ -317,6 +332,25 @@ class SMIFile(File):
 class SDIFile(File):
     def __init__(self, path):
         super().__init__(path=path)
+
+    def write_tgz(self, tgz_file_path, filter_regex="(.*?)"):
+        db2_file_paths = self.read_lines()
+        pattern = re.compile(filter_regex)
+        with tarfile.open(tgz_file_path, 'w:gz') as tar:
+            i = 0
+            for db2_file_path in db2_file_paths:
+                if pattern.match(db2_file_path):
+                    dst_file_name = f"{i+1}.db2"
+                    if File.file_is_gzipped(db2_file_path):
+                        unzipped_db2_file_path = str(uuid.uuid4())
+                        with gzip.open(db2_file_path, 'rb') as f_in:
+                            with open(unzipped_db2_file_path, 'wb') as f_out:
+                                shutil.copyfileobj(f_in, f_out)
+                        tar.add(unzipped_db2_file_path, arcname=dst_file_name)
+                        os.remove(unzipped_db2_file_path)
+                    else:
+                        tar.add(db2_file_path, arcname=dst_file_name)
+                    i += 1
 
 
 class ProgramFile(File):
