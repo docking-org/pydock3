@@ -2,8 +2,6 @@ import os
 from dataclasses import fields
 import logging
 
-import fire
-
 from ucsfdock.blastermaster.steps.receptor_most_occupied_residues_renaming import \
     ReceptorMostOccupiedResiduesRenamingStep
 from ucsfdock.blastermaster.steps.receptor_protonation import ReceptorProtonationStep
@@ -400,12 +398,8 @@ class Blastermaster(object):
     DOCK_FILES_DIR_NAME = "dockfiles"
     DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
-    def __init__(self,
-                 log_file="blastermaster.log",
-                 debug=False,
-                 ):
-        #
-        self.logger = get_logger_for_script(log_file, debug=debug)
+    def __init__(self):
+        pass
                 
     def configure(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
         # create job dir
