@@ -713,11 +713,3 @@ class Dockmaster(object):
             opt_results_csv_file_name=optimization_results_csv_file_path,
             enrichment_metric=enrichment_metric_name,
         )
-
-
-def main():
-    fire.Fire(Dockmaster)
-
-
-if __name__ == '__main__':
-    main()

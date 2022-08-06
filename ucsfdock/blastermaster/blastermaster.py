@@ -1286,11 +1286,3 @@ class Blastermaster(object):
                 fig.set_size_inches(20, 20)
                 plt.savefig(os.path.join(self.job_dir.path, "blaster_targets_graph.png"))
 '''
-
-
-def main():
-    fire.Fire(Blastermaster)
-
-
-if __name__ == '__main__':
-    main()
