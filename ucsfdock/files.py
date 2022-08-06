@@ -333,24 +333,33 @@ class SDIFile(File):
     def __init__(self, path):
         super().__init__(path=path)
 
-    def write_tgz(self, tgz_file_path, filter_regex="(.*?)"):
+    def write_tgz(self, tgz_file_name, archive_dir_name=None, filter_regex="(.*?)"):
+        if archive_dir_name is None:
+            archive_dir_name = File.get_file_name_of_file(tgz_file_name)
+            archive_dir_name = re.sub('.tgz$', '', archive_dir_name)
+            archive_dir_name = re.sub('.tar.gz$', '', archive_dir_name)
         db2_file_paths = self.read_lines()
         pattern = re.compile(filter_regex)
-        with tarfile.open(tgz_file_path, 'w:gz') as tar:
+        temp_dir_name = str(uuid.uuid4())
+        os.mkdir(temp_dir_name)
+        with tarfile.open(tgz_file_name, 'w:gz') as tar:
             i = 0
             for db2_file_path in db2_file_paths:
                 if pattern.match(db2_file_path):
                     dst_file_name = f"{i+1}.db2"
+                    dst_file_path = os.path.join(temp_dir_name, dst_file_name)
+                    file_path_in_archive = os.path.join(archive_dir_name, dst_file_name)
                     if File.file_is_gzipped(db2_file_path):
-                        unzipped_db2_file_path = str(uuid.uuid4())
                         with gzip.open(db2_file_path, 'rb') as f_in:
-                            with open(unzipped_db2_file_path, 'wb') as f_out:
+                            with open(dst_file_path, 'wb') as f_out:
                                 shutil.copyfileobj(f_in, f_out)
-                        tar.add(unzipped_db2_file_path, arcname=dst_file_name)
-                        os.remove(unzipped_db2_file_path)
                     else:
-                        tar.add(db2_file_path, arcname=dst_file_name)
+                        with open(db2_file_path, 'r') as f_in:
+                            with open(dst_file_path, 'w') as f_out:
+                                shutil.copyfileobj(f_in, f_out)
+                    tar.add(dst_file_path, arcname=file_path_in_archive)
                     i += 1
+        shutil.rmtree(temp_dir_name)
 
 
 class ProgramFile(File):
