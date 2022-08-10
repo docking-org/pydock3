@@ -397,6 +397,12 @@ class IndockFile(File):
         if flex_groups is None:
             flex_groups = []
 
+        def get_yes_or_no(boolean):
+            if boolean:
+                return 'yes'
+            else:
+                return 'no'
+
         #
         File.validate_file_exists(dock_files.electrostatics_phi_size_file.path)
         with open(dock_files.electrostatics_phi_size_file.path, 'r') as f:
@@ -422,15 +428,15 @@ match_goal                    {config_param_dict['indock.match_goal']}
 distance_step                 {config_param_dict['indock.distance_step']}
 distance_maximum              {config_param_dict['indock.distance_maximum']}
 timeout                       {config_param_dict['indock.timeout']}
-nodes_maximum                 {config_param_dict['indock.nodes_maximum']}
-nodes_minimum                 {config_param_dict['indock.nodes_minimum']}
+nodes_maximum                 {get_yes_or_no(config_param_dict['indock.nodes_maximum'])}
+nodes_minimum                 {get_yes_or_no(config_param_dict['indock.nodes_minimum'])}
 bump_maximum                  {config_param_dict['indock.bump_maximum']}
 bump_rigid                    {config_param_dict['indock.bump_rigid']}
 mol2_score_maximum            {config_param_dict['indock.mol2_score_maximum']}
 #####################################################
 #                             COLORING
-chemical_matching             {config_param_dict['indock.chemical_matching']}
-case_sensitive                {config_param_dict['indock.case_sensitive']}
+chemical_matching             {get_yes_or_no(config_param_dict['indock.chemical_matching'])}
+case_sensitive                {get_yes_or_no(config_param_dict['indock.case_sensitive'])}
 #####################################################
 #                             SEARCH MODE
 atom_minimum                  {config_param_dict['indock.atom_minimum']}
@@ -439,9 +445,9 @@ number_save                   {config_param_dict['indock.number_save']}
 number_write                  {config_param_dict['indock.number_write']}
 flush_int                     {config_param_dict['indock.flush_int']}
 #molecules_maximum            100000
-check_clashes                 {config_param_dict['indock.check_clashes']}
-do_premax                     {config_param_dict['indock.do_premax']}
-do_clusters                   {config_param_dict['indock.do_clusters']}
+check_clashes                 {get_yes_or_no(config_param_dict['indock.check_clashes'])}
+do_premax                     {get_yes_or_no(config_param_dict['indock.do_premax'])}
+do_clusters                   {get_yes_or_no(config_param_dict['indock.do_clusters'])}
 #####################################################
 #                             SCORING
 ligand_desolvation            {config_param_dict['indock.ligand_desolvation']}
@@ -450,10 +456,10 @@ ligand_desolv_scale           {config_param_dict['indock.ligand_desolv_scale']}
 electrostatic_scale           {config_param_dict['indock.electrostatic_scale']}
 vdw_scale                     {config_param_dict['indock.vdw_scale']}
 internal_scale                {config_param_dict['indock.internal_scale']}
-per_atom_scores               {config_param_dict['indock.per_atom_scores']}
+per_atom_scores               {get_yes_or_no(config_param_dict['indock.per_atom_scores'])}
 ##################################################### 
 #                             DOCKovalent 
-dockovalent                   {config_param_dict['indock.dockovalent']}
+dockovalent                   {get_yes_or_no(config_param_dict['indock.dockovalent'])}
 bond_len                      {config_param_dict['indock.bond_len']}
 bond_ang1                     {config_param_dict['indock.bond_ang1']}
 bond_ang2                     {config_param_dict['indock.bond_ang2']}
@@ -465,7 +471,7 @@ ang1_step                     {config_param_dict['indock.ang1_step']}
 ang2_step                     {config_param_dict['indock.ang2_step']}
 #####################################################
 #                    MINIMIZATION
-minimize                      {config_param_dict['indock.minimize']}
+minimize                      {get_yes_or_no(config_param_dict['indock.minimize'])}
 sim_itmax                     {config_param_dict['indock.sim_itmax']}
 sim_trnstep                   {config_param_dict['indock.sim_trnstep']}
 sim_rotstep                   {config_param_dict['indock.sim_rotstep']}
@@ -497,7 +503,7 @@ iseed                         {config_param_dict['indock.iseed']}
             )
             f.write(f"delphi_nsize                  {phi_size}\n")
             if not use_flex:  # normal docking, no flexible sidechains
-                f.write(f"flexible_receptor             {config_param_dict['indock.flexible_receptor']}\n")
+                f.write(f"flexible_receptor             {get_yes_or_no(config_param_dict['indock.flexible_receptor'])}\n")
                 f.write(f"total_receptors               {config_param_dict['indock.total_receptors']}\n")
                 f.write("############## grids/data for one receptor\n")
                 f.write(f"rec_number                    {config_param_dict['indock.rec_number']}\n")
