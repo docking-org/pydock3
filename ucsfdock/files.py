@@ -428,8 +428,8 @@ match_goal                    {config_param_dict['indock.match_goal']}
 distance_step                 {config_param_dict['indock.distance_step']}
 distance_maximum              {config_param_dict['indock.distance_maximum']}
 timeout                       {config_param_dict['indock.timeout']}
-nodes_maximum                 {get_yes_or_no(config_param_dict['indock.nodes_maximum'])}
-nodes_minimum                 {get_yes_or_no(config_param_dict['indock.nodes_minimum'])}
+nodes_maximum                 {config_param_dict['indock.nodes_maximum']}
+nodes_minimum                 {config_param_dict['indock.nodes_minimum']}
 bump_maximum                  {config_param_dict['indock.bump_maximum']}
 bump_rigid                    {config_param_dict['indock.bump_rigid']}
 mol2_score_maximum            {config_param_dict['indock.mol2_score_maximum']}
