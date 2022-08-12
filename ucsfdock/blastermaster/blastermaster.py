@@ -104,7 +104,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     steps.append(
         BindingSiteResiduesSelectionStep(
             step_dir=_get_step_dir("binding_site_residues_selection"),
-            receptor_infile=charged_receptor_file,
+            receptor_infile=blaster_files.receptor_file,
             ligand_infile=blaster_files.ligand_hetatm_renamed_file,
             filt_parameters_infile=blaster_files.binding_site_residues_parameters_file,
             binding_site_residues_outfile=blaster_files.binding_site_residues_file,
