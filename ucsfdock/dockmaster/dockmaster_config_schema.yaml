@@ -77,3 +77,6 @@ indock:
   rec_number: any(int(), list(int()))
   rec_group: any(int(), list(int()))
   rec_group_option: any(int(), list(int()))
+  check_strain: any(bool(), list(bool()))
+  total_strain: any(int(), list(int()))
+  max_strain: any(int(), list(int()))

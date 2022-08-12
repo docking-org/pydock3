@@ -522,6 +522,11 @@ iseed                         {config_param_dict['indock.iseed']}
                 f.write(
                     f"bumpmap_file                  {dock_files.vdw_bump_map_file.path}\n"
                 )
+                f.write("#####################################################")
+                f.write("#                             STRAIN")
+                f.write(f"check_strain                  {config_param_dict['indock.check_strain']}\n")
+                f.write(f"total_strain                  {config_param_dict['indock.total_strain']}\n")
+                f.write(f"max_strain                    {config_param_dict['indock.max_strain']}\n")
                 f.write("############## end of INDOCK\n")
             else:  # flexible docking
                 raise NotImplementedError

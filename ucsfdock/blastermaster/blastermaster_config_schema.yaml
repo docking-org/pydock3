@@ -77,3 +77,6 @@ indock:
   rec_number: int()
   rec_group: int()
   rec_group_option: int()
+  check_strain: bool()
+  total_strain: int()
+  max_strain: int()

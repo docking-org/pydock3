@@ -77,3 +77,6 @@ indock:
   rec_number: 1
   rec_group: 1
   rec_group_option: 1
+  check_strain: true
+  total_strain: 8
+  max_strain: 3
