@@ -11,7 +11,7 @@ thin_spheres_elec:
 thin_spheres_desolv:
   use: true
   molecular_surface_density: 1.0
-  distance_to_surface: 1.0
+  distance_to_surface: 0.1
   penetration: 0.0
   distance_to_ligand: 2.0
 
