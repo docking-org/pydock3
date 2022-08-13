@@ -523,7 +523,7 @@ iseed                         {config_param_dict['indock.iseed']}
                     f"bumpmap_file                  {dock_files.vdw_bump_map_file.path}\n"
                 )
                 f.write("#####################################################")
-                f.write("#                             STRAIN")
+                f.write("#                             STRAIN\n")
                 f.write(f"check_strain                  {config_param_dict['indock.check_strain']}\n")
                 f.write(f"total_strain                  {config_param_dict['indock.total_strain']}\n")
                 f.write(f"max_strain                    {config_param_dict['indock.max_strain']}\n")
