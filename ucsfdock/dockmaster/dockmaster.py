@@ -508,7 +508,7 @@ class Dockmaster(object):
 
             # make indock file for each combination of dock files
             indock_file = IndockFile(path=os.path.join(docking_job_dock_files_dir.path, INDOCK_FILE_NAME))
-            indock_file.write(new_dock_files, parameter_dict)
+            indock_file.write(new_dock_files, parameter_dict, docking_job_dock_files_dir.name)
         logger.debug("done")
 
         # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi

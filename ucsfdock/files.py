@@ -388,6 +388,7 @@ class IndockFile(File):
         self,
         dock_files,
         config_param_dict,
+        dock_files_dir_name,
         flex_groups=None,
         flex_0_file=None,
         use_flex=False,
@@ -496,10 +497,10 @@ iseed                         {config_param_dict['indock.iseed']}
         with open(self.path, "w") as f:
             f.write(header)
             f.write(
-                f"receptor_sphere_file          {dock_files.matching_spheres_file.path}\n"
+                f"receptor_sphere_file          {os.path.join('..', dock_files_dir_name, dock_files.matching_spheres_file.name)}\n"
             )
             f.write(
-                f"vdw_parameter_file            {dock_files.vdw_parameters_file.path}\n"
+                f"vdw_parameter_file            {os.path.join('..', dock_files_dir_name, dock_files.vdw_parameters_file.name)}\n"
             )
             f.write(f"delphi_nsize                  {phi_size}\n")
             if not use_flex:  # normal docking, no flexible sidechains
@@ -510,17 +511,17 @@ iseed                         {config_param_dict['indock.iseed']}
                 f.write(f"rec_group                     {config_param_dict['indock.rec_group']}\n")
                 f.write(f"rec_group_option              {config_param_dict['indock.rec_group_option']}\n")
                 f.write(
-                    f"solvmap_file                  {dock_files.ligand_desolvation_heavy_file.path}\n"
+                    f"solvmap_file                  {os.path.join('..', dock_files_dir_name, dock_files.ligand_desolvation_heavy_file.name)}\n"
                 )
                 f.write(
-                    f"hydrogen_solvmap_file         {dock_files.ligand_desolvation_hydrogen_file.path}\n"
+                    f"hydrogen_solvmap_file         {os.path.join('..', dock_files_dir_name, dock_files.ligand_desolvation_hydrogen_file.name)}\n"
                 )
                 f.write(
-                    f"delphi_file                   {dock_files.electrostatics_trim_phi_file.path}\n"
+                    f"delphi_file                   {os.path.join('..', dock_files_dir_name, dock_files.electrostatics_trim_phi_file.name)}\n"
                 )
-                f.write(f"chemgrid_file                 {dock_files.vdw_file.path}\n")
+                f.write(f"chemgrid_file                 {os.path.join('..', dock_files_dir_name, dock_files.vdw_file.name)}\n")
                 f.write(
-                    f"bumpmap_file                  {dock_files.vdw_bump_map_file.path}\n"
+                    f"bumpmap_file                  {os.path.join('..', dock_files_dir_name, dock_files.vdw_bump_map_file.name)}\n"
                 )
                 f.write("#####################################################")
                 f.write("#                             STRAIN\n")

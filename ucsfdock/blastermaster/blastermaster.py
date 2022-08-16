@@ -475,7 +475,7 @@ class Blastermaster(object):
 
         # make INDOCK file, using phi_size
         logger.info("Making indock file...")
-        indock_file.write(blaster_files.dock_files, config.param_dict)
+        indock_file.write(blaster_files.dock_files, config.param_dict, dock_files_dir.name)
         logger.info("done.")
 
 
