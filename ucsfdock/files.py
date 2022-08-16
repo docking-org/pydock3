@@ -525,7 +525,7 @@ iseed                         {config_param_dict['indock.iseed']}
                 )
                 f.write("#####################################################\n")
                 f.write("#                             STRAIN\n")
-                f.write(f"check_strain                  {config_param_dict['indock.check_strain']}\n")
+                f.write(f"check_strain                  {get_yes_or_no(config_param_dict['indock.check_strain'])}\n")
                 f.write(f"total_strain                  {config_param_dict['indock.total_strain']}\n")
                 f.write(f"max_strain                    {config_param_dict['indock.max_strain']}\n")
                 f.write("############## end of INDOCK\n")
