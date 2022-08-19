@@ -1,3 +1,4 @@
+import collections
 import logging
 import os
 import shutil
@@ -10,7 +11,7 @@ import uuid
 
 import numpy as np
 import pandas as pd
-import rdkit
+from rdkit import Chem
 
 from ucsfdock.util import validate_variable_type
 
@@ -319,12 +320,12 @@ class SMIFile(File):
 
     @staticmethod
     def validate_smiles_string(smiles_string):
-        m = rdkit.Chem.MolFromSmiles(smiles_string, sanitize=False)
+        m = Chem.MolFromSmiles(smiles_string, sanitize=False)
         if m is None:
             raise Exception(f"Invalid SMILES: {smiles_string}")
         else:
             try:
-                rdkit.Chem.SanitizeMol(m)
+                Chem.SanitizeMol(m)
             except:
                 raise Exception(f"Invalid chemistry in SMILES: {smiles_string}")
 
@@ -683,3 +684,170 @@ class OutdockFile(File):
                     data.append(data_row_dict)
 
             return pd.DataFrame.from_records(data)
+
+
+class Mol2File(File):
+    MOLECULE_HEADER = "@<TRIPOS>MOLECULE"
+    ATOM_HEADER = "@<TRIPOS>ATOM"
+    BOND_HEADER = "@<TRIPOS>BOND"
+
+    def __init__(self, path):
+        super().__init__(path=path)
+
+    def read_mols(self, sanitize=True):
+        mols = [Chem.MolFromMol2Block(mol2_block_str, sanitize=sanitize) for mol2_block_str in self.read_mol2_block_strings()]
+
+        return mols
+
+    def read_mol2_blocks(self):
+        mol2_block_strings = self.read_mol2_block_strings()
+
+        mol2_blocks = []
+        for mol2_block_str in mol2_block_strings:
+            molecule_section_str, remaining_str = mol2_block_str.replace(self.MOLECULE_HEADER, '').split(self.ATOM_HEADER)
+            atom_section_str, bond_section_str = remaining_str.split(self.BOND_HEADER)
+
+            molecule_section = [line.split() for line in molecule_section_str.split('\n') if line]
+            atom_section = [line.split() for line in atom_section_str.split('\n') if line]
+            bond_section = [line.split() for line in bond_section_str.split('\n') if line]
+
+            mol2_blocks.append((molecule_section, atom_section, bond_section))
+
+        return mol2_blocks
+
+    def read_mol2_block_strings(self):
+        with open(self.path, 'r') as f:
+            lines = [line for line in f.readlines() if not line.startswith("#")]
+
+        mol2_block_strings = [self.MOLECULE_HEADER + block_str for block_str in '\n'.join(lines).split(self.MOLECULE_HEADER)[1:]]
+
+        return mol2_block_strings
+
+    def write_mol2_file_with_molecules_cloned_and_transformed(self, rotation_matrix, translation_vector, write_path, num_applications=1, bidirectional=False):
+
+        #
+        def transform(xyz, rot_mat, transl_vec):
+            return np.dot(rot_mat, xyz) + transl_vec
+
+        def get_inverse_transform(rot_mat, transl_vec):
+            a = np.array([[1., 0., 0., 0.]])
+            for i in range(3):
+                a = np.concatenate((a, np.array([np.concatenate((np.array([transl_vec[i]]), rot_mat[i, :]))])), axis=0)
+            a_inv = np.linalg.inv(a)
+            rot_mat_inv = a_inv[1:, 1:]
+            transl_vec_inv = a_inv[1:, 0]
+
+            return rot_mat_inv, transl_vec_inv
+
+        #
+        def get_section_text_block(rows, alignment='right', num_spaces_before_line=5, num_spaces_between_columns=2):
+            return get_text_block(rows, alignment=alignment, num_spaces_before_line=num_spaces_before_line, num_spaces_between_columns=num_spaces_between_columns)
+
+        #
+        mol2_blocks = self.read_mol2_blocks()
+
+        #
+        if bidirectional:
+            rotation_matrix_inv, translation_vector_inv = get_inverse_transform(rotation_matrix, translation_vector)
+
+        #
+        with open(write_path, 'w') as f:
+
+            for molecule_section, atom_section, bond_section in mol2_blocks:
+                #
+                new_molecule_section = []
+                new_molecule_section.append(molecule_section[0])
+                molecule_row = molecule_section[1]
+                if bidirectional:
+                    multiplier = (2 * num_applications) + 1
+                else:
+                    multiplier = num_applications + 1
+                new_molecule_row = [int(molecule_row[0]) * multiplier, int(molecule_row[1]) * multiplier] + molecule_row[2:]
+                new_molecule_section.append(new_molecule_row)
+
+                #
+                atom_element_to_id_nums_dict = collections.defaultdict(list)
+                atom_names = [atom_row[1] for atom_row in atom_section]
+                for atom_name in atom_names:
+                    element, id_num = [token for token in re.split(r'(\d+)', atom_name) if token]
+                    atom_element_to_id_nums_dict[element].append(int(id_num))
+
+                #
+                num_atoms = len(atom_section)
+                new_atom_section = []
+                for atom_row in atom_section:
+                    new_atom_section.append(atom_row)
+
+                def apply_to_atoms(rot_mat, transl_vec, n, num_app):
+                    for atom_row in atom_section:
+                        atom_id = atom_row[0]
+                        new_atom_id = f"{int(atom_id) + (n * num_atoms)}"
+                        atom_name = atom_row[1]
+                        element, id_num = [token for token in re.split(r'(\d+)', atom_name) if token]
+                        new_atom_name = f"{element}{int(id_num) + (n * max(atom_element_to_id_nums_dict[element]))}"
+                        current_xyz = np.array([float(coord) for coord in atom_row[2:5]])
+                        for j in range(num_app):
+                            new_xyz = transform(current_xyz, rot_mat, transl_vec)
+                            current_xyz = new_xyz
+                        new_atom_row = [new_atom_id, new_atom_name] + list(new_xyz) + atom_row[5:]
+                        new_atom_section.append(new_atom_row)
+
+                #
+                for i, n in enumerate(list(range(1, num_applications+1))):
+                    apply_to_atoms(rotation_matrix, translation_vector, n, num_app=i+1)
+
+                #
+                if bidirectional:
+                    for i, n in enumerate(list(range(num_applications+1, (2*num_applications)+1))):
+                        apply_to_atoms(rotation_matrix_inv, translation_vector_inv, n, num_app=i+1)
+
+                #
+                num_bonds = len(bond_section)
+                new_bond_section = []
+                for bond_row in bond_section:
+                    new_bond_section.append(bond_row)
+
+                def apply_to_bonds(n):
+                    for bond_row in bond_section:
+                        new_bond_row = [int(bond_row[1]) + (n * num_bonds)] + [int(num) + (n * num_atoms) for num in bond_row[1:3]] + bond_row[3:]
+                        new_bond_section.append(new_bond_row)
+
+                #
+                for n in range(1, num_applications+1):
+                    apply_to_bonds(n)
+
+                #
+                if bidirectional:
+                    for n in range(num_applications+1, (2*num_applications)+1):
+                        apply_to_bonds(n)
+
+                #
+                f.write(f"{self.MOLECULE_HEADER}\n{get_section_text_block(new_molecule_section)}\n")
+                f.write(f"{self.ATOM_HEADER}\n{get_section_text_block(new_atom_section)}\n")
+                f.write(f"{self.BOND_HEADER}\n{get_section_text_block(new_bond_section)}\n")
+
+
+def get_text_block(rows, alignment='left', num_spaces_between_columns=1, num_spaces_before_line=0):
+    rows = [[str(token) for token in row] for row in rows]
+
+    max_row_size = max([len(row) for row in rows])
+    columns = [[row[i] if i < len(row) else "" for row in rows] for i in range(max_row_size)]
+    column_max_token_length_list = [max([len(token) for token in column]) for column in columns]
+    spacing_between_columns = " " * num_spaces_between_columns
+    formatted_lines = []
+    for row in rows:
+        formatted_tokens = []
+        for i, token in enumerate(row):
+            if alignment == 'left':
+                formatted_token = token.ljust(column_max_token_length_list[i])
+            elif alignment == 'right':
+                formatted_token = token.rjust(column_max_token_length_list[i])
+            else:
+                formatted_token = token
+            formatted_tokens.append(formatted_token)
+        spacing_before_line = num_spaces_before_line * " "
+        formatted_line = spacing_before_line + spacing_between_columns.join(formatted_tokens)
+        formatted_lines.append(formatted_line)
+    text_block = "\n".join(formatted_lines)
+
+    return text_block
