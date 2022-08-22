@@ -1,0 +1,3 @@
+[submodule "pydock3/docking/dock3"]
+	path = pydock3/docking/dock3
+	url = https://github.com/docking-org/dock3.git
