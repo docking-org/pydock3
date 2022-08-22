@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "ucsfdock"
+name = "pydock3"
 version = "0.1.0"
 description = ""
 authors = ["Ian Scott Knight <isk@alumni.stanford.edu>"]
@@ -43,4 +43,4 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-ucsfdock = "ucsfdock.scripts:main"
+pydock3 = "pydock3.scripts:main"
