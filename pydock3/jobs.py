@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from pydock3.files import Dir, File
 from pydock3.job_schedulers import JobScheduler
 
-from pydock3.DOCK import __file__ as DOCK_EXECUTABLES_INIT_FILE_PATH
-DOCK_EXECUTABLES_DIR_PATH = os.path.dirname(DOCK_EXECUTABLES_INIT_FILE_PATH)
+from pydock3.docking import __file__ as DOCKING_INIT_FILE_PATH
+DOCK3_EXECUTABLE_PATH = os.path.join(os.path.dirname(DOCKING_INIT_FILE_PATH), 'dock3', 'dock64')
 
 
 #
@@ -31,7 +31,7 @@ class RetrospectiveDockingJob(ABC):
     working_dir: Dir
     output_dir: Dir
     job_scheduler: JobScheduler
-    dock_executable_path: str = os.path.join(DOCK_EXECUTABLES_DIR_PATH, "dock64")
+    dock_executable_path: str = DOCK3_EXECUTABLE_PATH
     max_reattempts: int = 0
     num_attempts: int = 0
 
