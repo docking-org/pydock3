@@ -3,7 +3,7 @@ name = "pydock3"
 version = "0.1.0"
 description = ""
 authors = ["Ian Scott Knight <isk@alumni.stanford.edu>"]
-license = "UNLICENSED"
+license = "Proprietary"
 include = []
 
 
