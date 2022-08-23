@@ -403,7 +403,7 @@ class Dockmaster(object):
             logger.error(f"scheduler flag must be one of: {list(SCHEDULER_NAME_TO_CLASS_DICT.keys())}")
             return
         if enrichment_metric_name not in ENRICHMENT_METRIC_NAMES:
-            logger.error("metric flag must be one of: {ENRICHMENT_METRIC_NAMES}")
+            logger.error(f"metric flag must be one of: {ENRICHMENT_METRIC_NAMES}")
             return
 
         #
