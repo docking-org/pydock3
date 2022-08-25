@@ -87,9 +87,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
                 covalent_residue_atoms_parameter=param_dict['covalent.residue_atoms'],
             )
         )
-        charged_receptor_file = blaster_files.charged_receptor_deprotonated_file
-    else:
-        charged_receptor_file = blaster_files.charged_receptor_file
+        blaster_files.charged_receptor_file = blaster_files.charged_receptor_deprotonated_file
 
     #
     steps.append(
@@ -104,7 +102,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     steps.append(
         BindingSiteResiduesSelectionStep(
             step_dir=_get_step_dir("binding_site_residues_selection"),
-            receptor_infile=blaster_files.receptor_file,
+            receptor_infile=blaster_files.charged_receptor_file,
             ligand_infile=blaster_files.ligand_hetatm_renamed_file,
             filt_parameters_infile=blaster_files.binding_site_residues_parameters_file,
             binding_site_residues_outfile=blaster_files.binding_site_residues_file,
@@ -115,7 +113,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     steps.append(
         MolecularSurfaceGenerationStep(
             step_dir=_get_step_dir("molecular_surface_generation"),
-            charged_receptor_infile=charged_receptor_file,
+            charged_receptor_infile=blaster_files.charged_receptor_file,
             binding_site_residues_infile=blaster_files.binding_site_residues_file,
             radii_infile=blaster_files.molecular_surface_radii_file,
             molecular_surface_outfile=blaster_files.molecular_surface_file,
@@ -144,7 +142,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     steps.append(
         MatchingSpheresGenerationStep(
             step_dir=_get_step_dir("matching_spheres_generation"),
-            charged_receptor_infile=charged_receptor_file,
+            charged_receptor_infile=blaster_files.charged_receptor_file,
             ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
             all_spheres_infile=blaster_files.all_spheres_file,
             matching_spheres_outfile=blaster_files.matching_spheres_file,
@@ -160,7 +158,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
         steps.append(
             MolecularSurfaceGenerationStep(
                 step_dir=_get_step_dir("molecular_surface_generation_thin_spheres_elec"),
-                charged_receptor_infile=charged_receptor_file,
+                charged_receptor_infile=blaster_files.charged_receptor_file,
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
                 molecular_surface_outfile=blaster_files.thin_spheres_elec_molecular_surface_file,
@@ -208,7 +206,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
         steps.append(
             LowDielectricSpheresSelectionStep(
                 step_dir=_get_step_dir("low_dielectric_spheres_selection"),
-                charged_receptor_infile=charged_receptor_file,
+                charged_receptor_infile=blaster_files.charged_receptor_file,
                 ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
                 all_spheres_infile=blaster_files.all_spheres_file,
                 low_dielectric_spheres_outfile=blaster_files.low_dielectric_spheres_file,
@@ -233,7 +231,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
         steps.append(
             MolecularSurfaceGenerationStep(
                 step_dir=_get_step_dir("molecular_surface_generation_thin_spheres_desolv"),
-                charged_receptor_infile=charged_receptor_file,
+                charged_receptor_infile=blaster_files.charged_receptor_file,
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
                 molecular_surface_outfile=blaster_files.thin_spheres_desolv_molecular_surface_file,
@@ -277,7 +275,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     steps.append(
         BoxGenerationStep(
             step_dir=_get_step_dir("box_generation"),
-            charged_receptor_infile=charged_receptor_file,
+            charged_receptor_infile=blaster_files.charged_receptor_file,
             ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
             box_outfile=blaster_files.box_file,
         )
@@ -287,7 +285,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     steps.append(
         ReceptorTransformationForElectrostatics(
             step_dir=_get_step_dir("receptor_transformation_for_electrostatics"),
-            charged_receptor_infile=charged_receptor_file,
+            charged_receptor_infile=blaster_files.charged_receptor_file,
             spheres_pdb_infile=spheres_pdb_file_for_electrostatics,
             receptor_low_dielectric_pdb_outfile=blaster_files.receptor_low_dielectric_pdb_file,
         )
@@ -331,7 +329,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     steps.append(
         VDWScoringGridGenerationStep(
             step_dir=_get_step_dir("vdw_scoring_grid_generation"),
-            charged_receptor_infile=charged_receptor_file,
+            charged_receptor_infile=blaster_files.charged_receptor_file,
             vdw_parameters_infile=blaster_files.vdw_parameters_file,
             protein_table_infile=blaster_files.vdw_protein_table_file,
             box_infile=blaster_files.box_file,
@@ -345,7 +343,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
         steps.append(
             ReceptorTransformationForLigandDesolvationYesThinSpheres(
                 step_dir=_get_step_dir("receptor_transformation_for_ligand_desolvation"),
-                charged_receptor_pdb_infile=charged_receptor_file,
+                charged_receptor_pdb_infile=blaster_files.charged_receptor_file,
                 close_spheres_desolv_pdb_infile=blaster_files.close_spheres_desolv_pdb_file,
                 charged_receptor_desolv_pdb_outfile=blaster_files.charged_receptor_desolv_pdb_file,
             )
@@ -354,7 +352,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
         steps.append(
             ReceptorTransformationForLigandDesolvationNoThinSpheres(
                 step_dir=_get_step_dir("receptor_transformation_for_ligand_desolvation"),
-                charged_receptor_pdb_infile=charged_receptor_file,
+                charged_receptor_pdb_infile=blaster_files.charged_receptor_file,
                 charged_receptor_desolv_pdb_outfile=blaster_files.charged_receptor_desolv_pdb_file,
             )
         )
