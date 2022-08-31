@@ -3,8 +3,8 @@ import os
 from abc import ABC, abstractmethod
 
 from pydock3.util import system_call
-from pydock3.submit.slurm import __file__ as DOCK_SUBMISSION_SLURM_INIT_FILE_PATH
-from pydock3.submit.sge import __file__ as DOCK_SUBMISSION_SGE_INIT_FILE_PATH
+from pydock3.docking.submit.slurm import __file__ as DOCK_SUBMISSION_SLURM_INIT_FILE_PATH
+from pydock3.docking.submit.sge import __file__ as DOCK_SUBMISSION_SGE_INIT_FILE_PATH
 
 DOCK_SUBMISSION_SLURM_DIR_PATH = os.path.dirname(DOCK_SUBMISSION_SLURM_INIT_FILE_PATH)
 DOCK_SUBMISSION_SGE_DIR_PATH = os.path.dirname(DOCK_SUBMISSION_SGE_INIT_FILE_PATH)

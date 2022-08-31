@@ -24,7 +24,7 @@ class DockingJob(ABC):
 
 
 @dataclass
-class RetrospectiveDockingJob(ABC):
+class RetrodockJob(ABC):
     name: str
     dock_files_dir: Dir
     input_file: File

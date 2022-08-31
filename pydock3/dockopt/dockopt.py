@@ -18,7 +18,7 @@ import pandas as pd
 from pydock3.util import get_logger_for_script, CleanExit, get_dataclass_as_dict
 from pydock3.config import Parameter
 from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
-from pydock3.dockmaster.config import DockmasterParametersConfiguration
+from pydock3.dockopt.config import DockoptParametersConfiguration
 from pydock3.files import (
     Dir,
     File,
@@ -28,10 +28,10 @@ from pydock3.files import (
 )
 from pydock3.blastermaster.util import WorkingDir, BlasterFile, DockFiles, BlasterFileNames
 from pydock3.metrics import get_roc_points, get_enrichment_analysis, BalancedEnrichmentScore, UnbalancedEnrichmentScore, BalancedLogAUC, UnbalancedLogAUC
-from pydock3.jobs import RetrospectiveDockingJob
+from pydock3.jobs import RetrodockJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
-from pydock3.dockmaster.report import generate_dockmaster_job_report
-from pydock3.dockmaster import __file__ as DOCKMASTER_INIT_FILE_PATH
+from pydock3.dockopt.report import generate_dockopt_job_report
+from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 
 
@@ -310,15 +310,15 @@ class FullTargetsDAG(object):
         return len(list(set([self.g.edges[edge]['step_identity'] for edge in edges_in_lineages]))) == len(list(set([self.g.edges[edge]['step_type'] for edge in edges_in_lineages])))
 
 
-class Dockmaster(object):
+class Dockopt(object):
 
-    JOB_DIR_NAME = "dockmaster_job"
-    CONFIG_FILE_NAME = "dockmaster_config.yaml"
+    JOB_DIR_NAME = "dockopt_job"
+    CONFIG_FILE_NAME = "dockopt_config.yaml"
     ACTIVES_TGZ_FILE_NAME = "actives.tgz"
     DECOYS_TGZ_FILE_NAME = "decoys.tgz"
-    DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(DOCKMASTER_INIT_FILE_PATH), "default_dockmaster_config.yaml")
+    DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(DOCKOPT_INIT_FILE_PATH), "default_dockopt_config.yaml")
     WORKING_DIR_NAME = "working"
-    RETRO_DOCKING_DIR_NAME = "retro_docking"
+    RETRODOCK_JOBS_DIR_NAME = "retrodock_jobs"
     DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(self):
@@ -363,12 +363,12 @@ class Dockmaster(object):
             files_missing_str = '\n\t'.join(tgz_file_names_not_in_cwd)
             logger.info(f"The following required files were not found in current working directory. Be sure to add them manually to the job directory before running the job.\n\t{files_missing_str}")
 
-        # create retro docking dir
-        retro_docking_dir = Dir(path=os.path.join(job_dir.path, self.RETRO_DOCKING_DIR_NAME), create=True, reset=False)
+        # create retrodock jobs dir
+        retrodock_jobs_dir = Dir(path=os.path.join(job_dir.path, self.RETRODOCK_JOBS_DIR_NAME), create=True, reset=False)
 
         # write fresh config file from default file
         save_path = os.path.join(job_dir.path, self.CONFIG_FILE_NAME)
-        DockmasterParametersConfiguration.write_config_file(save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite)
+        DockoptParametersConfiguration.write_config_file(save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite)
 
     @handle_run_func.__get__(0)
     def run(self,
@@ -377,8 +377,8 @@ class Dockmaster(object):
             config_file_path=None,
             actives_tgz_file_path=None,
             decoys_tgz_file_path=None,
-            retro_docking_job_max_reattempts=0, 
-            retro_docking_job_timeout_minutes=None, 
+            retrodock_job_max_reattempts=0,
+            retrodock_job_timeout_minutes=None,
             enrichment_metric_name=BalancedEnrichmentScore.METRIC_NAME,
             ):
         # validate args
@@ -409,11 +409,11 @@ class Dockmaster(object):
         #
         job_dir = Dir(job_dir_path, create=True, reset=False)
         working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
-        retro_docking_dir = Dir(path=os.path.join(job_dir.path, self.RETRO_DOCKING_DIR_NAME), create=True, reset=False)
+        retrodock_jobs_dir = Dir(path=os.path.join(job_dir.path, self.RETRODOCK_JOBS_DIR_NAME), create=True, reset=False)
 
         #
         logger.info("Loading config file...")
-        config = DockmasterParametersConfiguration(config_file_path)
+        config = DockoptParametersConfiguration(config_file_path)
         logger.info("done.")
 
         #
@@ -471,7 +471,7 @@ class Dockmaster(object):
         job_param_dicts_indock_subset = [dict(s) for s in set(frozenset(job_param_dict.items()) for job_param_dict in job_param_dicts_indock_subset)]  # get unique dicts
 
         # make separate directory for each combination of (1) set of dock files and (2) job_param_dict_indock_subset
-        logger.info("Making / validating retro docking jobs directories...")
+        logger.info("Making / validating retrodock jobs directories...")
         docking_job_dirs = []
         docking_job_working_dirs = []
         docking_job_output_dirs = []
@@ -479,7 +479,7 @@ class Dockmaster(object):
         parameter_dicts = []
         docking_job_combinations = list(itertools.product(zip(full_targets_dag.dock_files_combinations, full_targets_dag.parameters_combinations), job_param_dicts_indock_subset))
         for i, ((dock_files, parameters), job_param_dict_indock_subset) in enumerate(docking_job_combinations):
-            docking_job_dir = Dir(path=os.path.join(retro_docking_dir.path, f"docking_job_{i+1}"), create=True)
+            docking_job_dir = Dir(path=os.path.join(retrodock_jobs_dir.path, f"docking_job_{i+1}"), create=True)
             docking_job_dirs.append(docking_job_dir)
             docking_job_working_dir = Dir(path=os.path.join(docking_job_dir.path, f"working"), create=True)
             docking_job_working_dirs.append(docking_job_working_dir)
@@ -522,27 +522,27 @@ class Dockmaster(object):
         #
         docking_jobs = []
         for i, docking_job_dir in enumerate(docking_job_dirs):
-            docking_job = RetrospectiveDockingJob(
+            docking_job = RetrodockJob(
                 name=f"{docking_job_dir.name}_{datetime.utcnow().isoformat().replace(':', '-')}",
                 dock_files_dir=docking_job_dock_files_dirs[i],
                 input_file=docking_input_file,
                 working_dir=docking_job_working_dirs[i],
                 output_dir=docking_job_output_dirs[i],
                 job_scheduler=scheduler,
-                max_reattempts=retro_docking_job_max_reattempts,
+                max_reattempts=retrodock_job_max_reattempts,
             )
             docking_jobs.append(docking_job)
 
         #
-        def submit_retro_docking_job(retro_docking_job, skip_if_complete):
-            logger.info(f"Submitting docking job for {retro_docking_job.name}...")
-            proc = retro_docking_job.run(job_timeout_minutes=retro_docking_job_timeout_minutes, skip_if_complete=skip_if_complete)
+        def submit_retrodock_job(retrodock_job, skip_if_complete):
+            logger.info(f"Submitting docking job for {retrodock_job.name}...")
+            proc = retrodock_job.run(job_timeout_minutes=retrodock_job_timeout_minutes, skip_if_complete=skip_if_complete)
             if proc is None:
                 logger.info(
-                    f"Skipping docking job submission for {retro_docking_job.name} since all its OUTDOCK files already exist.\n")
+                    f"Skipping docking job submission for {retrodock_job.name} since all its OUTDOCK files already exist.\n")
             else:
                 logger.debug(
-                    f"Retro docking job submission system call returned: {proc}\n\nstdout:{proc.stdout}\n\nstderr:{proc.stderr}\n")
+                    f"Retrodock job submission system call returned: {proc}\n\nstdout:{proc.stdout}\n\nstderr:{proc.stderr}\n")
                 if proc.stderr:
                     logger.info(f"Job submission failed due to error: {proc.stderr}\n")
                 else:
@@ -550,19 +550,19 @@ class Dockmaster(object):
 
         # submit docking jobs
         for docking_job in docking_jobs:
-            submit_retro_docking_job(docking_job, skip_if_complete=True)
+            submit_retrodock_job(docking_job, skip_if_complete=True)
         
         # make a queue of tuples containing job-relevant data for processing
-        RetroDockingJobInfoTuple = collections.namedtuple("RetroDockingJobInfoTuple", "job job_dir parameter_dict")
-        docking_jobs_to_process_queue = [RetroDockingJobInfoTuple(docking_jobs[i], docking_job_dirs[i], parameter_dicts[i]) for i in range(len(docking_job_dirs))]
+        RetrodockJobInfoTuple = collections.namedtuple("RetrodockJobInfoTuple", "job job_dir parameter_dict")
+        docking_jobs_to_process_queue = [RetrodockJobInfoTuple(docking_jobs[i], docking_job_dirs[i], parameter_dicts[i]) for i in range(len(docking_job_dirs))]
 
         # process results of docking jobs
-        logger.info(f"Awaiting / processing retro docking job results ({len(docking_job_dirs)} jobs in total)")
+        logger.info(f"Awaiting / processing retrodock job results ({len(docking_job_dirs)} jobs in total)")
         data_dicts = []
         while len(docking_jobs_to_process_queue) > 0:
             #
-            retro_docking_job_info_tuple = docking_jobs_to_process_queue.pop(0)
-            docking_job, docking_job_dir, parameter_dict = retro_docking_job_info_tuple
+            retrodock_job_info_tuple = docking_jobs_to_process_queue.pop(0)
+            docking_job, docking_job_dir, parameter_dict = retrodock_job_info_tuple
 
             #
             actives_outdock_file_path = os.path.join(docking_job.output_dir.path, "1", "OUTDOCK.0")
@@ -573,7 +573,7 @@ class Dockmaster(object):
                 
                 #
                 if docking_job.is_running:
-                    docking_jobs_to_process_queue.append(retro_docking_job_info_tuple)  # move to back of queue if outdock file does not exist (meaning docking job is not done)
+                    docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move to back of queue if outdock file does not exist (meaning docking job is not done)
                     time.sleep(1)  # sleep a bit while waiting for outdock file in order to avoid wasteful queue-cycling
                     continue  # move on to next item in queue while docking job runs
                 else:
@@ -581,11 +581,11 @@ class Dockmaster(object):
                     if docking_job.is_complete:
                         raise Exception(f"Docking job {docking_job.name} is marked complete but OUTDOCK files not found.")
                     else:  # job timed out / failed 
-                        if docking_job.num_attempts > retro_docking_job_max_reattempts:
+                        if docking_job.num_attempts > retrodock_job_max_reattempts:
                             logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
                             continue
-                        submit_retro_docking_job(docking_job, skip_if_complete=False)
-                        docking_jobs_to_process_queue.append(retro_docking_job_info_tuple)
+                        submit_retrodock_job(docking_job, skip_if_complete=False)
+                        docking_jobs_to_process_queue.append(retrodock_job_info_tuple)
                         continue  # move on to next item in queue while docking job runs                    
 
             # load outdock file and get dataframe
@@ -597,11 +597,11 @@ class Dockmaster(object):
                 decoys_outdock_df = decoys_outdock_file.get_dataframe()
             except Exception as e:  # if outdock file failed to be parsed then re-submit docking job and try processing again
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
-                if docking_job.num_attempts > retro_docking_job_max_reattempts:
+                if docking_job.num_attempts > retrodock_job_max_reattempts:
                     logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
                     continue
-                submit_retro_docking_job(docking_job, skip_if_complete=False)
-                docking_jobs_to_process_queue.append(retro_docking_job_info_tuple)
+                submit_retrodock_job(docking_job, skip_if_complete=False)
+                docking_jobs_to_process_queue.append(retrodock_job_info_tuple)
                 continue  # move on to next item in queue while docking job runs
 
             #
@@ -622,7 +622,7 @@ class Dockmaster(object):
             df = df.drop_duplicates(subset=["db2_file_path"], keep="first", ignore_index=True)
 
             # save dataframe
-            job_results_csv_file_path = os.path.join(docking_job_dir.path, "retro_docking_job_results.csv")
+            job_results_csv_file_path = os.path.join(docking_job_dir.path, "retrodock_job_results.csv")
             df.to_csv(job_results_csv_file_path)
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
@@ -681,28 +681,28 @@ class Dockmaster(object):
             data_dicts.append(data_dict)
            
         #
-        logger.info(f"Finished {len([1 for docking_job in docking_jobs if docking_job.is_complete])} out of {len(docking_jobs)} retro docking jobs.")
+        logger.info(f"Finished {len([1 for docking_job in docking_jobs if docking_job.is_complete])} out of {len(docking_jobs)} retrodock jobs.")
  
         # make dataframe of optimization job results
         df = pd.DataFrame(data=data_dicts)
         df = df.sort_values(by=enrichment_metric_name, ascending=False, ignore_index=True)
 
         # save optimization job results dataframe to csv
-        optimization_results_csv_file_path = os.path.join(job_dir.path, "dockmaster_job_results.csv")
+        optimization_results_csv_file_path = os.path.join(job_dir.path, "dockopt_job_results.csv")
         logger.debug(f"Saving optimization job results to {optimization_results_csv_file_path}")
         df.to_csv(optimization_results_csv_file_path)
 
         # copy best job to output dir
-        best_job_dir_path = os.path.join(job_dir.path, "best_retro_docking_job")
+        best_job_dir_path = os.path.join(job_dir.path, "best_retrodock_job")
         logger.debug(f"Copying dockfiles of best job results to {best_job_dir_path}")
         if os.path.isdir(best_job_dir_path):
             shutil.rmtree(best_job_dir_path, ignore_errors=True)
         shutil.copytree(df['job_dir_path'].iloc[0], best_job_dir_path)
 
         # generate report
-        generate_dockmaster_job_report(
-            dockmaster_job_dir_path=job_dir.path,
-            pdf_path=os.path.join(job_dir.path, "dockmaster_job_report.pdf"),
+        generate_dockopt_job_report(
+            dockopt_job_dir_path=job_dir.path,
+            pdf_path=os.path.join(job_dir.path, "dockopt_job_report.pdf"),
             opt_results_csv_file_name=optimization_results_csv_file_path,
             enrichment_metric=enrichment_metric_name,
         )

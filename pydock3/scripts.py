@@ -4,7 +4,7 @@ import fire
 
 from pydock3.util import get_logger_for_script
 from pydock3.blastermaster.blastermaster import Blastermaster
-from pydock3.dockmaster.dockmaster import Dockmaster
+from pydock3.dockopt.dockopt import Dockopt
 from pydock3.files import SDIFile
 
 #
@@ -14,7 +14,7 @@ logger.setLevel(logging.DEBUG)
 
 SCRIPT_CLASSES = [
     Blastermaster,
-    Dockmaster,
+    Dockopt,
     SDIFile,
 ]
 SCRIPT_CLASSES_DICT = {cls.__name__.lower(): cls for cls in SCRIPT_CLASSES}
