@@ -687,41 +687,41 @@ class OutdockFile(File):
 
 
 class Mol2File(File):
-    MOLECULE_HEADER = "@<TRIPOS>MOLECULE"
-    ATOM_HEADER = "@<TRIPOS>ATOM"
-    BOND_HEADER = "@<TRIPOS>BOND"
+    MOLECULE_RECORD_HEADER = "@<TRIPOS>MOLECULE"
+    ATOM_RECORD_HEADER = "@<TRIPOS>ATOM"
+    BOND_RECORD_HEADER = "@<TRIPOS>BOND"
 
     def __init__(self, path):
         super().__init__(path=path)
 
     def read_mols(self, sanitize=True):
-        mols = [Chem.MolFromMol2Block(mol2_block_str, sanitize=sanitize) for mol2_block_str in self.read_mol2_block_strings()]
+        mols = [Chem.MolFromMol2Block(mol2_block_str, sanitize=sanitize) for mol2_block_str in self.read_mol2_record_strings()]
 
         return mols
 
-    def read_mol2_blocks(self):
-        mol2_block_strings = self.read_mol2_block_strings()
+    def read_mol2_records(self):
+        mol2_record_strings = self.read_mol2_record_strings()
 
-        mol2_blocks = []
-        for mol2_block_str in mol2_block_strings:
-            molecule_section_str, remaining_str = mol2_block_str.replace(self.MOLECULE_HEADER, '').split(self.ATOM_HEADER)
-            atom_section_str, bond_section_str = remaining_str.split(self.BOND_HEADER)
+        mol2_records = []
+        for mol2_record_string in mol2_record_strings:
+            molecule_record_string, remaining_string = mol2_record_string.replace(self.MOLECULE_RECORD_HEADER, '').split(self.ATOM_RECORD_HEADER)
+            atom_record_string, bond_record_string = remaining_string.split(self.BOND_RECORD_HEADER)
 
-            molecule_section = [line.split() for line in molecule_section_str.split('\n') if line]
-            atom_section = [line.split() for line in atom_section_str.split('\n') if line]
-            bond_section = [line.split() for line in bond_section_str.split('\n') if line]
+            molecule_record = [line.split() for line in molecule_record_string.split('\n') if line]
+            atom_record = [line.split() for line in atom_record_string.split('\n') if line]
+            bond_record = [line.split() for line in bond_record_string.split('\n') if line]
 
-            mol2_blocks.append((molecule_section, atom_section, bond_section))
+            mol2_records.append((molecule_record, atom_record, bond_record))
 
-        return mol2_blocks
+        return mol2_records
 
-    def read_mol2_block_strings(self):
+    def read_mol2_record_strings(self):
         with open(self.path, 'r') as f:
             lines = [line for line in f.readlines() if not line.startswith("#")]
 
-        mol2_block_strings = [self.MOLECULE_HEADER + block_str for block_str in '\n'.join(lines).split(self.MOLECULE_HEADER)[1:]]
+        mol2_record_strings = [self.MOLECULE_RECORD_HEADER + record_str for record_str in '\n'.join(lines).split(self.MOLECULE_RECORD_HEADER)[1:]]
 
-        return mol2_block_strings
+        return mol2_record_strings
 
     def write_mol2_file_with_molecules_cloned_and_transformed(self, rotation_matrix, translation_vector, write_path, num_applications=1, bidirectional=False):
 
@@ -740,11 +740,11 @@ class Mol2File(File):
             return rot_mat_inv, transl_vec_inv
 
         #
-        def get_section_text_block(rows, alignment='right', num_spaces_before_line=5, num_spaces_between_columns=2):
-            return get_text_block(rows, alignment=alignment, num_spaces_before_line=num_spaces_before_line, num_spaces_between_columns=num_spaces_between_columns)
+        def get_record_text_block(rows, header, alignment='right', num_spaces_before_line=5, num_spaces_between_columns=2):
+            return get_text_block(rows, header, alignment=alignment, num_spaces_before_line=num_spaces_before_line, num_spaces_between_columns=num_spaces_between_columns)
 
         #
-        mol2_blocks = self.read_mol2_blocks()
+        mol2_records = self.read_mol2_records()
 
         #
         if bidirectional:
@@ -753,33 +753,33 @@ class Mol2File(File):
         #
         with open(write_path, 'w') as f:
 
-            for molecule_section, atom_section, bond_section in mol2_blocks:
+            for molecule_record, atom_record, bond_record in mol2_records:
                 #
-                new_molecule_section = []
-                new_molecule_section.append(molecule_section[0])
-                molecule_row = molecule_section[1]
+                new_molecule_record = []
+                new_molecule_record.append(molecule_record[0])
+                molecule_row = molecule_record[1]
                 if bidirectional:
                     multiplier = (2 * num_applications) + 1
                 else:
                     multiplier = num_applications + 1
                 new_molecule_row = [int(molecule_row[0]) * multiplier, int(molecule_row[1]) * multiplier] + molecule_row[2:]
-                new_molecule_section.append(new_molecule_row)
+                new_molecule_record.append(new_molecule_row)
 
                 #
                 atom_element_to_id_nums_dict = collections.defaultdict(list)
-                atom_names = [atom_row[1] for atom_row in atom_section]
+                atom_names = [atom_row[1] for atom_row in atom_record]
                 for atom_name in atom_names:
                     element, id_num = [token for token in re.split(r'(\d+)', atom_name) if token]
                     atom_element_to_id_nums_dict[element].append(int(id_num))
 
                 #
-                num_atoms = len(atom_section)
-                new_atom_section = []
-                for atom_row in atom_section:
-                    new_atom_section.append(atom_row)
+                num_atoms = len(atom_record)
+                new_atom_record = []
+                for atom_row in atom_record:
+                    new_atom_record.append(atom_row)
 
                 def apply_to_atoms(rot_mat, transl_vec, n, num_app):
-                    for atom_row in atom_section:
+                    for atom_row in atom_record:
                         atom_id = atom_row[0]
                         new_atom_id = f"{int(atom_id) + (n * num_atoms)}"
                         atom_name = atom_row[1]
@@ -790,7 +790,7 @@ class Mol2File(File):
                             new_xyz = transform(current_xyz, rot_mat, transl_vec)
                             current_xyz = new_xyz
                         new_atom_row = [new_atom_id, new_atom_name] + list(new_xyz) + atom_row[5:]
-                        new_atom_section.append(new_atom_row)
+                        new_atom_record.append(new_atom_row)
 
                 #
                 for i, n in enumerate(list(range(1, num_applications+1))):
@@ -802,15 +802,15 @@ class Mol2File(File):
                         apply_to_atoms(rotation_matrix_inv, translation_vector_inv, n, num_app=i+1)
 
                 #
-                num_bonds = len(bond_section)
-                new_bond_section = []
-                for bond_row in bond_section:
-                    new_bond_section.append(bond_row)
+                num_bonds = len(bond_record)
+                new_bond_record = []
+                for bond_row in bond_record:
+                    new_bond_record.append(bond_row)
 
                 def apply_to_bonds(n):
-                    for bond_row in bond_section:
+                    for bond_row in bond_record:
                         new_bond_row = [int(bond_row[1]) + (n * num_bonds)] + [int(num) + (n * num_atoms) for num in bond_row[1:3]] + bond_row[3:]
-                        new_bond_section.append(new_bond_row)
+                        new_bond_record.append(new_bond_row)
 
                 #
                 for n in range(1, num_applications+1):
@@ -822,12 +822,12 @@ class Mol2File(File):
                         apply_to_bonds(n)
 
                 #
-                f.write(f"{self.MOLECULE_HEADER}\n{get_section_text_block(new_molecule_section)}\n")
-                f.write(f"{self.ATOM_HEADER}\n{get_section_text_block(new_atom_section)}\n")
-                f.write(f"{self.BOND_HEADER}\n{get_section_text_block(new_bond_section)}\n")
+                f.write(get_record_text_block(new_molecule_record, self.MOLECULE_RECORD_HEADER))
+                f.write(get_record_text_block(new_atom_record, self.ATOM_RECORD_HEADER))
+                f.write(get_record_text_block(new_bond_record, self.BOND_RECORD_HEADER))
 
 
-def get_text_block(rows, alignment='left', num_spaces_between_columns=1, num_spaces_before_line=0):
+def get_text_block(rows, header=None, alignment='left', num_spaces_between_columns=1, num_spaces_before_line=0):
     rows = [[str(token) for token in row] for row in rows]
 
     max_row_size = max([len(row) for row in rows])
@@ -848,6 +848,10 @@ def get_text_block(rows, alignment='left', num_spaces_between_columns=1, num_spa
         spacing_before_line = num_spaces_before_line * " "
         formatted_line = spacing_before_line + spacing_between_columns.join(formatted_tokens)
         formatted_lines.append(formatted_line)
-    text_block = "\n".join(formatted_lines)
+
+    text_block = ""
+    if header:
+        text_block += f"{header}\n"
+    text_block += "\n".join(formatted_lines) + "\n"
 
     return text_block
