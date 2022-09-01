@@ -335,7 +335,7 @@ class Dockopt(object):
 
         return wrapper
 
-    def configure(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
+    def init(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
