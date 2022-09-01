@@ -1,0 +1,3 @@
+top:
+  n: 300000
+  num_parallel: 4
