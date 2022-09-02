@@ -1,0 +1,11 @@
+queue:
+  preset: slurm
+
+lsd:
+  dockfiles: /nfs/home/btingle/dockfiles
+  rescore: true
+  poses: 
+  sdi: z22://h17m500-h17p390/db2
+  top:
+    n: 300000
+    parallel: 4

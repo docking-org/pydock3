@@ -15,6 +15,11 @@ from rdkit import Chem
 
 from pydock3.util import validate_variable_type
 
+from abc import ABC, abstractmethod
+from collections.abc import Iterable
+
+# aws prereq
+import boto3
 
 #
 logger = logging.getLogger(__name__)
@@ -24,52 +29,201 @@ logger.setLevel(logging.DEBUG)
 #
 INDOCK_FILE_NAME = "INDOCK"
 
+class FileSystemEntity(ABC):
+    @abstractproperty
+    def path(self) -> str:
+        pass
 
-class FileSystemEntity(object):
-    """E.g., file, directory, symlink"""
+    @abstractmethod
+    def exists(self) -> bool:
+        pass
 
+    @abstractmethod
+    def rm(self) -> None:
+        pass
+
+class FileBase(FileSystemEntity):
     def __init__(self, path):
+        self._path = path
+
+    @abstractmethod
+    def open(self, mode) -> IOBase:
+        pass
+
+    # abstract copy method- used to transfer files between different platforms
+    @staticmethod
+    def copy(f1 : FileBase, f2: FileBase):
+        with f1.open('rb') as fr, f2.open('wb') as fw:
+            chunk = fr.read(65536)
+            while chunk:
+                fw.write(chunk)
+                chunk = fr.read(65536)
+
+class DirBase(FileSystemEntity):
+    def __init__(self, path):
+        self._path = path
+
+    # "listall" in this context means to list *all* objects beneath the directory, not just one level below (as in os.path.listdir)
+    @abstractmethod
+    def listall(self) -> list[FileBase]:
+        pass
+
+    @abstractmethod
+    def create(self) -> None:
+        pass
+    
+class S3Path:
+    def __init__(self, path):
+        assert(path.startswith("s3://"))
+        self.bucket = path.split('/')[2]
+        self.object = '/'.join(path.split('/')[3:])
         self.path = path
 
-    def __str__(self):
-        return self.path
+    def __init__(self, bucket, key):
+        self.bucket = bucket
+        self.object = key
+        self.path = '/'.join([bucket, key])
+
+class S3IOWrapper(IOBase):
+    def __init__(self, s3path : S3Path, session : boto3.Session , mode : str):
+
+        assert(mode in ['r', 'rb', 'w', 'wb', 'a'])
+        self.mode = mode
+        self.s3path = s3path
+        self.session = session
+
+        if session:
+            s3 = session.client('s3')
+        else:
+            s3 = boto3.client('s3')
+
+        self.name = os.path.join(tempfile.gettempdir(), str(uuid.uuid4()))
+        if mode in ['r', 'rb', 'a']:
+            # something of an inelegant solution- if we are copying a file, we will need to write it twice (once to a tempfile, once to its actual destination)
+            # this could be solved if we were able to get a file stream from s3, but this involves some extra complication (see "smart_open" python package)
+            # if we ever expect to perform large file tranfsers with this utility, we should use smart_open
+            s3.download_fileobj(s3path.bucket, s3path.object, self.name)
+            self.fobj = open(self.name, mode)
+        else:
+            self.fobj = open(self.name, mode)
+
+    # can't give specific type hints here as file can be in bytes or string mode
+    def read(self, n : int, **kwargs) -> Iterable:
+        return self.fobj.read(n, **kwargs)
+
+    def write(self, b, **kwargs) -> int:
+        return self.fobj.write(b, **kwargs)
+
+    # perform all writing of data to s3 after local file is closed
+    def close(self) -> None:
+        self.fobj.close()
+        self.closed = True
+        if self.mode in ['w', 'wb', 'a']:
+            if self.session:
+                s3 = self.session.client('s3')
+            else:
+                s3 = boto3.client('s3')
+            s3.upload_fileobj(self.name, self.s3path.bucket, self.s3path.object)
+
+    def __iter__(self):
+        return self.fobj.__iter__()
+    
+    def __next__(self):
+        return self.fobj.__next__()
+
+    def __exit__(self):
+        self.close()
+
+class S3File(FileBase):
+
+    def __init__(self, path : str, properties=None, session=None):
+        super().__init__(path)
+        self.s3path = S3Path(path)
+        self.session = session
+        self.set_properties(properties)
 
     @property
     def path(self):
         return self._path
 
-    @path.setter
-    def path(self, path):
-        self.validate_path(path)
-        self._path = os.path.abspath(path)
+    def open(self, mode : str) -> S3IOWrapper:
+        return S3IOWrapper(self.s3path, self.session, mode)
 
-    @property
-    def name(self):
-        raise NotImplementedError
-
-    @property
     def exists(self):
-        raise NotImplementedError
+        if self.session:
+            s3 = self.session.client('s3')
+        else:
+            s3 = boto3.client('s3')
+
+        # lazy placeholder for now- not quite sure how to find the boto3 exception types
+        try:
+            response = s3.get_object_attributes(self.s3path.bucket, self.s3path.object)
+        except:
+            return False
+        return True
+
+
+class S3Dir(DirBase):
+
+    def __init__(self, path, session=None):
+        super().__init__(path)
+        self.s3path = S3Path(path)
+        self.session = session
 
     @property
-    def validate_existence(self):
-        raise NotImplementedError
+    def path(self):
+        return self._path
 
-    @staticmethod
-    def validate_path(file_path):
-        validate_variable_type(file_path, allowed_instance_types=(str,))
-        return file_path  # TODO: think more about this
+    # despite the fact that aws directories aren't really directories, we are still interested in listing objects starting with a given "directory" prefix
+    def listall(self) -> list[S3File]:
 
+        if self.session:
+            s3 = self.session.client('s3')
+        else:
+            s3 = boto3.client('s3')
+        
+        response = s3.list_objects_v2(Bucket=self.s3path.bucket, Prefix=self.s3path.object)
+        contents = [
+            S3File(self.s3path.bucket + '/' + c['Key'], properties=c) for c in reponse['Contents']
+        ]
 
-class Dir(FileSystemEntity):
+        while reponse['IsTruncated']:
+            conttoken = response['NextContinuationToken']
+            response = s3.list_objects_v2(Bucket=self.s3path.bucket, Prefix=self.s3path.object, ContinuationToken=conttoken)
+
+            new_contents = [
+                S3File(self.s3path.bucket + '/' + c['Key'], properties=c) for c in response['Contents'])
+            ]
+            contents.extend(new_contents)
+
+        return contents
+
+    # directories aren't real in AWS, so we can ignore the "create()" command here
+    def create(self) -> None:
+        pass
+
+class Dir(DirBase):
     """#TODO"""
 
     def __init__(self, path, create=False, reset=False):
         super().__init__(path=path)
+        # set & validate path
+        self.path = self._path
 
-        #
         if create:
             self.create(reset=reset)
+
+    @property
+    def path(self):
+        return self._path
+
+    ### btingle changes- abstract methods 
+    def rm(self) -> None:
+        shutil.rmtree(self.path)
+
+    def listdir(self) -> list:
+        return os.listdir(self.path)
+    ###
 
     @property
     def name(self):
@@ -135,8 +289,18 @@ class Dir(FileSystemEntity):
     def validate_obj_is_dir(obj):
         validate_variable_type(obj, allowed_instance_types=(Dir,))
 
+    @path.setter
+    def path(self, path):
+        self.validate_path()
+        self._path = os.path.abspath(path)
 
-class File(FileSystemEntity):
+    @staticmethod
+    def validate_path(file_path):
+        validate_variable_type(file_path, allowed_instance_types=(str,))
+        return file_path  # TODO: think more about this
+
+
+class File(FileBase):
     """#TODO"""
 
     def __init__(self, path):
@@ -163,6 +327,14 @@ class File(FileSystemEntity):
     @property
     def exists(self):
         return File.file_exists(self.path)
+
+    ### btingle changes
+    def rm(self) -> None:
+        os.remove(self.path)
+
+    def open(self, mode) -> IOBase:
+        return open(self.path, mode)
+    ### 
 
     @property
     def validate_existence(self):
@@ -287,6 +459,8 @@ class File(FileSystemEntity):
         File.validate_file_exists(file_path)
         if File.file_is_empty(file_path):
             raise Exception(f"File {file_path} is empty.")
+
+    
 
 
 class SMIFile(File):
