@@ -397,7 +397,7 @@ class Dockopt(object):
             File.validate_file_exists(actives_tgz_file_path)
             File.validate_file_exists(decoys_tgz_file_path)
         except FileNotFoundError:
-            logger.error("Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?")
+            logger.error("Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?\nNote: if you do not have actives and decoys, please use blastermaster instead of dockopt.")
             return
         if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
             logger.error(f"scheduler flag must be one of: {list(SCHEDULER_NAME_TO_CLASS_DICT.keys())}")
