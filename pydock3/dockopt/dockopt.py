@@ -580,7 +580,8 @@ class Dockopt(object):
                     #
                     if docking_job.is_complete:
                         raise Exception(f"Docking job {docking_job.name} is marked complete but OUTDOCK files not found.")
-                    else:  # job timed out / failed 
+                    else:  # job timed out / failed
+                        logger.warning(f"Job failure / time out witnessed for job: {docking_job.name}")
                         if docking_job.num_attempts > retrodock_job_max_reattempts:
                             logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
                             continue
