@@ -565,45 +565,39 @@ class Dockopt(object):
             docking_job, docking_job_dir, parameter_dict = retrodock_job_info_tuple
 
             #
-            actives_outdock_file_path = os.path.join(docking_job.output_dir.path, "1", "OUTDOCK.0")
-            decoys_outdock_file_path = os.path.join(docking_job.output_dir.path, "2", "OUTDOCK.0")
+            if docking_job.is_running:
+                docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+                time.sleep(1)  # sleep a bit while waiting for outdock file in order to avoid wasteful queue-cycling
+                continue  # move on to next job in queue while job continues to run
+            else:
+                if not docking_job.is_complete:  # not all expected OUTDOCK files exist yet
+                    # job must have timed out / failed
+                    logger.warning(f"Job failure / time out witnessed for job: {docking_job.name}")
+                    if docking_job.num_attempts > retrodock_job_max_reattempts:
+                        logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
+                        continue  # move on to next job in queue without re-attempting failed job
+                    submit_retrodock_job(docking_job, skip_if_complete=False)  # re-attempt job
+                    docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+                    continue  # move on to next job in queue while docking job runs
 
             #
-            if (not File.file_exists(actives_outdock_file_path)) or (not File.file_exists(decoys_outdock_file_path)):
-                
-                #
-                if docking_job.is_running:
-                    docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move to back of queue if outdock file does not exist (meaning docking job is not done)
-                    time.sleep(1)  # sleep a bit while waiting for outdock file in order to avoid wasteful queue-cycling
-                    continue  # move on to next item in queue while docking job runs
-                else:
-                    #
-                    if docking_job.is_complete:
-                        raise Exception(f"Docking job {docking_job.name} is marked complete but OUTDOCK files not found.")
-                    else:  # job timed out / failed
-                        logger.warning(f"Job failure / time out witnessed for job: {docking_job.name}")
-                        if docking_job.num_attempts > retrodock_job_max_reattempts:
-                            logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
-                            continue
-                        submit_retrodock_job(docking_job, skip_if_complete=False)
-                        docking_jobs_to_process_queue.append(retrodock_job_info_tuple)
-                        continue  # move on to next item in queue while docking job runs                    
+            actives_outdock_file_path = os.path.join(docking_job.output_dir.path, "1", "OUTDOCK.0")
+            decoys_outdock_file_path = os.path.join(docking_job.output_dir.path, "2", "OUTDOCK.0")
 
             # load outdock file and get dataframe
             actives_outdock_file = OutdockFile(actives_outdock_file_path)
             decoys_outdock_file = OutdockFile(decoys_outdock_file_path)
-
             try:
                 actives_outdock_df = actives_outdock_file.get_dataframe()
                 decoys_outdock_df = decoys_outdock_file.get_dataframe()
-            except Exception as e:  # if outdock file failed to be parsed then re-submit docking job and try processing again
+            except Exception as e:  # if outdock file failed to be parsed then re-attempt job
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
                 if docking_job.num_attempts > retrodock_job_max_reattempts:
                     logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
-                    continue
-                submit_retrodock_job(docking_job, skip_if_complete=False)
-                docking_jobs_to_process_queue.append(retrodock_job_info_tuple)
-                continue  # move on to next item in queue while docking job runs
+                    continue  # move on to next job in queue without re-attempting failed job
+                submit_retrodock_job(docking_job, skip_if_complete=False)  # re-attempt job
+                docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+                continue  # move on to next job in queue while docking job runs
 
             #
             logger.info(f"Docking job '{docking_job.name}' completed. Successfully loaded OUTDOCK file(s).")
