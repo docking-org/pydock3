@@ -1,0 +1,47 @@
+lsd:
+  workdir: /tmp
+  cpus: 1
+  mem: 512 # in MB
+  slurm:
+    source: lsd_env.sh
+    script: api.py lsd
+  aws:
+    env: lsd_spot
+    image: pydock3/lsd
+    cmd: api.py lsd
+
+top:
+  workdir: /tmp
+  cpus: 4
+  mem: 4096
+  slurm:
+    source: lsd_env.sh
+    script: api.py top
+  aws:
+    env: lsd_ondemand
+    image: pydock3/lsd
+    cmd: api.py lsd
+
+cont_lsd:
+  workdir: /tmp
+  cpus: 1
+  mem: 512
+  slurm:
+    source: lsd_env.sh
+    script: api.py cont
+  aws:
+    env: lsd_ondemand
+    image: pydock3/lsd
+    cmd: api.py cont_lsd
+
+split_mol:
+  workdir: /tmp
+  cpus: 2
+  mem: 1024
+  slurm:
+    source: lsd_env.sh
+    script: api.py split_mol
+  aws:
+    env: lsd_ondemand
+    image: pydock3/lsd
+    cmd: api.py split_mol

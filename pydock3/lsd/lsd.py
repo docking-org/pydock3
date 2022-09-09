@@ -68,6 +68,7 @@ class LSDBase:
 class LSDQueue:
 
     def __init__(self, queue : JobQueue, lsdbase : LSDBase):
+        self.queue = queue
 
 
     def submission_status(self) -> dict[str, set], dict[str, bool]:
@@ -96,7 +97,7 @@ class LSDQueue:
                 else:
                     results_dict["top"]["submitted"] = True
 
-            elif lsd_job_type == "lsd_rem_submit":
+            elif lsd_job_type == "lsd_cont":
                 rem_sdi_offset = int(addtl)
                 rem_sdi = range(rem_sdi_offset, self.lsdbase.sdi_length())
 
@@ -104,22 +105,9 @@ class LSDQueue:
 
         return results_dict["lsd"], results_dict["top"]
 
-    def status(self):
 
-    def submit(self):
 
-class LocalSlurmLSDQueue(LSDQueue):
-    def __init__(self, cfg, lsdbase : LocalLSDBase):
-        self.lsdbase = lsdbase
-        self.queue = SGEQueue()
 
-class LocalSGELSDQueue(LSDQueue):
-    def __init__(self, cfg, lsdbase : LocalLSDBase):
-
-class AWSLSDQueue(LSDQueue):
-    def __init__(self, cfg, lsdbase : AWSLSDBase):
-
-def run_lsd(lsdbase, lsdqueue):
     
 
 def status_lsd(lsdbase, lsdqueue):
@@ -146,6 +134,8 @@ if __name__ == "__main__":
     cfg  = sys.argv[2]
 
     cfg = yaml.load(cfg, Loader=yaml.Loader)
+
+    queue, base = parse_config(cfg)
 
     if mode == "init":
         init_lsd(cfg)
