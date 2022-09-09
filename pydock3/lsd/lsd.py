@@ -19,15 +19,43 @@ def get_fileobj_from_path(path, dir=False):
 
 class LSDBase:
 
-    def __init__(self, basedir : DirBase, dockfiles : DirBase, sdi):
+    def __init__(self, cfgfile : FileBase, basedir : DirBase, dockfiles : DirBase, sdi : FileBase):
 
         self.basedir = basedir
-        self.dockfiles = dockfiles
+
+        self.dockfiles = basedir.dir('dockfiles')
+        self.cfg = basedir.file("lsd.cfg")
+        self.sdi = basedir.file("sdi")
+
+        self.source_cfg = cfgfile
+        with cfgfile.open('r') as cfg_sourcef:
+            self.source_cfg_content = yaml.load(cfg_sourcef.read())
+        self.source_dockfiles = dockfiles
+        self.source_sdi = sdi
+
+    # validate that this environment is ready- and that the supplied configuration matches the environment's saved configuration
+    def is_initialized(self):
+        
+        try:
+            assert(self.sdi.exists())
+            assert(self.dockfiles.file("INDOCK").exists())
+            assert(self.cfg.exists())
+
+            with self.cfg.open('r') as cfgf_remote:
+                cfg_content = yaml.load(cfgf_remote.read())
+                assert(cfg_content == self.source_cfg_content)
+                return True
+        except:
+            return False
 
     def initialize(self):
 
-        DirBase.copy(self.dockfiles, self.basedir)
-        FileBase.copy(self.sdi, self.basedir.file('sdi'))
+        if self.is_initialized():
+            return
+
+        DirBase.copy( self.source_dockfiles, self.basedir)
+        FileBase.copy(self.source_sdi, self.sdi)
+        FileBase.copy(self.source_cfg, self.cfg)
 
     def completion_status(self, checksdi : set[int], checktop : bool) -> dict[str, set], dict[str, bool]:
 
@@ -97,17 +125,13 @@ class LSDQueue:
                 else:
                     results_dict["top"]["submitted"] = True
 
-            elif lsd_job_type == "lsd_cont":
+            elif lsd_job_type == "cont_lsd":
                 rem_sdi_offset = int(addtl)
                 rem_sdi = range(rem_sdi_offset, self.lsdbase.sdi_length())
 
                 results_dict["lsd"]["submitted"].update(rem_sdi)
 
         return results_dict["lsd"], results_dict["top"]
-
-
-
-
     
 
 def status_lsd(lsdbase, lsdqueue):
