@@ -149,9 +149,9 @@ def get_enrichment_analysis(x, y):
 
     return EnrichmentAnalysis(
         unbalanced_log_auc=UnbalancedLogAUC(f=f, discontinuous_x_coords=discontinuous_x_coords),
-        balanced_log_auc=BalancedLogAUC(f=f, discontinuous_x_coords=discontinuous_x_coords, num_x=len(x)),
+        balanced_log_auc=BalancedLogAUC(f=f, discontinuous_x_coords=discontinuous_x_coords, num_x=len(x)-1),  # num interdecoy intervals
         unbalanced_enrichment_score=UnbalancedEnrichmentScore(f=f, discontinuous_x_coords=discontinuous_x_coords),
-        balanced_enrichment_score=BalancedEnrichmentScore(f=f, discontinuous_x_coords=discontinuous_x_coords, num_x=len(x)),
+        balanced_enrichment_score=BalancedEnrichmentScore(f=f, discontinuous_x_coords=discontinuous_x_coords, num_x=len(x)-1),  # num interdecoy intervals
     )
 
 
