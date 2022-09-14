@@ -66,6 +66,8 @@ def run_lsd(cfg, workdir : DirBase, run : int, block : int, task_id : int):
         FileBase.copy(workdir.file("test.mol2.gz"), outdir.file(str(run) + ".mol2.gz"))
         if workdir.file("restart").exists():
             FileBase.copy(workdir.file("restart"),  outdir.file("restart"))
+        sys.exit(0)
+    sys.exit(1)
 
 if __name__ == "__main__":
 

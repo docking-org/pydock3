@@ -40,13 +40,14 @@ class LSDBase:
             assert(self.sdi.exists())
             assert(self.dockfiles.file("INDOCK").exists())
             assert(self.cfg.exists())
-
-            with self.cfg.open('r') as cfgf_remote:
-                cfg_content = yaml.load(cfgf_remote.read())
-                assert(cfg_content == self.source_cfg_content)
-                return True
-        except:
+        except AssertionError:
             return False
+
+        with self.cfg.open('r') as cfgf_remote:
+            cfg_content = yaml.load(cfgf_remote.read())
+            # if 
+            assert(cfg_content == self.source_cfg_content, "supplied configuration does not match stored configuration!")
+            return True
 
     def initialize(self):
 

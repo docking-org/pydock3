@@ -1,0 +1,15 @@
+lsd_spot:
+  env_name: lsd_spot
+  env_region: us-east-1
+  provisioning_model: SPOT
+  bid_percentage: 100
+
+lsd_ondemand:
+  env_name: lsd_ondemand
+  env_region: us-east-1
+  additional_instance_actions_policy: >
+    batch:SubmitJob
+    batch:ListJobs
+    batch:DescribeJobs
+    batch:DescribeJobQueues
+  
