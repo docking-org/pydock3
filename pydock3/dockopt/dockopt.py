@@ -690,8 +690,12 @@ class Dockopt(object):
             data_dicts.append(data_dict)
            
         #
-        logger.info(f"Finished {len([1 for retrodock_job in retrodock_jobs if retrodock_job.is_complete])} out of {len(retrodock_jobs)} retrodock jobs.")
- 
+        num_jobs_completed = len([1 for retrodock_job in retrodock_jobs if retrodock_job.is_complete])
+        logger.info(f"Finished {num_jobs_completed} out of {len(retrodock_jobs)} retrodock jobs.")
+        if num_jobs_completed == 0:
+            logger.error("All retrodock jobs failed. Something is wrong. Please check logs.")
+            return
+
         # make dataframe of optimization job results
         df = pd.DataFrame(data=data_dicts)
         df = df.sort_values(by=enrichment_metric_name, ascending=False, ignore_index=True)
