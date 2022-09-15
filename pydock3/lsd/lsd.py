@@ -8,6 +8,10 @@ from abc import ABC, abstractmethod
 from pydock3.files import DirBase, FileBase
 from pydock3.files import S3File, File
 
+class QueueBlasterBase(ABC):
+    @abstractmethod
+    def add_sdi(self, )
+
 def get_fileobj_from_path(path, dir=False):
     if path.startswith("s3://"):
         if not dir:
