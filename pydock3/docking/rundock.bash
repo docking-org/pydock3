@@ -14,21 +14,21 @@
 
 # set default for unset vars
 if [[ -z $ONLY_EXPORT_MOL2_FOR_TASK_1 ]]; then
-  ONLY_EXPORT_MOL2_FOR_TASK_1=false
+	ONLY_EXPORT_MOL2_FOR_TASK_1=false
 fi
 
 # get scheduler job / task IDs
 if ( ! [ -z $SLURM_ARRAY_JOB_ID ] ) && ( ! [ -z $SLURM_ARRAY_TASK_ID ] ); then
-  SCHEDULER_NAME="slurm"
-  JOB_ID=$SLURM_ARRAY_JOB_ID
-  TASK_ID=$SLURM_ARRAY_TASK_ID
+	SCHEDULER_NAME="slurm"
+	JOB_ID=$SLURM_ARRAY_JOB_ID
+	TASK_ID=$SLURM_ARRAY_TASK_ID
 elif ( ! [ -z $JOB_ID ] ) && ( ! [ -z $SGE_TASK_ID ] ); then
-  SCHEDULER_NAME="sge"
-  #JOB_ID=$JOB_ID # already set by SGE
-  TASK_ID=$SGE_TASK_ID
+	SCHEDULER_NAME="sge"
+	#JOB_ID=$JOB_ID # already set by SGE
+	TASK_ID=$SGE_TASK_ID
 else
-  echo "Scheduler job ID & task ID not found!"
-  exit 1
+	echo "Scheduler job ID & task ID not found!"
+	exit 1
 fi
 
 function log {
@@ -52,10 +52,10 @@ log df=$(df)
 
 # validate required environmental variables
 for var in EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC TEMP_STORAGE_PATH DOCKFILE_PATHS_LIST INDOCK_PATH; do
-  if [[ -z var ]]; then
-    echo "One or more of the following require environmental variables are not defined: EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC TEMP_STORAGE_PATH DOCKFILE_PATHS_LIST INDOCK_PATH"
-    exit 1
-  fi
+	if [[ -z var ]]; then
+		echo "One or more of the following require environmental variables are not defined: EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC TEMP_STORAGE_PATH DOCKFILE_PATHS_LIST INDOCK_PATH"
+		exit 1
+	fi
 done
 
 # initialize all our important variables & directories
@@ -86,7 +86,7 @@ chmod -R 777 $OUTPUT
 
 # copy dockfiles
 for d in $DOCKFILE_PATHS_LIST; do
-  cp $d $DOCKFILES_TEMP/$(basename "$d")
+	cp $d $DOCKFILES_TEMP/$(basename "$d")
 done
 
 # copy indock file and set name to 'INDOCK'
@@ -191,12 +191,12 @@ function cleanup {
 
 	cp -p $JOB_DIR/working/OUTDOCK $OUTPUT/OUTDOCK.$nout
 	if $ONLY_EXPORT_MOL2_FOR_TASK_1; then
-	    if [ $TASK_ID == 1 ]; then
-	        cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
-            else
-                cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
-            fi
-        fi
+		if [ $TASK_ID == 1 ]; then
+			cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+		else
+			cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+		fi
+	fi
 	cp -p $LOG_OUT $OUTPUT/$nout.out
 	cp -p $LOG_ERR $OUTPUT/$nout.err
 
