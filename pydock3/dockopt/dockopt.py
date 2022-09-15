@@ -733,7 +733,7 @@ class Dockopt(object):
         shutil.copytree(os.path.join(retrodock_jobs_dir.path, best_retrodock_job_num), best_retrodock_job_dir.path)
 
         # copy docking configuration files to best job dir
-        best_retrodock_job_dockfiles_dir = Dir(os.path.join(best_retrodock_job_dir.path, "dockfiles"))
+        best_retrodock_job_dockfiles_dir = Dir(os.path.join(best_retrodock_job_dir.path, "dockfiles"), create=True)
         for file_name in retrodock_job_num_to_docking_configuration_file_names_dict[best_retrodock_job_num]:
             best_retrodock_job_dockfiles_dir.copy_in_file(os.path.join(working_dir.path, file_name))
 
