@@ -193,10 +193,10 @@ function cleanup {
 	if $ONLY_EXPORT_MOL2_FOR_TASK_1; then
 		if [ $TASK_ID == 1 ]; then
 			cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
-		else
-			cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
 		fi
-	fi
+  else
+    cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+  fi
 	cp -p $LOG_OUT $OUTPUT/$nout.out
 	cp -p $LOG_ERR $OUTPUT/$nout.err
 
