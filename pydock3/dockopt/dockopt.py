@@ -14,6 +14,7 @@ import networkx as nx
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+from dirhash import dirhash
 
 from pydock3.util import get_logger_for_script, CleanExit, get_dataclass_as_dict
 from pydock3.config import Parameter
@@ -407,6 +408,21 @@ class Dockopt(object):
             return
 
         #
+        try:
+            scheduler = SCHEDULER_NAME_TO_CLASS_DICT[scheduler]()
+        except KeyError:
+            logger.error(f"The following environmental variables are required to use the {scheduler} job scheduler: {SCHEDULER_NAME_TO_CLASS_DICT[scheduler].REQUIRED_ENV_VAR_NAMES}")
+            return
+
+        #
+        try:
+            SHARED_MEMORY_PATH = os.environ["SHARED_MEMORY_PATH"]
+            TEMP_STORAGE_PATH = os.environ["TEMP_STORAGE_PATH"]
+        except KeyError:
+            logger.error("The following environmental variables are required to submit retrodock jobs: SHARED_MEMORY_PATH, TEMP_STORAGE_PATH")
+            return
+
+        #
         job_dir = Dir(job_dir_path, create=True, reset=False)
         working_dir = WorkingDir(path=os.path.join(job_dir.path, self.WORKING_DIR_NAME), create=True, reset=False)
         retrodock_jobs_dir = Dir(path=os.path.join(job_dir.path, self.RETRODOCK_JOBS_DIR_NAME), create=True, reset=False)
@@ -420,13 +436,6 @@ class Dockopt(object):
         config_params_str = '\n'.join(
             [f"{param_name}: {param.value}" for param_name, param in config.param_dict.items()])
         logger.info(f"Parameters:\n{config_params_str}")
-
-        #
-        try:
-            scheduler = SCHEDULER_NAME_TO_CLASS_DICT[scheduler]()
-        except KeyError:
-            logger.error(f"The following environmental variables are required to use the {scheduler} job scheduler: {SCHEDULER_NAME_TO_CLASS_DICT[scheduler].REQUIRED_ENV_VAR_NAMES}")
-            return
 
         #
         if actives_tgz_file_path is not None:
@@ -470,68 +479,100 @@ class Dockopt(object):
         job_param_dicts_indock_subset = [{key: value for key, value in job_param_dict.items() if key.startswith("indock.")} for job_param_dict in config.job_param_dicts]
         job_param_dicts_indock_subset = [dict(s) for s in set(frozenset(job_param_dict.items()) for job_param_dict in job_param_dicts_indock_subset)]  # get unique dicts
 
-        # make separate directory for each combination of (1) set of dock files and (2) job_param_dict_indock_subset
-        logger.info("Making / validating retrodock jobs directories...")
-        docking_job_dirs = []
-        docking_job_working_dirs = []
-        docking_job_output_dirs = []
-        docking_job_dock_files_dirs = []
-        parameter_dicts = []
-        docking_job_combinations = list(itertools.product(zip(full_targets_dag.dock_files_combinations, full_targets_dag.parameters_combinations), job_param_dicts_indock_subset))
-        for i, ((dock_files, parameters), job_param_dict_indock_subset) in enumerate(docking_job_combinations):
-            docking_job_dir = Dir(path=os.path.join(retrodock_jobs_dir.path, f"docking_job_{i+1}"), create=True)
-            docking_job_dirs.append(docking_job_dir)
-            docking_job_working_dir = Dir(path=os.path.join(docking_job_dir.path, f"working"), create=True)
-            docking_job_working_dirs.append(docking_job_working_dir)
-            docking_job_output_dir = Dir(path=os.path.join(docking_job_dir.path, f"output"), create=True)
-            docking_job_output_dirs.append(docking_job_output_dir)
-            docking_job_dock_files_dir = Dir(path=os.path.join(docking_job_dir.path, f"dockfiles"), create=True)
-            docking_job_dock_files_dirs.append(docking_job_dock_files_dir)
-
-            # get full parameter dict
-            parameter_dict = {p.name: p.value for p in parameters}
-            parameter_dict.update(job_param_dict_indock_subset)
-            parameter_dicts.append(parameter_dict)
-
-            # copy in dockfiles
-            for dock_file_field in fields(dock_files):
-                dock_file = getattr(dock_files, dock_file_field.name)
-                if not File.file_exists(os.path.join(docking_job_dock_files_dir.path, dock_file.name)):  # TODO: improve on this lazy solution
-                    docking_job_dock_files_dir.copy_in_file(dock_file.path)
-
-            # define new DockFiles instance with dockfile.path corrected to point to file in dockfiles dir
-            new_dock_files = deepcopy(dock_files)
-            for dock_file_field in fields(new_dock_files):
-                new_dock_file = getattr(new_dock_files, dock_file_field.name)
-                new_dock_file.path = os.path.join(docking_job_dock_files_dir.path, new_dock_file.name)
-                setattr(new_dock_files, dock_file_field.name, new_dock_file)
-
-            # make indock file for each combination of dock files
-            indock_file = IndockFile(path=os.path.join(docking_job_dock_files_dir.path, INDOCK_FILE_NAME))
-            indock_file.write(new_dock_files, parameter_dict, docking_job_dock_files_dir.name)
-        logger.debug("done")
-
         # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi
         logger.info("Writing actives_and_decoys.sdi file...")
-        docking_input_file = File(path=os.path.join(job_dir.path, "actives_and_decoys.sdi"))
-        with open(docking_input_file.path, 'w') as f:
+        retrodock_input_sdi_file = File(path=os.path.join(job_dir.path, "actives_and_decoys.sdi"))
+        with open(retrodock_input_sdi_file.path, 'w') as f:
             f.write(f"{actives_tgz_file.path}\n")
             f.write(f"{decoys_tgz_file.path}\n")
         logger.info("done")
 
+        # make indock file for each combination of (1) set of dock files and (2) job_param_dict_indock_subset
+        logger.info("Making INDOCK files...")
+        parameter_dicts = []
+        docking_configurations = []
+        docking_job_combinations = list(itertools.product(zip(full_targets_dag.dock_files_combinations, full_targets_dag.parameters_combinations), job_param_dicts_indock_subset))
+        for i, ((dock_files, parameters), job_param_dict_indock_subset) in enumerate(docking_job_combinations):
+            # get full parameter dict
+            parameter_dict = {p.name: p.value for p in parameters}
+            parameter_dict.update(job_param_dict_indock_subset)
+
+            # make indock file for each combination of dock files
+            indock_file_name = f"{INDOCK_FILE_NAME}_{i+1}"
+            indock_file = IndockFile(path=os.path.join(working_dir.path, indock_file_name))
+            indock_file.write(dock_files, parameter_dict)
+
+            #
+            parameter_dicts.append(parameter_dict)
+            docking_configurations.append((dock_files, indock_file))
+
         #
-        docking_jobs = []
-        for i, docking_job_dir in enumerate(docking_job_dirs):
-            docking_job = RetrodockJob(
-                name=f"{docking_job_dir.name}_{datetime.utcnow().isoformat().replace(':', '-')}",
-                dock_files_dir=docking_job_dock_files_dirs[i],
-                input_file=docking_input_file,
-                working_dir=docking_job_working_dirs[i],
-                output_dir=docking_job_output_dirs[i],
+        all_docking_configuration_file_names = []
+        for dock_files, indock_file in docking_configurations:
+            dock_file_names = [getattr(dock_files, dock_file_field.name).name for dock_file_field in fields(dock_files)]
+            all_docking_configuration_file_names += dock_file_names
+            all_docking_configuration_file_names.append(indock_file.name)
+        all_docking_configuration_file_names = list(set(all_docking_configuration_file_names))
+
+        #
+        dockopt_job_hash = dirhash(
+            working_dir.path,
+            "md5",
+            match=all_docking_configuration_file_names,
+        )
+        with open(os.path.join(job_dir.path, "dockopt_job_hash.md5"), 'w') as f:
+            f.write(f"{dockopt_job_hash}\n")
+
+        #
+        shared_memory_dockopt_job_dir = Dir(path=os.path.join(SHARED_MEMORY_PATH, f"dockopt_job_{dockopt_job_hash}"), create=True)
+
+        #
+        retrodock_jobs = []
+        retrodock_job_dirs = []
+        retrodock_job_index_to_docking_configuration_file_names_dict = {}
+        for i, (dock_files, indock_file) in enumerate(docking_configurations):
+            #
+            retro_dock_job_index = i+1
+            docking_configuration_file_names = [getattr(dock_files, dock_file_field.name).name for dock_file_field in fields(dock_files)] + [indock_file.name]
+            retrodock_job_index_to_docking_configuration_file_names_dict[retro_dock_job_index] = docking_configuration_file_names
+
+            #
+            retrodock_job_dir = Dir(path=os.path.join(retrodock_jobs_dir.path, str(retro_dock_job_index)), create=True)
+            retrodock_job_output_dir = Dir(path=os.path.join(retrodock_job_dir.path, f"output"), create=True)
+
+            # copy files defining docking configuration to shared memory
+            for dock_file_field in fields(dock_files):
+                dock_file = getattr(dock_files, dock_file_field.name)
+                if not File.file_exists(os.path.join(shared_memory_dockopt_job_dir.path, dock_file.name)):
+                    shared_memory_dockopt_job_dir.copy_in_file(dock_file.path)
+            if not File.file_exists(os.path.join(shared_memory_dockopt_job_dir.path, indock_file.name)):
+                shared_memory_dockopt_job_dir.copy_in_file(indock_file.path)
+
+            # define new DockFiles instance with path corrected to point to file in shared memory
+            shared_memory_dock_files = deepcopy(dock_files)
+            for dock_file_field in fields(shared_memory_dock_files):
+                shared_memory_dock_file = getattr(shared_memory_dock_files, dock_file_field.name)
+                shared_memory_dock_file.path = os.path.join(shared_memory_dockopt_job_dir.path, shared_memory_dock_file.name)
+                setattr(shared_memory_dock_files, dock_file_field.name, shared_memory_dock_file)
+
+            # define new IndockFile instance with path corrected to point to file in shared memory
+            shared_memory_indock_file = deepcopy(indock_file)
+            shared_memory_indock_file.path = os.path.join(shared_memory_dockopt_job_dir.path, shared_memory_indock_file.name)
+
+            #
+            retrodock_job = RetrodockJob(
+                name=f"{retrodock_job_dir.name}",
+                input_sdi_file=retrodock_input_sdi_file,
+                dock_files=shared_memory_dock_files,
+                indock_file=shared_memory_indock_file,
+                output_dir=retrodock_job_output_dir,
                 job_scheduler=scheduler,
+                temp_storage_path=TEMP_STORAGE_PATH,
                 max_reattempts=retrodock_job_max_reattempts,
             )
-            docking_jobs.append(docking_job)
+            retrodock_jobs.append(retrodock_job)
+            retrodock_job_dirs.append(retrodock_job_dir)
+        logger.debug("done")
 
         #
         def submit_retrodock_job(retrodock_job, skip_if_complete):
@@ -549,40 +590,40 @@ class Dockopt(object):
                     logger.info("done.\n")
 
         # submit docking jobs
-        for docking_job in docking_jobs:
-            submit_retrodock_job(docking_job, skip_if_complete=True)
+        for retrodock_job in retrodock_jobs:
+            submit_retrodock_job(retrodock_job, skip_if_complete=True)
         
         # make a queue of tuples containing job-relevant data for processing
         RetrodockJobInfoTuple = collections.namedtuple("RetrodockJobInfoTuple", "job job_dir parameter_dict")
-        docking_jobs_to_process_queue = [RetrodockJobInfoTuple(docking_jobs[i], docking_job_dirs[i], parameter_dicts[i]) for i in range(len(docking_job_dirs))]
+        retrodock_jobs_processing_queue = [RetrodockJobInfoTuple(retrodock_jobs[i], retrodock_job_dirs[i], parameter_dicts[i]) for i in range(len(retrodock_jobs))]
 
         # process results of docking jobs
-        logger.info(f"Awaiting / processing retrodock job results ({len(docking_job_dirs)} jobs in total)")
+        logger.info(f"Awaiting / processing retrodock job results ({len(retrodock_job_dirs)} jobs in total)")
         data_dicts = []
-        while len(docking_jobs_to_process_queue) > 0:
+        while len(retrodock_jobs_processing_queue) > 0:
             #
-            retrodock_job_info_tuple = docking_jobs_to_process_queue.pop(0)
-            docking_job, docking_job_dir, parameter_dict = retrodock_job_info_tuple
+            retrodock_job_info_tuple = retrodock_jobs_processing_queue.pop(0)
+            retrodock_job, retrodock_job_dir, parameter_dict = retrodock_job_info_tuple
 
             #
-            if docking_job.is_running:
-                docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+            if retrodock_job.is_running:
+                retrodock_jobs_processing_queue.append(retrodock_job_info_tuple)  # move job to back of queue
                 time.sleep(1)  # sleep a bit while waiting for outdock file in order to avoid wasteful queue-cycling
                 continue  # move on to next job in queue while job continues to run
             else:
-                if not docking_job.is_complete:  # not all expected OUTDOCK files exist yet
+                if not retrodock_job.is_complete:  # not all expected OUTDOCK files exist yet
                     # job must have timed out / failed
-                    logger.warning(f"Job failure / time out witnessed for job: {docking_job.name}")
-                    if docking_job.num_attempts > retrodock_job_max_reattempts:
-                        logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
+                    logger.warning(f"Job failure / time out witnessed for job: {retrodock_job.name}")
+                    if retrodock_job.num_attempts > retrodock_job_max_reattempts:
+                        logger.warning(f"Max job reattempts exhausted for job: {retrodock_job.name}")
                         continue  # move on to next job in queue without re-attempting failed job
-                    submit_retrodock_job(docking_job, skip_if_complete=False)  # re-attempt job
-                    docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+                    submit_retrodock_job(retrodock_job, skip_if_complete=False)  # re-attempt job
+                    retrodock_jobs_processing_queue.append(retrodock_job_info_tuple)  # move job to back of queue
                     continue  # move on to next job in queue while docking job runs
 
             #
-            actives_outdock_file_path = os.path.join(docking_job.output_dir.path, "1", "OUTDOCK.0")
-            decoys_outdock_file_path = os.path.join(docking_job.output_dir.path, "2", "OUTDOCK.0")
+            actives_outdock_file_path = os.path.join(retrodock_job.output_dir.path, "1", "OUTDOCK.0")
+            decoys_outdock_file_path = os.path.join(retrodock_job.output_dir.path, "2", "OUTDOCK.0")
 
             # load outdock file and get dataframe
             actives_outdock_file = OutdockFile(actives_outdock_file_path)
@@ -592,15 +633,15 @@ class Dockopt(object):
                 decoys_outdock_df = decoys_outdock_file.get_dataframe()
             except Exception as e:  # if outdock file failed to be parsed then re-attempt job
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
-                if docking_job.num_attempts > retrodock_job_max_reattempts:
-                    logger.warning(f"Max job reattempts exhausted for job: {docking_job.name}")
+                if retrodock_job.num_attempts > retrodock_job_max_reattempts:
+                    logger.warning(f"Max job reattempts exhausted for job: {retrodock_job.name}")
                     continue  # move on to next job in queue without re-attempting failed job
-                submit_retrodock_job(docking_job, skip_if_complete=False)  # re-attempt job
-                docking_jobs_to_process_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+                submit_retrodock_job(retrodock_job, skip_if_complete=False)  # re-attempt job
+                retrodock_jobs_processing_queue.append(retrodock_job_info_tuple)  # move job to back of queue
                 continue  # move on to next job in queue while docking job runs
 
             #
-            logger.info(f"Docking job '{docking_job.name}' completed. Successfully loaded OUTDOCK file(s).")
+            logger.info(f"Docking job '{retrodock_job.name}' completed. Successfully loaded OUTDOCK file(s).")
 
             # set is_active column based on outdock file
             actives_outdock_df["is_active"] = [1 for _ in range(len(actives_outdock_df))]
@@ -616,13 +657,9 @@ class Dockopt(object):
             df = df.sort_values(by=["Total", "is_active"], na_position="last", ignore_index=True)  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
             df = df.drop_duplicates(subset=["db2_file_path"], keep="first", ignore_index=True)
 
-            # save dataframe
-            job_results_csv_file_path = os.path.join(docking_job_dir.path, "retrodock_job_results.csv")
-            df.to_csv(job_results_csv_file_path)
-
             # make data dict for this job (will be used to make dataframe for results of all jobs)
             data_dict = copy(parameter_dict)
-            data_dict['job_dir_path'] = docking_job_dir.path
+            data_dict['retrodock_job_index'] = retrodock_job_dir.name
 
             #
             booleans = df["is_active"]
@@ -668,7 +705,7 @@ class Dockopt(object):
             plt.ylim(bottom=0.0, top=1.0)
             
             # save image of plot and close the fig to save memory
-            plot_image_path = os.path.join(docking_job_dir.path, "roc.png")
+            plot_image_path = os.path.join(retrodock_job_dir.path, "roc.png")
             plt.savefig(plot_image_path)
             plt.close(fig)
 
@@ -676,7 +713,7 @@ class Dockopt(object):
             data_dicts.append(data_dict)
            
         #
-        logger.info(f"Finished {len([1 for docking_job in docking_jobs if docking_job.is_complete])} out of {len(docking_jobs)} retrodock jobs.")
+        logger.info(f"Finished {len([1 for retrodock_job in retrodock_jobs if retrodock_job.is_complete])} out of {len(retrodock_jobs)} retrodock jobs.")
  
         # make dataframe of optimization job results
         df = pd.DataFrame(data=data_dicts)
@@ -688,11 +725,17 @@ class Dockopt(object):
         df.to_csv(optimization_results_csv_file_path)
 
         # copy best job to output dir
-        best_job_dir_path = os.path.join(job_dir.path, "best_retrodock_job")
-        logger.debug(f"Copying dockfiles of best job results to {best_job_dir_path}")
-        if os.path.isdir(best_job_dir_path):
-            shutil.rmtree(best_job_dir_path, ignore_errors=True)
-        shutil.copytree(df['job_dir_path'].iloc[0], best_job_dir_path)
+        best_retrodock_job_dir = Dir(os.path.join(job_dir.path, "best_retrodock_job"))
+        logger.debug(f"Copying dockfiles of best job results to {best_retrodock_job_dir.path}")
+        if os.path.isdir(best_retrodock_job_dir.path):
+            shutil.rmtree(best_retrodock_job_dir.path, ignore_errors=True)
+        best_retrodock_job_index = df['retrodock_job_index'].iloc[0]
+        shutil.copytree(os.path.join(retrodock_jobs_dir.path, best_retrodock_job_index), best_retrodock_job_dir.path)
+
+        # copy docking configuration files to best job dir
+        best_retrodock_job_dockfiles_dir = Dir(os.path.join(best_retrodock_job_dir.path, "dockfiles"))
+        for file_name in retrodock_job_index_to_docking_configuration_file_names_dict[best_retrodock_job_index]:
+            best_retrodock_job_dockfiles_dir.copy_in_file(os.path.join(working_dir.path, file_name))
 
         # generate report
         generate_dockopt_job_report(

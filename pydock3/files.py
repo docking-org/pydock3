@@ -389,7 +389,7 @@ class IndockFile(File):
         self,
         dock_files,
         config_param_dict,
-        dock_files_dir_name,
+        dock_files_dir_name="dockfiles",
         flex_groups=None,
         flex_0_file=None,
         use_flex=False,

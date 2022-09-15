@@ -3,12 +3,32 @@
 # req:
 # EXPORT_DEST
 # INPUT_SOURCE
-# DOCKFILES
 # DOCKEXEC
-# SHRTCACHE
-# LONGCACHE
-# JOB_ID
-# SGE_TASK_ID
+# TEMP_STORAGE_PATH
+# DOCKFILE_PATHS_LIST
+# INDOCK_PATH
+
+#optional:
+# ONLY_EXPORT_MOL2_FOR_TASK_1
+
+
+# set default for unset vars
+if [[ -z $ONLY_EXPORT_MOL2_FOR_TASK_1 ]]; then
+  ONLY_EXPORT_MOL2_FOR_TASK_1=false
+
+# get scheduler job / task IDs
+if ! { [ -z $SLURM_ARRAY_JOB_ID ] && [ -z SLURM_ARRAY_TASK_ID ] }; then
+  SCHEDULER_NAME="slurm"
+  JOB_ID=$SLURM_ARRAY_JOB_ID
+  TASK_ID=$SLURM_ARRAY_TASK_ID
+elif ! { [ -z $JOB_ID ] && [ -z $SGE_TASK_ID ] }; then
+  SCHEDULER_NAME="sge"
+  #JOB_ID=$JOB_ID # already set by SGE
+  TASK_ID=$SGE_TASK_ID
+else
+  echo "Scheduler job ID & task ID not found!"
+  exit 1
+fi
 
 function log {
 	echo "[$(date +%X)]: $@"
@@ -17,27 +37,29 @@ function log {
 # log information about this job
 log host=$(hostname)
 log user=$(whoami)
+log SCHEDULER_NAME=$SCHEDULER_NAME
+log JOB_ID=$JOB_ID
+log TASK_ID=$TASK_ID
 log EXPORT_DEST=$EXPORT_DEST
 log INPUT_SOURCE=$INPUT_SOURCE
-log DOCKFILES=$DOCKFILES
 log DOCKEXEC=$DOCKEXEC
-log SHRTCACHE=$SHRTCACHE
-log LONGCACHE=$LONGCACHE
-log JOB_ID=$JOB_ID
-log SGE_TASK_ID=$SGE_TASK_ID
+log TEMP_STORAGE_PATH=$TEMP_STORAGE_PATH
+log DOCKFILE_PATHS_LIST=$DOCKFILE_PATHS_LIST
+log INDOCK_PATH=$INDOCK_PATH
+log ONLY_EXPORT_MOL2_FOR_TASK_1=$ONLY_EXPORT_MOL2_FOR_TASK_1
 log df=$(df)
 
 # validate required environmental variables
-for var in EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC SHRTCACHE LONGCACHE JOB_ID SGE_TASK_ID; do
+for var in EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC TEMP_STORAGE_PATH DOCKFILE_PATHS_LIST INDOCK_PATH; do
   if [[ -z var ]]; then
-    echo "One or more of the following require environmental variables are not defined: EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC SHRTCACHE LONGCACHE JOB_ID SGE_TASK_ID"
+    echo "One or more of the following require environmental variables are not defined: EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC TEMP_STORAGE_PATH DOCKFILE_PATHS_LIST INDOCK_PATH"
     exit 1
   fi
 done
 
 # initialize all our important variables & directories
-JOB_DIR=${SHRTCACHE}/$(whoami)/${JOB_ID}_${SGE_TASK_ID}
-INPUT_TARBALL=$(sed "${SGE_TASK_ID}q;d" $EXPORT_DEST/joblist | awk '{print $1}')
+JOB_DIR=${TEMP_STORAGE_PATH}/$(whoami)/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}
+INPUT_TARBALL=$(sed "${TASK_ID}q;d" $EXPORT_DEST/joblist | awk '{print $1}')
 EXTRACT_DIR=$JOB_DIR/input/$(basename $INPUT_TARBALL)
 DOCKFILES_TEMP=$JOB_DIR/working/dockfiles
 
@@ -48,9 +70,9 @@ log EXTRACT_DIR=$EXTRACT_DIR
 log DOCKFILES_TEMP=$DOCKFILES_TEMP
 
 #
-OUTPUT=${EXPORT_DEST}/$(sed "${SGE_TASK_ID}q;d" $EXPORT_DEST/joblist | awk '{print $2}')
-LOG_OUT=${SHRTCACHE}/rundock_${JOB_ID}_${SGE_TASK_ID}.out
-LOG_ERR=${SHRTCACHE}/rundock_${JOB_ID}_${SGE_TASK_ID}.err
+OUTPUT=${EXPORT_DEST}/$(sed "${TASK_ID}q;d" $EXPORT_DEST/joblist | awk '{print $2}')
+LOG_OUT=${TEMP_STORAGE_PATH}/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}.out
+LOG_ERR=${TEMP_STORAGE_PATH}/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}.err
 
 # bring directories into existence
 mkdir -p $JOB_DIR/working
@@ -61,19 +83,12 @@ mkdir -p $DOCKFILES_TEMP
 mkdir -p $OUTPUT
 chmod -R 777 $OUTPUT
 
-# failsafe: delete old jobs that failed to delete themselves
-#n_old_jobs=$(find $SHRTCACHE/$(whoami) -maxdepth 1 -type d -mmin +240 | wc -l) # job directories older than 4 hours old to be removed
-#if [ $n_old_jobs -gt 0 ]; then
-(
-	flock -x 9
-	find $SHRTCACHE/$(whoami) -maxdepth 1 -type d -mmin +360 | xargs rm -r 2>/dev/null
-	flock -u 9
-)9>/dev/shm/rundock_purge_$(whoami).lock
-#	synchronize_all_but_first "purge_old" "find $SHRTCACHE/$(whoami) -maxdepth 1 -type d -mmin +240 | xargs rm -r"
-#fi
+# copy dockfiles
+for d in $DOCKFILE_PATHS_LIST; do
+  cp $d $DOCKFILES_TEMP/$d
 
-#
-cp -a $DOCKFILES/. $DOCKFILES_TEMP
+# copy indock file and set name to 'INDOCK'
+cp $INDOCK_PATH $DOCKFILES_TEMP/INDOCK
 
 #
 log "starting input extract"
@@ -130,11 +145,7 @@ function fix_indock {
 }
 
 # only need to fix the INDOCK file once- don't want jobs to go all nutty because multiple processes are trying to mess with the INDOCK file
-#(
-#	flock -x 9
 fix_indock $DOCKFILES_TEMP/INDOCK $JOB_DIR/dockfiles/INDOCK
-#        flock -u 9
-#)9>/dev/shm/dockfiles.${dockfileshash}.lock
 
 log "starting dock"
 pushd $JOB_DIR/working > /dev/null 2>&1
@@ -177,7 +188,12 @@ function cleanup {
 	chmod -R 777 $OUTPUT
 
 	cp -p $JOB_DIR/working/OUTDOCK $OUTPUT/OUTDOCK.$nout
-	cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+	if $ONLY_EXPORT_MOL2_FOR_TASK_1; then
+	  if [ $TASK_ID == 1 ]; then
+	    cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+  else
+    cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+  fi
 	cp -p $LOG_OUT $OUTPUT/$nout.out
 	cp -p $LOG_ERR $OUTPUT/$nout.err
 
