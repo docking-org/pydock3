@@ -529,15 +529,15 @@ class Dockopt(object):
         #
         retrodock_jobs = []
         retrodock_job_dirs = []
-        retrodock_job_index_to_docking_configuration_file_names_dict = {}
+        retrodock_job_num_to_docking_configuration_file_names_dict = {}
         for i, (dock_files, indock_file) in enumerate(docking_configurations):
             #
-            retro_dock_job_index = i+1
+            retro_dock_job_num = str(i+1)
             docking_configuration_file_names = [getattr(dock_files, dock_file_field.name).name for dock_file_field in fields(dock_files)] + [indock_file.name]
-            retrodock_job_index_to_docking_configuration_file_names_dict[retro_dock_job_index] = docking_configuration_file_names
+            retrodock_job_num_to_docking_configuration_file_names_dict[retro_dock_job_num] = docking_configuration_file_names
 
             #
-            retrodock_job_dir = Dir(path=os.path.join(retrodock_jobs_dir.path, str(retro_dock_job_index)), create=True)
+            retrodock_job_dir = Dir(path=os.path.join(retrodock_jobs_dir.path, retro_dock_job_num), create=True)
             retrodock_job_output_dir = Dir(path=os.path.join(retrodock_job_dir.path, f"output"), create=True)
 
             # copy files defining docking configuration to shared memory
@@ -659,7 +659,7 @@ class Dockopt(object):
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
             data_dict = copy(parameter_dict)
-            data_dict['retrodock_job_index'] = retrodock_job_dir.name
+            data_dict['retrodock_job_num'] = retrodock_job_dir.name
 
             #
             booleans = df["is_active"]
@@ -729,12 +729,12 @@ class Dockopt(object):
         logger.debug(f"Copying dockfiles of best job results to {best_retrodock_job_dir.path}")
         if os.path.isdir(best_retrodock_job_dir.path):
             shutil.rmtree(best_retrodock_job_dir.path, ignore_errors=True)
-        best_retrodock_job_index = df['retrodock_job_index'].iloc[0]
-        shutil.copytree(os.path.join(retrodock_jobs_dir.path, best_retrodock_job_index), best_retrodock_job_dir.path)
+        best_retrodock_job_num = df['retrodock_job_num'].iloc[0]
+        shutil.copytree(os.path.join(retrodock_jobs_dir.path, best_retrodock_job_num), best_retrodock_job_dir.path)
 
         # copy docking configuration files to best job dir
         best_retrodock_job_dockfiles_dir = Dir(os.path.join(best_retrodock_job_dir.path, "dockfiles"))
-        for file_name in retrodock_job_index_to_docking_configuration_file_names_dict[best_retrodock_job_index]:
+        for file_name in retrodock_job_num_to_docking_configuration_file_names_dict[best_retrodock_job_num]:
             best_retrodock_job_dockfiles_dir.copy_in_file(os.path.join(working_dir.path, file_name))
 
         # generate report
