@@ -15,13 +15,14 @@
 # set default for unset vars
 if [[ -z $ONLY_EXPORT_MOL2_FOR_TASK_1 ]]; then
   ONLY_EXPORT_MOL2_FOR_TASK_1=false
+fi
 
 # get scheduler job / task IDs
-if ! { [ -z $SLURM_ARRAY_JOB_ID ] && [ -z SLURM_ARRAY_TASK_ID ] }; then
+if ( ! [ -z $SLURM_ARRAY_JOB_ID ] ) && ( ! [ -z $SLURM_ARRAY_TASK_ID ] ); then
   SCHEDULER_NAME="slurm"
   JOB_ID=$SLURM_ARRAY_JOB_ID
   TASK_ID=$SLURM_ARRAY_TASK_ID
-elif ! { [ -z $JOB_ID ] && [ -z $SGE_TASK_ID ] }; then
+elif ( ! [ -z $JOB_ID ] ) && ( ! [ -z $SGE_TASK_ID ] ); then
   SCHEDULER_NAME="sge"
   #JOB_ID=$JOB_ID # already set by SGE
   TASK_ID=$SGE_TASK_ID
@@ -85,7 +86,8 @@ chmod -R 777 $OUTPUT
 
 # copy dockfiles
 for d in $DOCKFILE_PATHS_LIST; do
-  cp $d $DOCKFILES_TEMP/$d
+  cp $d $DOCKFILES_TEMP/$(basename "$d")
+done
 
 # copy indock file and set name to 'INDOCK'
 cp $INDOCK_PATH $DOCKFILES_TEMP/INDOCK
@@ -189,11 +191,12 @@ function cleanup {
 
 	cp -p $JOB_DIR/working/OUTDOCK $OUTPUT/OUTDOCK.$nout
 	if $ONLY_EXPORT_MOL2_FOR_TASK_1; then
-	  if [ $TASK_ID == 1 ]; then
-	    cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
-  else
-    cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
-  fi
+	    if [ $TASK_ID == 1 ]; then
+	        cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+            else
+                cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+            fi
+        fi
 	cp -p $LOG_OUT $OUTPUT/$nout.out
 	cp -p $LOG_ERR $OUTPUT/$nout.err
 
