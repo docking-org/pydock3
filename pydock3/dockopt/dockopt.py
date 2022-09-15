@@ -416,10 +416,9 @@ class Dockopt(object):
 
         #
         try:
-            SHARED_MEMORY_PATH = os.environ["SHARED_MEMORY_PATH"]
             TEMP_STORAGE_PATH = os.environ["TEMP_STORAGE_PATH"]
         except KeyError:
-            logger.error("The following environmental variables are required to submit retrodock jobs: SHARED_MEMORY_PATH, TEMP_STORAGE_PATH")
+            logger.error("The following environmental variables are required to submit retrodock jobs: TEMP_STORAGE_PATH")
             return
 
         #
@@ -524,9 +523,6 @@ class Dockopt(object):
             f.write(f"{dockopt_job_hash}\n")
 
         #
-        shared_memory_dockopt_job_dir = Dir(path=os.path.join(SHARED_MEMORY_PATH, f"dockopt_job_{dockopt_job_hash}"), create=True)
-
-        #
         retrodock_jobs = []
         retrodock_job_dirs = []
         retrodock_job_num_to_docking_configuration_file_names_dict = {}
@@ -540,31 +536,12 @@ class Dockopt(object):
             retrodock_job_dir = Dir(path=os.path.join(retrodock_jobs_dir.path, retro_dock_job_num), create=True)
             retrodock_job_output_dir = Dir(path=os.path.join(retrodock_job_dir.path, f"output"), create=True)
 
-            # copy files defining docking configuration to shared memory
-            for dock_file_field in fields(dock_files):
-                dock_file = getattr(dock_files, dock_file_field.name)
-                if not File.file_exists(os.path.join(shared_memory_dockopt_job_dir.path, dock_file.name)):
-                    shared_memory_dockopt_job_dir.copy_in_file(dock_file.path)
-            if not File.file_exists(os.path.join(shared_memory_dockopt_job_dir.path, indock_file.name)):
-                shared_memory_dockopt_job_dir.copy_in_file(indock_file.path)
-
-            # define new DockFiles instance with path corrected to point to file in shared memory
-            shared_memory_dock_files = deepcopy(dock_files)
-            for dock_file_field in fields(shared_memory_dock_files):
-                shared_memory_dock_file = getattr(shared_memory_dock_files, dock_file_field.name)
-                shared_memory_dock_file.path = os.path.join(shared_memory_dockopt_job_dir.path, shared_memory_dock_file.name)
-                setattr(shared_memory_dock_files, dock_file_field.name, shared_memory_dock_file)
-
-            # define new IndockFile instance with path corrected to point to file in shared memory
-            shared_memory_indock_file = deepcopy(indock_file)
-            shared_memory_indock_file.path = os.path.join(shared_memory_dockopt_job_dir.path, shared_memory_indock_file.name)
-
             #
             retrodock_job = RetrodockJob(
                 name=f"{dockopt_job_hash}_{retrodock_job_dir.name}",
                 input_sdi_file=retrodock_input_sdi_file,
-                dock_files=shared_memory_dock_files,
-                indock_file=shared_memory_indock_file,
+                dock_files=dock_files,
+                indock_file=indock_file,
                 output_dir=retrodock_job_output_dir,
                 job_scheduler=scheduler,
                 temp_storage_path=TEMP_STORAGE_PATH,
