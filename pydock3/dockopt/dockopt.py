@@ -589,7 +589,7 @@ class Dockopt(object):
 
             #
             retrodock_job = RetrodockJob(
-                name=f"{dockopt_job_hash}_{retrodock_job_dir.name}",
+                name=f"dockopt_job_{dockopt_job_hash}_{retrodock_job_dir.name}",
                 input_sdi_file=retrodock_input_sdi_file,
                 dock_files=dock_files,
                 indock_file=indock_file,
