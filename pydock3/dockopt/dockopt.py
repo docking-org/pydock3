@@ -478,7 +478,7 @@ class Dockopt(object):
         # matching spheres perturbation
         dock_files_combinations_for_retro_docking = None
         input_parameters_combinations_for_retro_docking = None
-        if config.param_dict["matching_spheres_perturbation.use"]:
+        if config.param_dict["matching_spheres_perturbation.use"].value:
             #
             unperturbed_file_name_to_perturbed_file_names_dict = collections.defaultdict(list)
             for node_name, node_data in full_targets_dag.g.nodes(data=True):
@@ -486,13 +486,13 @@ class Dockopt(object):
                     spheres = read_sph(os.path.join(working_dir.path, node_name), chosen_cluster='A', color='A')
 
                     #
-                    for i in range(int(config.param_dict["matching_spheres_perturbation.num_samples_per_matching_spheres_file"])):
+                    for i in range(int(config.param_dict["matching_spheres_perturbation.num_samples_per_matching_spheres_file"].value)):
 
                         # perturb all spheres in file
                         new_spheres = []
                         for sphere in spheres:
                             new_sphere = copy(sphere)
-                            perturbation_xyz = tuple([random.gauss(0.0, float(config.param_dict["matching_spheres_perturbation.standard_deviation_angstroms"])) for _ in range(3)])
+                            perturbation_xyz = tuple([random.gauss(0.0, float(config.param_dict["matching_spheres_perturbation.standard_deviation_angstroms"].value)) for _ in range(3)])
                             new_sphere.X += perturbation_xyz[0]
                             new_sphere.Y += perturbation_xyz[1]
                             new_sphere.Z += perturbation_xyz[2]
