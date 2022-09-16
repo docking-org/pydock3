@@ -1,3 +1,8 @@
+matching_spheres_perturbation:
+  use: false
+  num_samples_per_matching_spheres_file: 10
+  standard_deviation_angstroms: 0.5
+
 receptor_protonation:
   reduce_options: "-HIS -FLIPs"
 

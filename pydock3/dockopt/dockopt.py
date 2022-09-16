@@ -1,14 +1,14 @@
 import itertools
 import math
 import os
-from datetime import datetime
 import shutil
 from functools import wraps
 from dataclasses import fields
-from copy import deepcopy, copy
+from copy import copy
 import logging
 import collections
 import time
+import random
 
 import networkx as nx
 from matplotlib import pyplot as plt
@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from dirhash import dirhash
 
-from pydock3.util import get_logger_for_script, CleanExit, get_dataclass_as_dict
+from pydock3.util import CleanExit, get_dataclass_as_dict
 from pydock3.config import Parameter
 from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
 from pydock3.dockopt.config import DockoptParametersConfiguration
@@ -34,6 +34,7 @@ from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt.report import generate_dockopt_job_report
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
+from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
 
 
 #
@@ -162,7 +163,7 @@ class FullTargetsDAG(object):
                             continue
 
                         #
-                        full_dag_target_name = f"{i+1}_{abstract_target.name}"
+                        full_dag_target_name = f"{abstract_target.name}_{i+1}"
                         full_dag_target = BlasterFile(
                             path=os.path.join(working_dir.path, full_dag_target_name),
                             src_file_path=abstract_target.src_file_path,
@@ -274,7 +275,7 @@ class FullTargetsDAG(object):
         abstract_dag_dock_file_node_name_to_full_dag_dock_file_nodes_dict = {abstract_dag_dock_file_node_name: [full_dag_node for full_dag_node in self.g.nodes if self.g.nodes[full_dag_node].get("abstract_node_name") == abstract_dag_dock_file_node_name] for abstract_dag_dock_file_node_name in abstract_dag_dock_file_node_name_to_dock_file_field_name_dict}
         abstract_dag_dock_file_node_names, full_dag_dock_file_nodes_lists = zip(*abstract_dag_dock_file_node_name_to_full_dag_dock_file_nodes_dict.items())
         dock_files_combinations = []
-        parameters_combinations = []
+        input_parameters_combinations = []
         for full_dag_dock_file_nodes in itertools.product(*full_dag_dock_file_nodes_lists):
             if not self.nodes_have_consistent_lineages(full_dag_dock_file_nodes):  # skip dockfile node combinations that have inconsistent lineages
                 continue
@@ -284,11 +285,11 @@ class FullTargetsDAG(object):
 
             #
             ancestor_parameters = get_ancestor_parameters(full_dag_dock_file_nodes)
-            parameters_combinations.append(ancestor_parameters)
+            input_parameters_combinations.append(ancestor_parameters)
 
         #
         self.dock_files_combinations = dock_files_combinations
-        self.parameters_combinations = parameters_combinations
+        self.input_parameters_combinations = input_parameters_combinations
 
     def get_start_nodes(self):
         start_nodes = []
@@ -474,27 +475,69 @@ class Dockopt(object):
         for edge in nx.edge_bfs(full_targets_dag.g, full_targets_dag.get_start_nodes()):
             run_edge_step(edge)
 
+        # matching spheres perturbation
+        dock_files_combinations_for_retro_docking = None
+        input_parameters_combinations_for_retro_docking = None
+        if config.param_dict["matching_spheres_perturbation.use"]:
+            #
+            unperturbed_file_name_to_perturbed_file_names_dict = collections.defaultdict(list)
+            for node_name, node_data in full_targets_dag.g.nodes(data=True):
+                if node_data.get("abstract_node_name") == blaster_files.matching_spheres_file.name:
+                    spheres = read_sph(os.path.join(working_dir.path, node_name), chosen_cluster='A', color='A')
+
+                    #
+                    for i in range(int(config.param_dict["matching_spheres_perturbation.num_samples_per_matching_spheres_file"])):
+
+                        # perturb all spheres in file
+                        new_spheres = []
+                        for sphere in spheres:
+                            new_sphere = copy(sphere)
+                            perturbation_xyz = tuple([random.gauss(0.0, float(config.param_dict["matching_spheres_perturbation.standard_deviation_angstroms"])) for _ in range(3)])
+                            new_sphere.X += perturbation_xyz[0]
+                            new_sphere.Y += perturbation_xyz[1]
+                            new_sphere.Z += perturbation_xyz[2]
+                            new_spheres.append(new_sphere)
+
+                        # write perturbed spheres to new matching spheres file
+                        perturbed_file_name = f"{node_name}_{i+1}"
+                        write_sph(os.path.join(working_dir.path, perturbed_file_name), new_spheres)
+
+                        #
+                        unperturbed_file_name_to_perturbed_file_names_dict[node_name].append(perturbed_file_name)
+
+            #
+            dock_files_combinations_for_retro_docking = []
+            input_parameters_combinations_for_retro_docking = []
+            for i, dock_files_combination in enumerate(full_targets_dag.dock_files_combinations):
+                for perturbed_file_name in unperturbed_file_name_to_perturbed_file_names_dict[dock_files_combination.matching_spheres_file.name]:
+                    new_dock_files_combination = copy(dock_files_combination)
+                    new_dock_files_combination.matching_spheres_file = BlasterFile(os.path.join(working_dir.path, perturbed_file_name))
+                    dock_files_combinations_for_retro_docking.append(new_dock_files_combination)
+                    input_parameters_combinations_for_retro_docking.append(full_targets_dag.input_parameters_combinations[i])
+        else:
+            dock_files_combinations_for_retro_docking = full_targets_dag.dock_files_combinations
+            input_parameters_combinations_for_retro_docking = full_targets_dag.input_parameters_combinations
+
+        #
+        matching_spheres_perturbation_param_dict = {key: value for key, value in config.param_dict.items() if key.startswith("matching_spheres_perturbation.")}
+
+        #
         # TODO: there is an assumption here that none of the indock config params are used in any of the blaster steps; if this assumption ever breaks, this method will need to be replaced.
         job_param_dicts_indock_subset = [{key: value for key, value in job_param_dict.items() if key.startswith("indock.")} for job_param_dict in config.job_param_dicts]
         job_param_dicts_indock_subset = [dict(s) for s in set(frozenset(job_param_dict.items()) for job_param_dict in job_param_dicts_indock_subset)]  # get unique dicts
 
-        # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi
-        logger.info("Writing actives_and_decoys.sdi file...")
-        retrodock_input_sdi_file = File(path=os.path.join(job_dir.path, "actives_and_decoys.sdi"))
-        with open(retrodock_input_sdi_file.path, 'w') as f:
-            f.write(f"{actives_tgz_file.path}\n")
-            f.write(f"{decoys_tgz_file.path}\n")
-        logger.info("done")
+        #
+        docking_configuration_info_combinations = list(itertools.product(zip(dock_files_combinations_for_retro_docking, input_parameters_combinations_for_retro_docking), job_param_dicts_indock_subset))
 
         # make indock file for each combination of (1) set of dock files and (2) job_param_dict_indock_subset
         logger.info("Making INDOCK files...")
         parameter_dicts = []
         docking_configurations = []
-        docking_job_combinations = list(itertools.product(zip(full_targets_dag.dock_files_combinations, full_targets_dag.parameters_combinations), job_param_dicts_indock_subset))
-        for i, ((dock_files, parameters), job_param_dict_indock_subset) in enumerate(docking_job_combinations):
+        for i, ((dock_files, input_parameters), job_param_dict_indock_subset) in enumerate(docking_configuration_info_combinations):
             # get full parameter dict
-            parameter_dict = {p.name: p.value for p in parameters}
-            parameter_dict.update(job_param_dict_indock_subset)
+            parameter_dict = {p.name: p.value for p in input_parameters}
+            parameter_dict.update(matching_spheres_perturbation_param_dict) # add matching spheres perturbation params
+            parameter_dict.update(job_param_dict_indock_subset)  # add indock params
 
             # make indock file for each combination of dock files
             indock_file_name = f"{INDOCK_FILE_NAME}_{i+1}"
@@ -521,6 +564,14 @@ class Dockopt(object):
         )
         with open(os.path.join(job_dir.path, "dockopt_job_hash.md5"), 'w') as f:
             f.write(f"{dockopt_job_hash}\n")
+
+        # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi
+        logger.info("Writing actives_and_decoys.sdi file...")
+        retrodock_input_sdi_file = File(path=os.path.join(job_dir.path, "actives_and_decoys.sdi"))
+        with open(retrodock_input_sdi_file.path, 'w') as f:
+            f.write(f"{actives_tgz_file.path}\n")
+            f.write(f"{decoys_tgz_file.path}\n")
+        logger.info("done")
 
         #
         retrodock_jobs = []

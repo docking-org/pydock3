@@ -1,3 +1,8 @@
+matching_spheres_perturbation:
+  use: bool()
+  num_samples: num()
+  standard_deviation_angstroms: num()
+
 receptor_protonation:
   reduce_options: any(str(), list(str()))
 
