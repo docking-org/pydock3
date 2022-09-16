@@ -66,10 +66,6 @@ class QBlasterBase(ABC):
     @abstractmethod
     def create_archive(self):
         pass
-    # activate an archived base as the new active base
-    @abstractmethod
-    def activate_archive(self, archive_path):
-        pass
     # list all archives and their properties
     @abstractmethod
     def list_archives(self):
@@ -83,12 +79,28 @@ class QBlasterBase(ABC):
     def destroy_base(self):
         pass
 
+    @staticmethod
+    def cp(self, p1, p2):
+        f1 = fileobj_from_path(p1)
+        f2 = fileobj_from_path(p2)
+        FileBase.copy(p1, p2)
+
+    @staticmethod
+    def rm(self, p):
+        f = fileobj_from_path(p)
+        f.rm()
+
 class LSDBase(QBlasterBase):
     def __init__(self, cfg, filebase : ParallelJobFileBase, queue : JobQueue):
         self.filebase = filebase
         self.sdibase = filebase.dir('sdi')
 
     ### internal stats logic, used by jobs & status command
+    # returns a string representing overall state, followed by a list of all jobs & their individual states
+    # overall state can be:
+    # inactive
+    # running
+    # 
     def get_lsd_stats(self, sdiname):
         lsd_out_dir = self.filebase.dir(sdiname)
     def get_lsd_block_stats(self, sdiname, run):
@@ -98,22 +110,56 @@ class LSDBase(QBlasterBase):
 
     ### queue logic
     def set_queue(self, queue_name):
-        pass
+        queue_obj = load_queue(queue_name)
+        if not queue_obj:
+            print("Could not find queue!")
+            return
+        else:
+            queue_obj.ensure_path_is_accessible(self.filebase)
+            self.queue = queue
     def get_queue(self):
-        pass
+        
 
     ### dockfiles logic
-    def set_dockfiles(self, dockfiles_path):
-        pass
+    def set_dockfiles(self, dockfiles_path, force=False):
+        curr = self.get_dockfiles()
+        if force or not curr:
+            df_src = dirobj_from_path(dockfiles_path)
+            df_dst = self.filebase.dir("dockfiles")
+            DirBase.copy(df_src, df_dst)
+            print("Successfully copied over dockfiles")
+        else:
+            rough_status = self.get_rough_lsd_status()
+            if rough_status == "submitted":
+                print("Error! Active jobs are currently using dockfiles. Wait for them to finish or cancel them.")
+            elif rough_status in ["partial", "complete"]:
+                print("Warning! You are trying to change your dockfiles but some poses have already been produced from them.")
+                print("Choose one of the following actions:")
+                print("1. Archive existing work, initialize a fresh run with new dockfiles")
+                print("2. Destroy existing work, initialize a fresh run with new dockfiles")
+                print("3. Continue with existing run, just swap out dockfiles.")
+                choice = input("[choose from 1, 2, or 3]: ")
+
+                if choice == 1:
+                    self.create_archive()
+                    self.set_dockfiles(dockfiles_path)
+                elif choice == 2:
+                    self.destroy_base()
+                    self.set_dockfiles(dockfiles_path)
+                elif choice == 3:
+                    self.set_dockfiles(dockfiles_path, force=True)
+
     def get_dockfiles(self):
-        pass
+        df = self.filebase.dir("dockfiles").file("INDOCK")
+        if df.exists():
+            return df.dir()
+        else:
+            return None
 
     ### archive/delete logic
     def list_archives(self):
         pass
-    def rm_archive(self, archivename):
-        pass
-    def activate_archive(self, archivename):
+    def create_archive(self):
         pass
     def destroy_base(self):
         pass
@@ -146,7 +192,7 @@ class LSDBase(QBlasterBase):
         if sdi_file.exists():
             sdi = SDI.from_file(sdi_file)
             lsd_status, lsd_stats = get_lsd_stats(sdi.signature)
-            if lsd_status != "":
+            if lsd_status != "inactive":
                 print("")
             sdi.destroy()
 
@@ -214,7 +260,7 @@ class LSDBase(QBlasterBase):
     #   [choose from 1, 2, or 3]: 1
     #   Archive just top poses? [y/N]: y
     #
-    #   Creating archive @ s3://mybucket/mylsdbase/123fda.archive
+    #   Creating archive @ s3://mybucket/mylsdbase/123fda.archive.zip
     #
     # > set-queue slurm
     #   Warning: base in "S3" is accessible but not local to queue "slurm", expect additional data transfer fees
@@ -228,12 +274,12 @@ class LSDBase(QBlasterBase):
     #   +-----------------------+-----------+
     # > submit z22://h17p200-h17p400
     # > status
-    #   +-----------------------+-----------+-----------+-----------+-----------+
-    #   | sdi                   | inactive  | submitted | success   | failure   |
-    #   +-----------------------+-----------+-----------+-----------+-----------+
-    #   | z22://h17p200-h17p400 | 0         | 9375      | 604       | 21        |
-    #   | z22://h18p200-h18p400 | 10000     | 0         | 0         | 0         |
-    #   +-----------------------+-----------+-----------+-----------+-----------+
+    #   +-----------------------+-----------+-----------+-----------+-----------+-----------+
+    #   | sdi                   | inactive  | submitted | running   | success   | failure   |
+    #   +-----------------------+-----------+-----------+-----------+-----------+-----------+
+    #   | z22://h17p200-h17p400 | 0         | 9375      | 604       | 20        | 1         |
+    #   | z22://h18p200-h18p400 | 10000     | 0         | 0         | 0         | 0         |
+    #   +-----------------------+-----------+-----------+-----------+-----------+-----------+
     # > status --top
     #   +-----------------------+-----------------+-----------------+-----------+--------------------------------------------+-------------------------------------------+
     #   | sdi                   | processed poses | free poses      | top poses | poses path                                 | scores path                               |
