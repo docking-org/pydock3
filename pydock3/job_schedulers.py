@@ -97,13 +97,17 @@ class SGEJobScheduler(JobScheduler):
             system_call(f"source {self.SGE_SETTINGS}")
 
     def run(self, job_name, script_path, env_vars_dict, output_dir_path, n_tasks, job_timeout_minutes=None):
-        env_vars_string = ','.join([f"{key}={value}" for key, value in env_vars_dict.items()])
-        command_str = f"{self.QSUB_EXEC} -v {env_vars_string} -N {job_name} -o {output_dir_path} -e {output_dir_path} -cwd -S /bin/bash -q !gpu.q -t 1-{n_tasks} {script_path}"
+        #
+        if not job_name[0].isalpha():
+            raise Exception(f"{self.name} job names must start with a letter.")
+
+        #
+        command_str = f"source {self.SGE_SETTINGS}; {self.QSUB_EXEC} -V -N {job_name} -o {output_dir_path} -e {output_dir_path} -cwd -S /bin/bash -q !gpu.q -t 1-{n_tasks} {script_path}"
         if job_timeout_minutes is not None:
             job_timeout_seconds = 60 * job_timeout_minutes
             command_str += f" -l s_rt={job_timeout_seconds} -l h_rt={job_timeout_seconds} "
 
-        return system_call(command_str)
+        return system_call(command_str, env_vars_dict=env_vars_dict)  # need to pass env_vars_dict here so that '-V' in command can pass along all the env vars
 
     def is_running_job(self, job_name):
         command_str = f"{self.QSTAT_EXEC} -r | grep '{job_name}'"
