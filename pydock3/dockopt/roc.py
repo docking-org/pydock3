@@ -65,7 +65,7 @@ class ROC(object):
         return np.dot(weights, y_values_of_interdecoy_intervals)
 
     def plot(self, save_path):
-        # make plot of ROC curve of actives vs. decoys
+        # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
         fig, ax = plt.subplots()
         fig.set_size_inches(8.0, 8.0)
         ax.set_title("Log ROC Plot")
@@ -78,20 +78,20 @@ class ROC(object):
         ax.semilogx([float(i / 100) for i in range(0, 101)], [float(i / 100) for i in range(0, 101)], "--", linewidth=1, color='Black')
 
         # set axis labels
-        plt.xlabel('% decoys')
-        plt.ylabel('% actives')
+        ax.set_xlabel('top fraction of decoys')
+        ax.set_ylabel('top fraction of actives')
 
         # set log scale x-axis
-        plt.xscale('log')
+        ax.set_xscale('log')
+
+        # set plot axis limits
+        ax.set_xlim(left=self.alpha, right=1.0)
+        ax.set_ylim(bottom=0.0, top=1.0)
 
         # set axis ticks
         order_of_magnitude = math.floor(math.log(self.num_decoys, 10))
-        plt.xticks([self.alpha] + [float(10 ** x) for x in range(-order_of_magnitude, 1, 1)])
-        plt.yticks([float(j / 10) for j in range(0, 11)])
-
-        # set plot axis limits
-        plt.xlim(left=self.alpha, right=1.0)
-        plt.ylim(bottom=0.0, top=1.0)
+        ax.set_xticks([self.alpha] + [float(10 ** x) for x in range(-order_of_magnitude, 1, 1)])
+        ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
         # save image and close
         plt.savefig(save_path)
