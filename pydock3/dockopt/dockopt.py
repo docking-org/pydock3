@@ -1,5 +1,4 @@
 import itertools
-import math
 import os
 import shutil
 from functools import wraps
@@ -11,7 +10,6 @@ import time
 import random
 
 import networkx as nx
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 from dirhash import dirhash
@@ -28,7 +26,7 @@ from pydock3.files import (
     INDOCK_FILE_NAME,
 )
 from pydock3.blastermaster.util import WorkingDir, BlasterFile, DockFiles, BlasterFileNames
-from pydock3.metrics import get_roc_points, get_enrichment_analysis, BalancedEnrichmentScore, UnbalancedEnrichmentScore, BalancedLogAUC, UnbalancedLogAUC
+from pydock3.dockopt.roc import ROC
 from pydock3.jobs import RetrodockJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt.report import generate_dockopt_job_report
@@ -46,7 +44,6 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
     "sge": SGEJobScheduler,
     "slurm": SlurmJobScheduler,
 }
-ENRICHMENT_METRIC_NAMES = [BalancedEnrichmentScore.METRIC_NAME, UnbalancedEnrichmentScore.METRIC_NAME, BalancedLogAUC.METRIC_NAME, UnbalancedLogAUC.METRIC_NAME]
 
 
 class AbstractTargetsDAG(object):
@@ -381,7 +378,6 @@ class Dockopt(object):
             decoys_tgz_file_path=None,
             retrodock_job_max_reattempts=0,
             retrodock_job_timeout_minutes=None,
-            enrichment_metric_name=BalancedEnrichmentScore.METRIC_NAME,
             ):
         # validate args
         if config_file_path is None:
@@ -403,9 +399,6 @@ class Dockopt(object):
             return
         if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
             logger.error(f"scheduler flag must be one of: {list(SCHEDULER_NAME_TO_CLASS_DICT.keys())}")
-            return
-        if enrichment_metric_name not in ENRICHMENT_METRIC_NAMES:
-            logger.error(f"metric flag must be one of: {ENRICHMENT_METRIC_NAMES}")
             return
 
         #
@@ -689,58 +682,22 @@ class Dockopt(object):
             data_dict = copy(parameter_dict)
             data_dict['retrodock_job_num'] = retrodock_job_dir.name
 
-            #
+            # get ROC and calculate enrichment score of this job's docking set-up
+            logger.debug("Calculating ROC and enrichment score...")
             booleans = df["is_active"]
             indices = df['Total'].fillna(np.inf)  # unscored molecules are assumed to have worst possible score (pessimistic approach)
-
-            #
-            roc_points_x, roc_points_y = get_roc_points(booleans, indices)
-
-            # calculate metrics of enrichment capacity of this job's docking set-up
-            logger.debug("Getting enrichment analysis...")
-            enrichment_analysis = get_enrichment_analysis(roc_points_x, roc_points_y)
-            for name, metric in enrichment_analysis._asdict().items():
-                data_dict[name] = metric.value
+            roc = ROC(booleans, indices)
+            data_dict["enrichment_score"] = roc.enrichment_score
             logger.debug("done.")
-
-            #
-            chosen_metric = getattr(enrichment_analysis, enrichment_metric_name)
-
-            # make plot of ROC curve of actives vs. decoys
-            fig, ax = plt.subplots()
-            fig.set_size_inches(8.0, 8.0)
-            ax.set_title("Log ROC Plot")
-            ax.step(roc_points_x, roc_points_y, where='post', label=f"{chosen_metric.METRIC_NAME}: {round(chosen_metric.value, 2)}")
-            ax.legend()
-
-            # draw curve of random classifier for reference
-            ax.semilogx([float(i/100) for i in range(0, 101)], [float(i/100) for i in range(0, 101)], "--", linewidth=1, color='Black')
             
-            # set axis labels
-            plt.xlabel('% decoys')
-            plt.ylabel('% actives')
-            
-            # set x-axis scale
-            plt.xscale('log')
-
-            # set axis ticks
-            order_of_magnitude = math.floor(math.log(len(df), 10))
-            plt.xticks([chosen_metric.alpha] + [float(10**x) for x in range(-order_of_magnitude, 1, 1)])
-            plt.yticks([float(j/10) for j in range(0, 11)])
-
-            # set plot axis limits
-            plt.xlim(left=chosen_metric.alpha, right=1.0)
-            plt.ylim(bottom=0.0, top=1.0)
-            
-            # save image of plot and close the fig to save memory
-            plot_image_path = os.path.join(retrodock_job_dir.path, "roc.png")
-            plt.savefig(plot_image_path)
-            plt.close(fig)
+            # write ROC plot image
+            roc_plot_image_path = os.path.join(retrodock_job_dir.path, "roc.png")
+            roc.plot(save_path=roc_plot_image_path)
 
             # save data_dict for this job
             data_dicts.append(data_dict)
            
-        #
+        # write jobs completion status
         num_jobs_completed = len([1 for retrodock_job in retrodock_jobs if retrodock_job.is_complete])
         logger.info(f"Finished {num_jobs_completed} out of {len(retrodock_jobs)} retrodock jobs.")
         if num_jobs_completed == 0:
@@ -749,7 +706,7 @@ class Dockopt(object):
 
         # make dataframe of optimization job results
         df = pd.DataFrame(data=data_dicts)
-        df = df.sort_values(by=enrichment_metric_name, ascending=False, ignore_index=True)
+        df = df.sort_values(by="enrichment_score", ascending=False, ignore_index=True)
 
         # save optimization job results dataframe to csv
         optimization_results_csv_file_path = os.path.join(job_dir.path, "dockopt_job_results.csv")
@@ -774,5 +731,5 @@ class Dockopt(object):
             dockopt_job_dir_path=job_dir.path,
             pdf_path=os.path.join(job_dir.path, "dockopt_job_report.pdf"),
             opt_results_csv_file_name=optimization_results_csv_file_path,
-            enrichment_metric=enrichment_metric_name,
+            enrichment_metric="enrichment_score",
         )

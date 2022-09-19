@@ -8,10 +8,8 @@ import matplotlib.image as mpimg
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 
-from pydock3.metrics import BalancedEnrichmentScore
 
-
-def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_report.pdf", opt_results_csv_file_name="dockopt_job_results.csv", enrichment_metric=BalancedEnrichmentScore.METRIC_NAME):
+def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_report.pdf", opt_results_csv_file_name="dockopt_job_results.csv", enrichment_metric="enrichment_score"):
     opt_results_csv_file_path = os.path.join(dockopt_job_dir_path, opt_results_csv_file_name)
     df = pd.read_csv(opt_results_csv_file_path)
 
