@@ -61,7 +61,7 @@ class ROC(object):
 
     def get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
         weights = [np.log(1 / (self.alpha * self.num_decoys))] + [np.log((i+1)/i) for i in range(1, self.num_decoys)]
-        y_values_of_interdecoy_intervals = [point.y for point in self.points]
+        y_values_of_interdecoy_intervals = [point.y for point in self.points[:-1]]  # leave out last point (1,1) since we want n intervals
         return np.dot(weights, y_values_of_interdecoy_intervals)
 
     def plot(self, save_path):
