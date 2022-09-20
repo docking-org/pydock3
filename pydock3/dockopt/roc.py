@@ -68,7 +68,6 @@ class ROC(object):
         # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
         fig, ax = plt.subplots()
         fig.set_size_inches(8.0, 8.0)
-        ax.set_title("Log ROC Plot")
         roc_x_coords = [point.x for point in self.points]
         roc_y_coords = [point.y for point in self.points]
         ax.step(roc_x_coords, roc_y_coords, where='post', label=f"enrichment_score: {round(self.enrichment_score, 2)}")
@@ -93,6 +92,10 @@ class ROC(object):
         ax.set_xticks([self.alpha] + [float(10 ** x) for x in range(-order_of_magnitude, 1, 1)])
         ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
+        # set title and include alpha to account for inconsistent inclusion of alpha in xticks
+        ax.set_title(f"Log ROC Plot (cutoff={np.format_float_scientific(self.alpha, precision=3)})")
+
         # save image and close
+        plt.tight_layout()
         plt.savefig(save_path)
         plt.close(fig)
