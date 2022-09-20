@@ -615,10 +615,10 @@ class OutdockFile(File):
             lines = [x.strip() for x in f.readlines()]
 
             # find first ligand line ("Input ligand: [...]")
-            first_lig_line_index = None
+            first_db2_line_index = None
             for i, line in enumerate(lines):
-                if line.strip().startswith("Input ligand"):
-                    first_lig_line_index = i
+                if line.strip().endswith(".db2"):
+                    first_db2_line_index = i
                     break
 
             #
@@ -631,42 +631,29 @@ class OutdockFile(File):
                 raise Exception(f"Header line not found when reading OutdockFile: {self.path}")
 
             #
-            lines = [lines[first_lig_line_index]] + lines[header_line_index+1:]
+            lines = [lines[first_db2_line_index]] + lines[header_line_index+1:]
 
             #
-            open_file_line_indices = [i for i, line in enumerate(lines) if line.startswith("open the file:") or line.startswith("Input ligand:")]
+            db2_file_line_indices = [i for i, line in enumerate(lines) if line.endswith(".db2")]
+            if len(db2_file_line_indices) % 2 != 0:
+                raise Exception(f"Cannot parse OutdockFile: {self.path}")
 
             #
-            close_file_line_indices = []
-            new_open_file_line_indices = []
-            for i in open_file_line_indices:
-                open_file_line = lines[i]
-                db2_file_path = open_file_line.replace("open the file:", "").replace("Input ligand:", "").strip()
-                close_file_line_index = None
-                for j, line in enumerate(lines[i:]):
-                    if line.strip().startswith("close the file:"):
-                        if db2_file_path in line:
-                            close_file_line_index = i + j
-                            break
-                        else:
-                            if db2_file_path in lines[i+j+1]:  # check next line (which is apparently necessary if path is too long b/c Fortran is wacky)
-                                close_file_line_index = i + j
-                                break
-                            else:
-                                raise Exception(f"db2_file_path not found in close file line {i+j+1} in OutdockFile {self.path} : {line}")
-                if close_file_line_index is None:
-                    raise Exception(f"Corresponding close file line not found for open file line {i+1} in OutdockFile {self.path} : {open_file_line}")
-                new_open_file_line_indices.append(i)
-                close_file_line_indices.append(close_file_line_index)
-            open_file_line_indices = new_open_file_line_indices
+            open_file_line_indices = [db2_file_line_indices[i] for i in range(len(db2_file_line_indices)) if i % 2 == 0]
+            close_file_line_indices = [db2_file_line_indices[i] for i in range(len(db2_file_line_indices)) if i % 2 == 1]
 
             #
-            if len(open_file_line_indices) != len(close_file_line_indices):
-                raise Exception(f"# of open file lines and # of close file lines do not match in OutdockFile: {self.path}")
+            new_close_file_line_indices = []
+            for close_file_line_index in close_file_line_indices:
+                new_close_file_line_index = close_file_line_index
+                if "close the file:" not in lines[close_file_line_index]:  # apparently necessary if path is too long b/c Fortran is wacky
+                    new_close_file_line_index -= 1
+                new_close_file_line_indices.append(close_file_line_index)
+            close_file_line_indices = new_close_file_line_indices
 
             #
-            db2_file_paths = []
             data = []
+            db2_file_paths = []
             df_column_names = ["db2_file_path"] + self.COLUMN_NAMES
             for open_file_line_index, close_file_line_index in zip(open_file_line_indices, close_file_line_indices):
                 db2_file_path = lines[open_file_line_index].replace("open the file:", "").replace("Input ligand:", "").strip()
