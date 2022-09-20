@@ -1,6 +1,6 @@
 matching_spheres_perturbation:
   use: bool()
-  num_samples: num()
+  num_samples_per_matching_spheres_file: num()
   standard_deviation_angstroms: num()
 
 receptor_protonation:
