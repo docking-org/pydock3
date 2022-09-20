@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 from pytoc import TOC
+from scipy import interpolate
 from matplotlib import pyplot as plt
 
 
@@ -47,8 +48,17 @@ class ROC(object):
 
         #
         self.points = [Point(roc_x_coords[i], roc_y_coords[i]) for i in range(len(roc_x_coords))]
+
+        #
+        roc_x_coords = [point.x for point in self.points]
+        roc_y_coords = [point.y for point in self.points]
+        self.f = lambda w: float(interpolate.interp1d(roc_x_coords, roc_y_coords, kind='previous')(w))
+
+        #
         self.alpha = float(1 / (self.num_decoys * np.e))
-        self.enrichment_score = self.get_enrichment_score()
+
+        #
+        self.enrichment_score = self._get_enrichment_score()
 
     @property
     def num_actives(self):
@@ -58,12 +68,12 @@ class ROC(object):
     def num_decoys(self):
         return len([b for b in self.booleans if not b])
     
-    def get_enrichment_score(self):
-        return (self.get_literal_area_under_roc_curve_with_log_scaled_x_axis() - (1 - self.alpha)) / (-np.log(self.alpha) - (1 - self.alpha))
+    def _get_enrichment_score(self):
+        return (self._get_literal_area_under_roc_curve_with_log_scaled_x_axis() - (1 - self.alpha)) / (-np.log(self.alpha) - (1 - self.alpha))
 
-    def get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
+    def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
         weights = [np.log(1 / (self.alpha * self.num_decoys))] + [np.log((i+1)/i) for i in range(1, self.num_decoys)]
-        y_values_of_interdecoy_intervals = [point.y for point in self.points[:-1]]  # leave out last point (1,1) since we want n intervals
+        y_values_of_interdecoy_intervals = [self.f(self.alpha)] + [self.f(float(i/self.num_decoys)) for i in range(1, self.num_decoys)]  # leave out last point (1,1) since we want n intervals
         return np.dot(weights, y_values_of_interdecoy_intervals)
 
     def plot(self, save_path):
