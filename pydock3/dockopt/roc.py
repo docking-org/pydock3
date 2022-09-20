@@ -42,10 +42,8 @@ class ROC(object):
                 if toc_y_coords[index] > toc_y_coords[max_index]:
                     max_index = index
             mask[max_index] = True
-        num_positive = len([b for b in self.booleans if b])
-        num_negative = len([b for b in self.booleans if not b])
-        roc_x_coords = roc_x_coords[mask] / num_negative
-        roc_y_coords = roc_y_coords[mask] / num_positive
+        roc_x_coords = roc_x_coords[mask] / self.num_decoys
+        roc_y_coords = roc_y_coords[mask] / self.num_actives
 
         #
         self.points = [Point(roc_x_coords[i], roc_y_coords[i]) for i in range(len(roc_x_coords))]
@@ -53,8 +51,12 @@ class ROC(object):
         self.enrichment_score = self.get_enrichment_score()
 
     @property
+    def num_actives(self):
+        return len([b for b in self.booleans if b])
+
+    @property
     def num_decoys(self):
-        return len(self.points) - 1
+        return len([b for b in self.booleans if not b])
     
     def get_enrichment_score(self):
         return (self.get_literal_area_under_roc_curve_with_log_scaled_x_axis() - (1 - self.alpha)) / (-np.log(self.alpha) - (1 - self.alpha))
@@ -93,7 +95,7 @@ class ROC(object):
         ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
         # set title and include alpha to account for inconsistent inclusion of alpha in xticks
-        ax.set_title(f"Log ROC Plot (cutoff={np.format_float_scientific(self.alpha, precision=3)})")
+        ax.set_title(f"Log ROC (num_decoys={self.num_decoys}, num_actives={self.num_actives}, cutoff={np.format_float_scientific(self.alpha, precision=3)})")
 
         # save image and close
         plt.tight_layout()
