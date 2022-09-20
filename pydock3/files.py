@@ -644,11 +644,16 @@ class OutdockFile(File):
                 db2_file_path = open_file_line.replace("open the file:", "").replace("Input ligand:", "").strip()
                 close_file_line_index = None
                 for j, line in enumerate(lines[i:]):
-                    if line.startswith("close the file:"):
-                        close_file_line_index = i + j
-                        if line.replace("close the file:", "").strip() != db2_file_path:
-                            raise Exception(f"Open file line {i+1} and close file line {close_file_line_index+1} do not match in OutdockFile: {self.path}")
-                        break
+                    if line.strip().startswith("close the file:"):
+                        if db2_file_path in line:
+                            close_file_line_index = i + j
+                            break
+                        else:
+                            if db2_file_path in lines[i+j+1]:  # check next line (which is apparently necessary if path is too long b/c Fortran is wacky)
+                                close_file_line_index = i + j
+                                break
+                            else:
+                                raise Exception(f"db2_file_path not found in close file line {i+j+1} in OutdockFile {self.path} : {line}")
                 if close_file_line_index is None:
                     raise Exception(f"Corresponding close file line not found for open file line {i+1} in OutdockFile {self.path} : {open_file_line}")
                 new_open_file_line_indices.append(i)
