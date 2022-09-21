@@ -1,22 +1,61 @@
-class SDI:
-    @staticmethod
-    def from_list(lobj):
+class SDI(ABC):
+    def __init__(self, sdi_dir, stats_dir, out_dir):
+        self.sdidir = sdidir
+
+    @abstractmethod
+    def _get_stats_entry(self, entry_outdir, entry_orig_index):
         pass
-    @staticmethod
-    def from_path(pobj):
+
+    def _load_stats(self, statsfile):
         pass
-    def create_subset(self, subset_indices, subset_id=None):
+
+    def _save_stats(self, stats, statsfile):
         pass
-    def get_subset(self, subset_id):
+
+    def _get_stats_block(self, subset, block):
+
+        stats = {}
+        block_stats_save = self.stats_dir(subset, block).file(f"b{block}.stats")
+        if block_stats_save.exists():
+            stats = self._load_stats(block_stats_save)
+        else:
+            for entry_orig_index, entry_outdir, entry_value in self.iter_entries(subset, block):
+                stats[entry_orig_index] = self._get_stats_entry(entry_outdir, entry_orig_index)
+            self._save_stats(stats, block_stats_save)
+        return stats
+
+    def _get_stats_subset(self, subset):
+
+        stats = {}
+        subset_stats_save = self.stats_dir(subset).file(f"s{subset}.stats")
+        if subset_stats_save.exists():
+            stats = self._load_stats(subset_stats_save)
+        else:
+            for block in self.iter_blocks(subset):
+                stats.update(self._get_stats_block(subset, block))
+            self._save_stats(stats, subset_stats_save)
+
+    def stats(self):
+        
+        stats = {}
+        for subset in self.iter_subsets():
+            stats.update(self._get_stats_subset(subset))
+        return stats
+
+    def stats_dir(self, subset=-1, block=-1):
         pass
-    # adds a new block associated with a given range of the source sdi file
-    def add_block(self, bstart, bfinish):
+
+    def sdi_dir(self, subset=-1, block=-1):
         pass
-    # returns all entries associated with the given block
-    def get_block(self, idx) -> list:
+
+    def out_dir(self, subset=-1, block=-1):
         pass
-    # returns a single entry from the source sdi
-    def get(self, idx) -> str:
+
+    def get_entry(self, index, subset=-1, block=-1):
+        return entry_outdir, entry_value
+
+    def new_subset(self, subset_indices):
+        pass
 
 class ComputeQueue(ABC):
     @abstractmethod
@@ -94,11 +133,6 @@ class LSDBase(QBlasterBase):
     def __init__(self, cfg, filebase : ParallelJobFileBase, queue : JobQueue):
         self.filebase = filebase
         self.sdibase = filebase.dir('sdi')
-        # hardcoding this here for now @ reasonable values
-        self.cfg = {
-            "max_queued" : 30000,
-            "blocksize" : 2000
-        }
 
     ### internal stats logic, used by jobs & status command
     # returns a string representing overall state, followed by a list of all jobs & their individual states
@@ -123,10 +157,7 @@ class LSDBase(QBlasterBase):
             queue_obj.ensure_path_is_accessible(self.filebase)
             self.queue = queue
     def get_queue(self):
-        pass
-
-    def list_queues(self):
-        pass
+        
 
     ### dockfiles logic
     def set_dockfiles(self, dockfiles_path, force=False):
@@ -146,7 +177,7 @@ class LSDBase(QBlasterBase):
                 print("1. Archive existing work, initialize a fresh run with new dockfiles")
                 print("2. Destroy existing work, initialize a fresh run with new dockfiles")
                 print("3. Continue with existing run, just swap out dockfiles.")
-                choice = input("[choose 1, 2, or 3]: ")
+                choice = input("[choose from 1, 2, or 3]: ")
 
                 if choice == 1:
                     self.create_archive()
@@ -208,36 +239,20 @@ class LSDBase(QBlasterBase):
         pass
 
     ### submit logic
-    def __submit_sdi(self, sdi_id):
+    def __submit_sdi(self, sdiname, dockfilesname):
         sdi_status = get_lsd_stats(sdiname)
         sdi_status_ready = filter(sdi_status, lambda x:x[1] == "inactive")
         sdi_ready_list = [x[0] for x in sdi_status_ready]
 
-        sdi = self.get_sdi(sdi_id)
-        run = sdi.new_sdi_subset(subset=sdi_ready_list, bs=self.cfg["blocksize"])
+        run = self.filebase.new_sdi_run(sdiname, subset=sdi_ready_list)
 
-        n_jobs = len(self.queue.list_jobs(expandarray=True))
-        blk = 0
+        n_jobs = 0
+        blk_id = 0
         while n_jobs < self.cfg["max_queued"]:
-            blksize = len(run.block(blk))
-            lsdjob = self.queue.submit("lsd", array=blksize, params={
-                "LSD_BASE"  : self.filebase,
-                "LSD_SDI"   : sdi_id,
-                "LSD_RUN"   : run,
-                "LSD_BLOCK" : blk
-                "LSD_DOCKFILES" : self.get_dockfiles(),
+            self.queue.submit("lsd", params={
+                "LSD_SDI" : self.filebase.get_sdi(sdiname, run=r).path,
+                "LSD_DOCKFILES" : self.filebase.get_dir(dockfilesname),
             })
-            cntjob = self.queue.submit("lsd_cnt", deps=lsdjob, params={
-                "LSD_BASE"  : self.filebase
-                "LSD_SDI"   : sdi_id,
-                "LSD_RUN"   : run,
-                "LSD_BLOCK" : blk
-            })
-            n_jobs += blksize + 1
-            blk += 1
-
-        self.__record_submitted(sdi_id, run)
-        
     def submit(self, sdiname=None, confirm=False):
         if sdiname is None:
             for sdiname in self.listsdi():
@@ -254,42 +269,25 @@ class LSDBase(QBlasterBase):
     ###################
     # example session #
     ###################
-    # qblaster lsd --base s3://mybucket/mylsdbase --creds ~/.mycreds
+
+    # qblaster ligands --base /nfs/home/mystuff
+
+    # qblaster ifp
+
+    # qblaster ecfp
+
+    # qblaster lsd --base s3://mybucket/mylsdbase
     # > add-sdi z22://h17p200-h17p400
-    #
     # > add-sdi z22://h18p200-h18p400
-    #
     # > set-dockfiles ~/mydockfiles
-    #   Copying ~/mydockfiles to s3://mybucket/mylsdbase/dockfiles
-    #   checksum: 123fda
-    #
     # > get-dockfiles
     #   +------------------------------------+----------+
     #   | path                               | checksum |
     #   +------------------------------------+----------+
     #   | s3://mybucket/mylsdbase/dockfiles  | 123fda   |
     #   +------------------------------------+----------+
-    #
-    # > list-queues
-    #   +------------+------------+----------+
-    #   | queue name | queue type | max cap. |
-    #   +------------+------------+----------+
-    #   | slurm      | slurm      | 5000     |
-    #   | sge        | sge        | 1000     |
-    #   | aws_ue1    | AWS Batch  | 640      |
-    #   +------------+------------+----------+
-    #
     # > set-queue aws_ue1 # where are access keys set?
-    #   Initializing aws_ue1 queue...
-    #   * fetching aws config
-    #   * performing one-time setup on aws account
-    #   * setting up aws_ue1 environment (this may take a minute)
-    #   * verifying setup
-    #
     # > submit
-    #   will submit 20000 jobs
-    #   confirm? [y/n]: y
-    #
     # > set-dockfiles ~/otherdockfiles
     #   Error! Active jobs are currently using dockfiles. Wait for them to finish or cancel them.
     #
@@ -320,7 +318,6 @@ class LSDBase(QBlasterBase):
     #   | z22://h17p200-h17p400 | a342ve    |
     #   | z22://h18p200-h18p400 | 1usq3r    |
     #   +-----------------------+-----------+
-    #
     # > submit z22://h17p200-h17p400
     # > status
     #   +-----------------------+-----------+-----------+-----------+-----------+-----------+
@@ -329,11 +326,13 @@ class LSDBase(QBlasterBase):
     #   | z22://h17p200-h17p400 | 0         | 9375      | 604       | 20        | 1         |
     #   | z22://h18p200-h18p400 | 10000     | 0         | 0         | 0         | 0         |
     #   +-----------------------+-----------+-----------+-----------+-----------+-----------+
-    #
     # > status --top
     #   +-----------------------+-----------------+-----------------+-----------+--------------------------------------------+-------------------------------------------+
-    #   | sdi                   | processed poses | free poses      | top poses | poses path                                 | scores path                               |
+    #   | sdi                   | harvested poses | free poses      | top poses | poses path                                 | scores path                               |
     #   +-----------------------+-----------------+-----------------+-----------+--------------------------------------------+-------------------------------------------+
     #   | z22://h17p200-h17p400 | 9503136         | 100324          | 300000    | s3://mybucket/mylsdbase/top/a342ve.mol2.gz | s3://mybucket/mylsdbase/top/a342ve.scores |
     #   | z22://h18p200-h18p400 | 0               | 0               | 0         | N/A                                        | N/A                                       |
     #   +-----------------------+-----------------+-----------------+-----------+--------------------------------------------+-------------------------------------------+
+    # > cp 
+    # > rm
+    # > 
