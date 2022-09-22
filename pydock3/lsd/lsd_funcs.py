@@ -1,22 +1,150 @@
-class SDI:
-    @staticmethod
-    def from_list(lobj):
+# The concept of an "SDI" or standard database index refers to the list of input provided to a program that processes many inputs
+# in this program, we extend the definition of "SDI" beyond this standard definition
+# a qblaster SDI not only encapsulates the input data for the program, but also its mapping of input -> output and the statistics of that output
+# additionally, we allow SDI to contain multiple subsets of itself, and also partition each subset over multiple blocks
+# this is useful for keeping track of individual submissions of jobs, as each time a job is submitted a new SDI subset is created
+# we only ever process a subset once (whether it fails or succeeds). This makes maintaining statistics on our jobs faster- we can collect statistics for a particular subset
+# without worrying that those statistics will change- if they do, they will be updated in a subsequent subset
+# therefore we don't need to visit all N jobs each time the user wants to check status
+class SDI(ABC):
+    def __init__(self, basedir):
+        self.basedir = basedir
+        # we must prepare for very large SDI files, in theory a run could have an SDI file that takes up multiple GB of memory
+        # thus we partition the file and its subsets into blocks
+        # additionally, we implement a simple cache that limits the maximum memory usage of the SDI construct in this application
+        self.blocksize = 2000
+        self.sdi_cache = {}
+        self.sdi_cache_fifo = []
+        # worst-case entry length is assumed to be ~100 bytes, thus this limits likely worst-case memory usage of SDI cache to ~16MB
+        # this can be changed depending on the SDI implementation
+        # this cache doesn't matter so much for the jobs, which will only ever access one block a piece, but reduces lag on the user's side
+        self.cache_limit = int(16e6/self.blocksize/100)
+
+    @abstractmethod
+    def _get_entry_outdir(self, index : int):
         pass
-    @staticmethod
-    def from_path(pobj):
+
+    # gathers stats
+    @abstractmethod
+    def _get_entry_stats(self, index : int):
         pass
-    def create_subset(self, subset_indices, subset_id=None):
+    
+    # on the "save" option
+    # it is not possible for the sdi to decide whether a particular entry has "completed" or not without information on the queue, thus it does not know when to save statistics
+    # in this context, completed just means "entry from this subset was submitted to the queue, and is no longer in the queue"
+    # the caller of the "stats" function must have prior knowledge of whether a block has "completed" or not in order to save statistics
+    # the use cases of the stats function in this program are:
+    # on submit: queue stats pulled first, then sdi stats to determine submission eligibility, so no problem
+    # on status: queue stats pulled first, then sdi stats to view statistics, same mechanism as submit so no problem
+    # on block complete: only runs on block complete event, only operates on completed block, so no problem
+    # in all cases the caller has sufficient knowledge of which blocks are "complete" to know when to save statistics
+    def _get_block_stats(self, subset : int, block : int, save=False):
+        stats = self._get_cached_stats(subset, block)
+        if stats:
+            return stats
+        statfile = self.statdir_base.dir('s{subset}.d').file('b{block}.stats')
+        if not statfile.exists():
+            for block_idx, orig_idx, entry in enumerate(self.list_entries(subset, block)):
+                stats.update(self._get_entry_stats(orig_idx))
+            if save:
+                self.save_stats(stats)
+        else:
+            stats = self.load_stats(statsfile)
+        return stats
+
+    def _get_subset_stats(self, subset : int, save=False):
+        stats = {}
+        statfile = self.statdir_base.file('s{subset}.stats')
+        if not statfile.exists():
+            for block in self.list_blocks(subset):
+                stats.update(self._get_block_stats(subset, block))
+            if save:
+                self.save_stats(stats, statsfile)
+        else:
+            stats = self.load_stats(statsfile)
+        return stats
+
+    def get_entry_orig(self, index):
         pass
-    def get_subset(self, subset_id):
-        pass
-    # adds a new block associated with a given range of the source sdi file
-    def add_block(self, bstart, bfinish):
-        pass
-    # returns all entries associated with the given block
-    def get_block(self, idx) -> list:
-        pass
-    # returns a single entry from the source sdi
-    def get(self, idx) -> str:
+
+    def _get_cached_sdi(self, subset, block):
+        return self.sdi_cache.get(f"s{subset}b{block}")
+
+    def _set_cached_sdi(self, subset, block, data):
+        # pop oldest entry when we reach the limit
+        if len(self.sdi_cache) + 1 > self.cache_limit:
+            pop_k = self.sdi_cache_fifo.pop()
+            self.sdi_cache.pop(pop_k)
+        self.sdi_cache[f"s{subset}b{block}"] = data
+        self.sdi_cache_fifo.append()
+
+    def get_entry(self, subset, block, index) -> int, str, DirBase:
+        sdi_lines = self._get_cached_sdi(subset, block)
+        if not sdi_lines:
+            blockfile = self.sdidir_base.dir('s{subset}.d').file('b{block}.sdi')
+            if not blockfile.exists():
+                raise Exception("tried to access non-existent sdi block!")
+            with blockfile.open('r') as bf:
+                sdi_lines = bf.readlines()
+            self.set_cached_sdi(subset, block, sdi_lines)
+        orig_idx, entry_val = sdi_lines[index].split('\t')
+        return orig_idx, entry_val, self._get_entry_outdir(orig_idx)
+
+    def list_entries(self, subset, block) -> list[str]:
+        sdi_lines = self._get_cached_sdi(subset, block)
+        return sdi_lines
+
+    def list_blocks(self, subset):
+        block_i = 0
+        block_f = self.sdidir_base.dir('s{subset}').file('b{block_i}.sdi')
+        block_l = []
+        while block_f.exists():
+            block_l.append(block_i)
+            block_i += 1
+            block_f = self.sdidir_base.dir('s{subset}').file('b{block_i}.sdi')
+        return block_l
+
+    def list_subsets(self):
+        subset_i = 0
+        subset_f = self.sdidir_base.dir('s{subset_i}').file('b0.sdi')
+        subset_l = []
+        while subset_f.exists():
+            subset_l.append(subset_i)
+            subset_i += 1
+            subset_f = self.sdidir_base.dir('s{subset_i}').file('b0.sdi')
+        return subset_l
+            
+    def add_subset(self, subset_indices : list[int]):
+        subset = len(self.list_subsets())
+        orig_file = self.sdidir_base.file('orig')
+        new_lines = []
+        all_lines = []
+
+        with orig_file.open('r') as of:
+            all_lines = of.readlines()
+
+        for idx in subset_indices:
+            new_lines.append(f"{idx}\t{all_lines[idx]}")
+
+        block = 0
+        i = 0
+        currfile = self.sdidir_base.dir('s{subset}.d').file('b{block}.sdi')
+        currhndl = currfile.open('w')
+        while i < len(new_lines):
+            currhndl.write(new_lines[i])
+            i += 1
+            if i % self.blocksize == 0:
+                block += 1
+                currhndl.close()
+                currfile = self.sdidir_base.dir('s{subset}.d').file('b{block}.sdi')
+                currhndl = currfile.open('w')
+        currhndl.close()
+        return subset
+
+    def get_stats(self):
+        stats = {}
+        for ss in self.list_subsets():
+            stats.update(self._get_subset_stats(ss))
 
 class ComputeQueue(ABC):
     @abstractmethod
@@ -215,6 +343,7 @@ class LSDBase(QBlasterBase):
 
         sdi = self.get_sdi(sdi_id)
         run = sdi.new_sdi_subset(subset=sdi_ready_list, bs=self.cfg["blocksize"])
+        sdi = sdi.subset(run)
 
         n_jobs = len(self.queue.list_jobs(expandarray=True))
         blk = 0
@@ -246,9 +375,21 @@ class LSDBase(QBlasterBase):
             self.__submit_sdi(sdiname)
 
     ### status logic
-    def __status_sdi(self)
+    def __status_sdi(self, sdi):
+        stats = []
+        for run in sdi.runs():
+            if run.stats:
+                stats += run.stats
+                continue
+            for block in run.blocks():
+                if block.stats:
+                    stats += block.stats
+                    continue
+                for entry in block:
+                    stats += entry.stats
     
     def status(self, sdiname=None):
+
         pass
 
     ###################
@@ -312,7 +453,7 @@ class LSDBase(QBlasterBase):
     #
     # > set-queue slurm
     #   Warning: base in "S3" is accessible but not local to queue "slurm", expect additional data transfer fees
-    #
+    # 
     # > list-sdi
     #   +-----------------------+-----------+
     #   | path                  | checksum  |
