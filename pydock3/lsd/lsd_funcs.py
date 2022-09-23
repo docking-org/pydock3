@@ -399,7 +399,7 @@ class LSDBase(QBlasterBase):
 
     ### submit logic
     def __submit_sdi(self, sdi_id, dockfilesname, submitlist=None):
-        self.queue.acquire_lock(timeout=60, name=f"submit-{sdi_id}")
+        self.queue.acquire_lock(timeout=60, name=f"submit-lsd-{sdi_id}")
 
         try:
             sdi_blocks_status, sdi_flattened_status = self.get_lsd_stats(sdi_id)
@@ -409,6 +409,7 @@ class LSDBase(QBlasterBase):
             resub_stats = {
                 "inactive" : 0,
                 "failed"   : 0,
+                "partial"  : 0, # "partial" is an optional state for jobs like lsd that can partially complete
                 "succeeded": 0
             }
             if not submitlist:
@@ -429,7 +430,7 @@ class LSDBase(QBlasterBase):
 
             # no actual submission happens yet- we merely mark it as such
             # this way our continuation submission has a record of all jobs to submit blocks for
-            self.__mark_submitted(sdi_id, subset)
+            self.__mark_subset_submitted(sdi_id, subset)
 
         finally:
 
@@ -442,6 +443,21 @@ class LSDBase(QBlasterBase):
                 self.__submit_sdi(sdiname)
         else:
             self.__submit_sdi(sdiname)
+
+        self.continue_submission()
+
+    # continuation function- very important, does the actual submission to queue. "submit" just gathers statistics & creates new subsets/submit markers for continuation to use
+    # continue does not operate on a single sdi/subset, it operates on the submission queue as a whole
+    # ergo all sdi/subsets that have been submitted are *actually* submitted through this function
+    # this allows all jobs to share the same queue, while not requiring a dedicated process that constantly exists and monitors for free space in the queue per sdi
+    def continue_submission(self):
+
+        self.queue.acquire_lock(timeout=60, name=f"continue")
+
+        # psuedocode:
+        # for sdi_id, subset, block in get_available_blocks_to_submit():
+        #   queue.submit('lsd', array=blocksize(block), params={sdi_id, subset, block})
+        #   mark_block_submitted(sdi_id, subset, block)
 
     ### status logic
     def __status_sdi(self, sdi):
@@ -516,7 +532,7 @@ class LSDBase(QBlasterBase):
     # > submit z22://h17p200-h17p400
     # > status
     #   +-----------------------+-----------+-----------+-----------+-----------+-----------+
-    #   | sdi                   | inactive  | submitted | running   | success   | failure   |
+    #   | sdi                   | inactive  | submitted | running   | success   | failure   | poses     | total time  | poses data size | total data processed |
     #   +-----------------------+-----------+-----------+-----------+-----------+-----------+
     #   | z22://h17p200-h17p400 | 0         | 9375      | 604       | 20        | 1         |
     #   | z22://h18p200-h18p400 | 10000     | 0         | 0         | 0         | 0         |
