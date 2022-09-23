@@ -226,11 +226,81 @@ class LSDBase(QBlasterBase):
     ### internal stats logic, used by jobs & status command
     # returns a string representing overall state, followed by a list of all jobs & their individual states
     # overall state can be:
-    # inactive
-    # running
-    # 
-    def get_lsd_stats(self, sdiname):
-        lsd_out_dir = self.filebase.dir(sdiname)
+    # state name  | allowed to submit?
+    # inactive    | yes
+    # running     | no
+    # submitted   | no
+    # failed      | yes
+    # succeeded   | optional
+    def get_lsd_stats(self, sdi_id):
+        sdi = self.get_sdi(sdi_id)
+        # acquire lock from the queue
+        # in slurm/sge, this is just a flock on some accessible file
+        # in aws, this is a dynamodb instance (what a pain)
+        self.queue.acquire_lock(timeout=60, name=f"stats-{sdi_id}")
+        
+        try:
+            # parse queue stats first
+            # input: jobs list from queue
+            # output: list of sdi entries in queue + status for each (arranged by blocks)
+            submitted           = set()
+            block_sizes         = [len(sdi.list_blocks(ss)) for ss in sdi.list_subsets()]
+            highest_block_seen  = [-1 for _ in range(sdi.list_subsets())]
+            blocks_status       = [[{} for _ in range(bs)] for bs in block_sizes]
+
+            for job in self.queue.listjobs(array=True): # tells queue to expand array jobs
+                _sdi_id, subset, block = job.name.split('-')
+                status = job.status
+                if _sdi_id != sdi_id:
+                    continue
+                subset = int(subset)
+                block  = int(block)
+                task_id = job.task_id
+                orig_idx = sdi.get_orig_idx(subset, block, task_id)
+                # keep track of the highest block seen
+                # all blocks that come after this block should be considered submitted as well
+                # due to how the continuation function works
+                if  highest_block_seen[subset] < block:
+                    highest_block_seen[subset] = block
+
+                blocks_status[subset][block].update({orig_idx : status})
+
+            for subset, hblock_ss in enumerate(highest_block_seen):
+                if hblock_ss == -1:
+                    continue
+                else:
+                    for block in range(hblock_ss+1, block_sizes[ss]):
+                        # '*' is a shorthand for "all jobs in this block"
+                        blocks_status[ss][block] = {'*' : 'submitted'}
+
+            for subset, status in enumerate(blocks_status):
+                for block, block_status in enumerate(status):
+                    sub_or_run_set = None
+                    if block_status['*']:
+                        block_status.clear()
+                        block_status = {sdi.get_orig_idx(idx) : 'submitted' for idx in }
+                    else:
+                        sub_or_run_set = set([idx for idx in block_status.keys()])
+
+                    block_status_sdi = sdi._get_block_stats(subset, block, dont_save=sub_or_run_set)
+                    block_status.update(block_status_sdi)
+
+            # fold all subset statistics into "current" flattened statistics
+            # blocks_status represents a comprehensive history of this docking run, whereas the flattened statistics represent the current state of the run
+            # it is important that subsequent subsets by index are also subsequent by time for these flattened statistics to be accurate
+            # it is also required that jobs do not get double submitted
+            flattened_status = {}
+            for subset, status in enumerate(blocks_status):
+                for block_status in status:
+                    flattened_status.update(block_status)
+
+            return blocks_status, flattened_status
+
+        finally:
+            # want to avoid this lock being acquired & not released
+            self.queue.release_lock(name=f"stats-{sdi_id}")
+
+
     def get_lsd_block_stats(self, sdiname, run):
         pass
     def get_top_stats(self):
@@ -328,23 +398,45 @@ class LSDBase(QBlasterBase):
         pass
 
     ### submit logic
-    def __submit_sdi(self, sdiname, dockfilesname):
-        sdi_status = get_lsd_stats(sdiname)
-        sdi_status_ready = filter(sdi_status, lambda x:x[1] == "inactive")
-        sdi_ready_list = [x[0] for x in sdi_status_ready]
+    def __submit_sdi(self, sdi_id, dockfilesname, submitlist=None):
+        self.queue.acquire_lock(timeout=60, name=f"submit-{sdi_id}")
 
-        sdi = self.get_sdi(sdi_id)
-        run = sdi.new_sdi_subset(subset=sdi_ready_list, bs=self.cfg["blocksize"])
-        sdi = sdi.subset(run)
+        try:
+            sdi_blocks_status, sdi_flattened_status = self.get_lsd_stats(sdi_id)
 
-        n_jobs = 0
-        blk_id = 0
-        while n_jobs < self.cfg["max_queued"]:
-            self.queue.submit("lsd", params={
-                "LSD_SDI" : self.filebase.get_sdi(sdiname, run=r).path,
-                "LSD_DOCKFILES" : self.filebase.get_dir(dockfilesname),
-            })
+            # you are not permitted (period) to submit a job that is already submitted/running
+            banned_resubmit_states = ["submitted", "running"]
+            resub_stats = {
+                "inactive" : 0,
+                "failed"   : 0,
+                "succeeded": 0
+            }
+            if not submitlist:
+                default_resubmit_states = ["inactive", "failed"]
+                sdi_ready_list = filter(lambda x: (x[1] in default_resubmit_states) and (x[1] not in banned_resubmit_states), sdi_flattened_status)
+                for resub_type in resub_stats:
+                    resub_stats[resub_type] = len(filter(lambda x:x[1] == resub_type, sdi_ready_list))
+                sdi_ready_list = [x[0] for x in sdi_ready_list]
+                
+            # if desired, you *may* resubmit a job that has already succeeded or is in some state other than submitted/running
+            elif submitlist:
+                sdi_ready_list = filter(lambda x: (flattened_status[x] not in banned_resubmit_states), submitlist)
+                for resub_type in resub_stats:
+                    resub_stats[resub_type] = len(filter(lambda x:flattened_status[x]==resub_type, submitlist))
+
+            sdi = self.get_sdi(sdi_id)
+            subset = sdi.add_subset(subset_indices=sdi_ready_list)
+
+            # no actual submission happens yet- we merely mark it as such
+            # this way our continuation submission has a record of all jobs to submit blocks for
+            self.__mark_submitted(sdi_id, subset)
+
+        finally:
+
+            self.queue.release_lock(name=f"submit-{sdi_id}")
+
     def submit(self, sdiname=None, confirm=False):
+
         if sdiname is None:
             for sdiname in self.listsdi():
                 self.__submit_sdi(sdiname)
