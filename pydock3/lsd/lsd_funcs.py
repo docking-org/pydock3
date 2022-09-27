@@ -265,26 +265,32 @@ class LSDBase(QBlasterBase):
             self.save_block_complete(sdi, subset, block, blk_state, blk_stats)
 
     def _get_entry_stats(self, sdi, subset, orig_index):
-
         outdir = sdi.get_entry_outdir(index)
         statsf = outdir.file(f'{subset}-stats.json')
         if not statsf.exists():
             return JobStates.INACTIVE, {}
-
         with statsf.open('r') as statsf_obj:
             stats = json.loads(statsf_obj.read())
-
         # stats["jobstate"] should be one of SUCCESS, FAILURE, or PARTIAL
         state = JobStates.from_string(stats["jobstate"])
         del stats["jobstate"]
         return state, stats
 
-    def _load_subset_complete(self, sdi, subset):
-        ss_stats_file = sdi.subsetdir(subset).file('stats.json')
-        if not ss_stats_file.exists():
-            return False, {}, {}
+    def _load_block_stats(self, sdi, subset, block):
+        statfile = sdi.blockdir(subset, block).file('stats.json')
+        return self._load_stats(statfile)
 
-    def _save_subset_complete(self, sdi, subset, ss_state, ss_stats):
+    def _save_block_stats(self, sdi, subset, block, state, stats):
+        statfile = sdi.blockdir(subset, block).file('stats.json')
+        return self._save_stats(statfile, state, stats)
+
+    def _load_subset_stats(self, sdi, subset):
+        statfile = sdi.subsetdir(subset).file('stats.json')
+        return self._load_stats(statfile)
+
+    def _save_subset_stats(self, sdi, subset, state, stats):
+        statfile = sdi.subsetdir(subset).file('stats.json')
+        return self._save_stats(statfile, state, stats)
 
     def _load_stats(self, statfile):
         if not statfile.exists():
@@ -309,73 +315,6 @@ class LSDBase(QBlasterBase):
     # submitted   | no
     # failed      | yes
     # succeeded   | optional
-    def get_lsd_stats(self, sdi_id):
-        sdi = self.get_sdi(sdi_id)
-        # acquire lock from the queue
-        # in slurm/sge, this is just a flock on some accessible file
-        # in aws, this is a dynamodb instance (what a pain)
-        self.queue.acquire_lock(timeout=60, name=f"stats-{sdi_id}")
-        
-        try:
-            # parse queue stats first
-            # input: jobs list from queue
-            # output: list of sdi entries in queue + status for each (arranged by blocks)
-            submitted           = set()
-            block_sizes         = [len(sdi.list_blocks(ss)) for ss in sdi.list_subsets()]
-            blocks_status       = [[{} for _ in range(bs)] for bs in block_sizes]
-            submitted_blocks = [self.__get_submitted_blocks(sdi_id, subset) for subset in range(len(block_sizes))]
-            
-            subsets_status = self.__get_subsets_status(sdi_id)
- 
-            for job in self.queue.listjobs(array=True): # tells queue to expand array jobs
-                jobtype, _sdi_id, subset, block = job.name.split('-')
-                subset = int(subset)
-                block = int(block)
-                status = job.status
-                if _sdi_id != sdi_id:
-                    continue
-
-                if jobtype == "lsd":
-                    task_id = job.task_id
-                    orig_idx = sdi.get_orig_idx(subset, block, task_id)
-                    blocks_status[subset][block].update({orig_idx : status})
-                    has_jobs_submitted[subset] = True
-
-            for subset, status in enumerate(blocks_status):
-                # if the subset has no jobs in the queue
-                # we can fetch statistics for the entire subset rather than block-by-block
-                # which saves time
-                if subsets_status[subset] == "inactive":
-                    saved_status = sdi._get_subset_stats(subset)
-                    blocks_status[subset] = saved_status
-                    continue
-
-                for block, block_status in enumerate(status):
-                    # if a block hasn't been actively submitted yet, but the subset has been
-                    # that means the block is considered "submitted"
-                    if not submitted_blocks[subset].get(block) and has_jobs_submitted[subset]:
-                        block_status['submitted'] = ['*']
-                        continue
-
-                    sub_or_run_set = set([idx for idx in block_status.keys()])
-
-                    block_status_sdi = sdi._get_block_stats(subset, block, dont_save=sub_or_run_set)
-                    block_status.update(block_status_sdi)
-
-            # fold all subset statistics into "current" flattened statistics
-            # blocks_status represents a comprehensive history of this docking run, whereas the flattened statistics represent the current state of the run
-            # it is important that subsequent subsets by index are also subsequent by time for these flattened statistics to be accurate
-            # it is also required that jobs do not get double submitted
-            flattened_status = {}
-            for subset, status in enumerate(blocks_status):
-                for block_status in status:
-                    flattened_status.update(block_status)
-
-            return blocks_status, flattened_status
-
-        finally:
-            # want to avoid this lock being acquired & not released
-            self.queue.release_lock(name=f"stats-{sdi_id}")
 
 
     def get_lsd_block_stats(self, sdiname, run):
