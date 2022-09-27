@@ -1,68 +1,11 @@
-# The concept of an "SDI" or standard database index refers to the list of input provided to a program that processes many inputs
-# in this program, we extend the definition of "SDI" beyond this standard definition
-# a qblaster SDI not only encapsulates the input data for the program, but also its mapping of input -> output and the statistics of that output
-# additionally, we allow SDI to contain multiple subsets of itself, and also partition each subset over multiple blocks
-# this is useful for keeping track of individual submissions of jobs, as each time a job is submitted a new SDI subset is created
-# we only ever process a subset once (whether it fails or succeeds). This makes maintaining statistics on our jobs faster- we can collect statistics for a particular subset
-# without worrying that those statistics will change- if they do, they will be updated in a subsequent subset
-# therefore we don't need to visit all N jobs each time the user wants to check status
+
 class SDI(ABC):
     def __init__(self, basedir):
         self.basedir = basedir
-        # we must prepare for very large SDI files, in theory a run could have an SDI file that takes up multiple GB of memory
-        # thus we partition the file and its subsets into blocks
-        # additionally, we implement a simple cache that limits the maximum memory usage of the SDI construct in this application
         self.blocksize = 2000
         self.sdi_cache = {}
         self.sdi_cache_fifo = []
-        # worst-case entry length is assumed to be ~100 bytes, thus this limits likely worst-case memory usage of SDI cache to ~16MB
-        # this can be changed depending on the SDI implementation
-        # this cache doesn't matter so much for the jobs, which will only ever access one block a piece, but reduces lag on the user's side
         self.cache_limit = int(16e6/self.blocksize/100)
-
-    @abstractmethod
-    def _get_entry_outdir(self, index : int):
-        pass
-
-    # gathers stats
-    @abstractmethod
-    def _get_entry_stats(self, index : int):
-        pass
-    
-    # on the "save" option
-    # it is not possible for the sdi to decide whether a particular entry has "completed" or not without information on the queue, thus it does not know when to save statistics
-    # in this context, completed just means "entry from this subset was submitted to the queue, and is no longer in the queue"
-    # the caller of the "stats" function must have prior knowledge of whether a block has "completed" or not in order to save statistics
-    # the use cases of the stats function in this program are:
-    # on submit: queue stats pulled first, then sdi stats to determine submission eligibility, so no problem
-    # on status: queue stats pulled first, then sdi stats to view statistics, same mechanism as submit so no problem
-    # on block complete: only runs on block complete event, only operates on completed block, so no problem
-    # in all cases the caller has sufficient knowledge of which blocks are "complete" to know when to save statistics
-    def _get_block_stats(self, subset : int, block : int, save=False):
-        stats = self._get_cached_stats(subset, block)
-        if stats:
-            return stats
-        statfile = self.statdir_base.dir('s{subset}.d').file('b{block}.stats')
-        if not statfile.exists():
-            for block_idx, orig_idx, entry in enumerate(self.list_entries(subset, block)):
-                stats.update(self._get_entry_stats(orig_idx))
-            if save:
-                self.save_stats(stats)
-        else:
-            stats = self.load_stats(statsfile)
-        return stats
-
-    def _get_subset_stats(self, subset : int, save=False):
-        stats = {}
-        statfile = self.statdir_base.file('s{subset}.stats')
-        if not statfile.exists():
-            for block in self.list_blocks(subset):
-                stats.update(self._get_block_stats(subset, block))
-            if save:
-                self.save_stats(stats, statsfile)
-        else:
-            stats = self.load_stats(statsfile)
-        return stats
 
     def get_entry_orig(self, index):
         pass
@@ -141,10 +84,14 @@ class SDI(ABC):
         currhndl.close()
         return subset
 
-    def get_stats(self):
-        stats = {}
-        for ss in self.list_subsets():
-            stats.update(self._get_subset_stats(ss))
+    def basedir(self):
+        return self.sdidir_base
+
+    def subsetdir(self, subset):
+        return self.basedir().dir('s{subset}.d')
+
+    def blockdir(self, subset, block):
+        return self.subsetdir(subset).dir('b{block}.sdi')
 
 class ComputeQueue(ABC):
     @abstractmethod
@@ -219,12 +166,13 @@ class QBlasterBase(ABC):
         f.rm()
 
 class JobStates(Enum):
-    INACTIVE=0
-    SUBMITTED=1
-    RUNNING=2
-    SUCCESS=3
-    FAILURE=4
-    PARTIAL=5
+    
+    SUCCESS=0
+    FAILURE=1
+    PARTIAL=2
+    INACTIVE=3
+    SUBMITTED=4
+    RUNNING=5
     UNKNOWN=6
     def from_string(s):
         s_dict = {
@@ -244,25 +192,88 @@ class LSDBase(QBlasterBase):
     def __init__(self, cfg, filebase : ParallelJobFileBase, queue : JobQueue):
         self.filebase = filebase
         self.sdibase = filebase.dir('sdi')
+        self.jtype = "lsd"
 
-    def _get_sdi_stats(self, sdi):
+    def _get_queue_stats(self, sdifilter=None, subsetfilter=None):
+        sdim = {}
+        qstats = {}
 
-    def _get_subset_stats(self, sdi, subset, submitted_list, running_list):
+        for job in self.queue.listjobs():
+            jtype, sdi_id, subset, block = j.name.split('-')
+            subset = int(subset)
+            block = int(block)
 
-    def _get_block_stats(self, sdi, subset, block, ss_state, save_block):
-        blk_state = {}
-        blk_stats = {}
-
-        for orig_idx, task_idx, entry in sdi.list_entries(subset, block):
-            if ss_state.get(orig_idx) in [JobStates.SUBMITTED, JobStates.RUNNING]:
+            if jtype != self.jtype:
                 continue
-            else:
-                entry_state, entry_stats = self._get_entry_stats(sdi, subset, orig_idx)
-                blk_state[orig_idx] = entry_state
-                blk_stats[orig_idx] = entry_stats
 
-        if save_block:
-            self.save_block_complete(sdi, subset, block, blk_state, blk_stats)
+            if sdifilter and sdi_id != sdifilter:
+                continue
+            if subsetfilter and subset != subsetfilter:
+                continue
+
+            sdi = sdim.get(sdi_id)
+            if not sdi:
+                sdi = self.get_sdi(sdi_id)
+                sdim[sdi_id] = sdi
+                qstats[sdi_id] = {}
+
+            orig_idx = sdi.get_orig_idx(subset, block, j.task_id)
+            qstats[sdi_id][orig_idx] = j.state
+
+        return qstats
+
+    def _get_sdi_stats(self, sdi, qstats=None):
+        stats = {}
+        if not qstats:
+            qstats = self._get_queue_stats(sdifilter=sdi.id)
+            qstats = qstats.get(sdi.id) or {}
+
+        started_subsets = self._get_subsets_started(sdi)
+        complete_subsets = self._get_subsets_complete(sdi)
+
+        for subset in sdi.list_subsets():
+            if subset in complete_subsets:
+
+    def _get_subset_stats(self, sdi, subset, qstats=None):
+        if not qstats:
+            qstats = self._get_queue_stats(sdi, sdifilter=sdi.id, subsetfilter=subset)
+            qstats = qstats.get(sdi.id) or {}
+
+        ss_complete = True
+        stats = self._load_subset_stats(sdi, subset)
+        started_blocks = self._get_blocks_started(sdi, subset)
+        complete_blocks = self._get_blocks_complete(sdi, subset)
+
+        for block in sdi.list_blocks(subset):
+
+            if (block in complete_blocks):
+                continue
+
+            if not (block in started_blocks):
+                for orig_idx, entry in sdi.list_entries(subset, block):
+                    qstats[orig_idx] = JobStates.SUBMITTED
+
+            bk_complete = True
+            for orig_idx, entry in sdi.list_entries(subset, block):
+                if qstats.get(orig_idx):
+                    bk_complete = False
+                    continue
+                elif stats.get(orig_idx):
+                    continue
+                else:
+                    stats.update(self._get_entry_stats(sdi, subset, orig_idx))
+
+            if not bk_complete:
+                ss_complete = False
+            else:
+                self._mark_block_complete(sdi, subset, block)
+
+        if ss_complete:
+            self._mark_subset_complete(sdi, subset)
+
+        self._save_subset_stats(sdi, subset, stats)
+
+        return stats
 
     def _get_entry_stats(self, sdi, subset, orig_index):
         outdir = sdi.get_entry_outdir(index)
@@ -276,35 +287,59 @@ class LSDBase(QBlasterBase):
         del stats["jobstate"]
         return state, stats
 
-    def _load_block_stats(self, sdi, subset, block):
-        statfile = sdi.blockdir(subset, block).file('stats.json')
-        return self._load_stats(statfile)
-
-    def _save_block_stats(self, sdi, subset, block, state, stats):
-        statfile = sdi.blockdir(subset, block).file('stats.json')
-        return self._save_stats(statfile, state, stats)
-
     def _load_subset_stats(self, sdi, subset):
         statfile = sdi.subsetdir(subset).file('stats.json')
         return self._load_stats(statfile)
 
-    def _save_subset_stats(self, sdi, subset, state, stats):
+    def _save_subset_stats(self, sdi, subset, stats):
         statfile = sdi.subsetdir(subset).file('stats.json')
-        return self._save_stats(statfile, state, stats)
+        return self._save_stats(statfile, stats)
 
     def _load_stats(self, statfile):
         if not statfile.exists():
-            return False, None, None
+            return {}
         with statfile.open('r') as stat_fo:
             stats = json.loads(stat_fo.read())
-            state = blk_stats["jobstate"].copy()
-            del stats["jobstate"]
-            return True, state, stats
+            return stats
 
-    def _save_stats(self, statfile, state, stats):
-        stats["jobstate"] = state
+    def _save_stats(self, statfile, stats):
         with statfile.open('w') as stats_fo:
             json.dump(stats, stats_fo)
+
+    # functions for setting various completion markers
+    # all of these assume a lock has been acquired for exclusive access to relevant files
+    def _get_subsets_started(self, sdi):
+        return self._load_completion(sdi.basedir().file('started'))
+
+    def _get_subsets_complete(self, sdi):
+        return self._load_completion(sdi.basedir().file('complete'))
+
+    def _get_blocks_started(self, sdi, subset):
+        return self._load_completion(sdi.subsetdir(subset).file('started'))
+
+    def _get_blocks_complete(self, sdi, subset):
+        return self._load_completion(sdi.subsetdir(subset).file('complete'))
+
+    def _mark_block_started(self, sdi, subset, block):
+        self._save_completion(sdi.subsetdir(subset).file('started'), block)
+
+    def _mark_block_complete(self, sdi, subset, block):
+        self._save_completion(sdi.subsetdir(subset).file('complete'), block)
+
+    def _mark_subset_started(self, sdi, subset):
+        self._save_completion(sdi.basedir().file('started'), subset)
+
+    def _mark_subset_complete(self, sdi, subset):
+        self._save_completion(sdi.basedir().file('complete'), subset)
+
+    def _load_completion(self, cfile):
+        with cfile.open('r') as cfile_o:
+            data = cfile_o.read().split('\n')
+            return [int(d) for d in data]
+
+    def _save_completion(self, cfile, citem):
+        with cfile.open('a') as cfile_o:
+            cfile_o.write(f'{citem}\n')
 
     ### internal stats logic, used by jobs & status command
     # returns a string representing overall state, followed by a list of all jobs & their individual states
@@ -316,12 +351,6 @@ class LSDBase(QBlasterBase):
     # failed      | yes
     # succeeded   | optional
 
-
-    def get_lsd_block_stats(self, sdiname, run):
-        pass
-    def get_top_stats(self):
-        pass
-
     ### queue logic
     def set_queue(self, queue_name):
         queue_obj = load_queue(queue_name)
@@ -331,6 +360,7 @@ class LSDBase(QBlasterBase):
         else:
             queue_obj.ensure_path_is_accessible(self.filebase)
             self.queue = queue
+            
     def get_queue(self):
         
 
