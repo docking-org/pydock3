@@ -218,10 +218,87 @@ class QBlasterBase(ABC):
         f = fileobj_from_path(p)
         f.rm()
 
+class JobStates(Enum):
+    INACTIVE=0
+    SUBMITTED=1
+    RUNNING=2
+    SUCCESS=3
+    FAILURE=4
+    PARTIAL=5
+    UNKNOWN=6
+    def from_string(s):
+        s_dict = {
+            "INACTIVE":JobStates.INACTIVE,
+            "SUBMITTED":JobStates.SUBMITTED,
+            "RUNNING":JobStates.RUNNING,
+            "SUCCESS":JobStates.SUCCESS,
+            "FAILURE":JobStates.FAILURE,
+            "PARTIAL":JobStates.PARTIAL
+        }
+        if not s_dict.get(s):
+            return JobStates.UNKNOWN
+        else:
+            return s_dict[s]
+
 class LSDBase(QBlasterBase):
     def __init__(self, cfg, filebase : ParallelJobFileBase, queue : JobQueue):
         self.filebase = filebase
         self.sdibase = filebase.dir('sdi')
+
+    def _get_sdi_stats(self, sdi):
+
+    def _get_subset_stats(self, sdi, subset, submitted_list, running_list):
+
+    def _get_block_stats(self, sdi, subset, block, ss_state, save_block):
+        blk_state = {}
+        blk_stats = {}
+
+        for orig_idx, task_idx, entry in sdi.list_entries(subset, block):
+            if ss_state.get(orig_idx) in [JobStates.SUBMITTED, JobStates.RUNNING]:
+                continue
+            else:
+                entry_state, entry_stats = self._get_entry_stats(sdi, subset, orig_idx)
+                blk_state[orig_idx] = entry_state
+                blk_stats[orig_idx] = entry_stats
+
+        if save_block:
+            self.save_block_complete(sdi, subset, block, blk_state, blk_stats)
+
+    def _get_entry_stats(self, sdi, subset, orig_index):
+
+        outdir = sdi.get_entry_outdir(index)
+        statsf = outdir.file(f'{subset}-stats.json')
+        if not statsf.exists():
+            return JobStates.INACTIVE, {}
+
+        with statsf.open('r') as statsf_obj:
+            stats = json.loads(statsf_obj.read())
+
+        # stats["jobstate"] should be one of SUCCESS, FAILURE, or PARTIAL
+        state = JobStates.from_string(stats["jobstate"])
+        del stats["jobstate"]
+        return state, stats
+
+    def _load_subset_complete(self, sdi, subset):
+        ss_stats_file = sdi.subsetdir(subset).file('stats.json')
+        if not ss_stats_file.exists():
+            return False, {}, {}
+
+    def _save_subset_complete(self, sdi, subset, ss_state, ss_stats):
+
+    def _load_stats(self, statfile):
+        if not statfile.exists():
+            return False, None, None
+        with statfile.open('r') as stat_fo:
+            stats = json.loads(stat_fo.read())
+            state = blk_stats["jobstate"].copy()
+            del stats["jobstate"]
+            return True, state, stats
+
+    def _save_stats(self, statfile, state, stats):
+        stats["jobstate"] = state
+        with statfile.open('w') as stats_fo:
+            json.dump(stats, stats_fo)
 
     ### internal stats logic, used by jobs & status command
     # returns a string representing overall state, followed by a list of all jobs & their individual states
@@ -245,42 +322,42 @@ class LSDBase(QBlasterBase):
             # output: list of sdi entries in queue + status for each (arranged by blocks)
             submitted           = set()
             block_sizes         = [len(sdi.list_blocks(ss)) for ss in sdi.list_subsets()]
-            highest_block_seen  = [-1 for _ in range(sdi.list_subsets())]
             blocks_status       = [[{} for _ in range(bs)] for bs in block_sizes]
-
+            submitted_blocks = [self.__get_submitted_blocks(sdi_id, subset) for subset in range(len(block_sizes))]
+            
+            subsets_status = self.__get_subsets_status(sdi_id)
+ 
             for job in self.queue.listjobs(array=True): # tells queue to expand array jobs
-                _sdi_id, subset, block = job.name.split('-')
+                jobtype, _sdi_id, subset, block = job.name.split('-')
+                subset = int(subset)
+                block = int(block)
                 status = job.status
                 if _sdi_id != sdi_id:
                     continue
-                subset = int(subset)
-                block  = int(block)
-                task_id = job.task_id
-                orig_idx = sdi.get_orig_idx(subset, block, task_id)
-                # keep track of the highest block seen
-                # all blocks that come after this block should be considered submitted as well
-                # due to how the continuation function works
-                if  highest_block_seen[subset] < block:
-                    highest_block_seen[subset] = block
 
-                blocks_status[subset][block].update({orig_idx : status})
-
-            for subset, hblock_ss in enumerate(highest_block_seen):
-                if hblock_ss == -1:
-                    continue
-                else:
-                    for block in range(hblock_ss+1, block_sizes[ss]):
-                        # '*' is a shorthand for "all jobs in this block"
-                        blocks_status[ss][block] = {'*' : 'submitted'}
+                if jobtype == "lsd":
+                    task_id = job.task_id
+                    orig_idx = sdi.get_orig_idx(subset, block, task_id)
+                    blocks_status[subset][block].update({orig_idx : status})
+                    has_jobs_submitted[subset] = True
 
             for subset, status in enumerate(blocks_status):
+                # if the subset has no jobs in the queue
+                # we can fetch statistics for the entire subset rather than block-by-block
+                # which saves time
+                if subsets_status[subset] == "inactive":
+                    saved_status = sdi._get_subset_stats(subset)
+                    blocks_status[subset] = saved_status
+                    continue
+
                 for block, block_status in enumerate(status):
-                    sub_or_run_set = None
-                    if block_status['*']:
-                        block_status.clear()
-                        block_status = {sdi.get_orig_idx(idx) : 'submitted' for idx in }
-                    else:
-                        sub_or_run_set = set([idx for idx in block_status.keys()])
+                    # if a block hasn't been actively submitted yet, but the subset has been
+                    # that means the block is considered "submitted"
+                    if not submitted_blocks[subset].get(block) and has_jobs_submitted[subset]:
+                        block_status['submitted'] = ['*']
+                        continue
+
+                    sub_or_run_set = set([idx for idx in block_status.keys()])
 
                     block_status_sdi = sdi._get_block_stats(subset, block, dont_save=sub_or_run_set)
                     block_status.update(block_status_sdi)
@@ -399,6 +476,7 @@ class LSDBase(QBlasterBase):
 
     ### submit logic
     def __submit_sdi(self, sdi_id, dockfilesname, submitlist=None):
+
         self.queue.acquire_lock(timeout=60, name=f"submit-lsd-{sdi_id}")
 
         try:
