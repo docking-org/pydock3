@@ -2,7 +2,6 @@ from dataclasses import dataclass
 import math
 
 import numpy as np
-from pytoc import TOC
 from scipy import interpolate
 from matplotlib import pyplot as plt
 
@@ -14,79 +13,95 @@ class Point:
 
 
 class ROC(object):
-    def __init__(self, booleans, indices):
+    def __init__(self, booleans, indices, alpha=None):
         #
-        self.booleans = booleans
+        self.booleans = [bool(b) for b in booleans]
         self.indices = indices
 
-        # get TOC points
-        booleans_array = np.array(booleans)
-        indices_array = np.array(indices)
-        thresholds_array = np.unique(indices_array)
-        toc = TOC(booleans_array, indices_array, thresholds_array)
-        toc_x_coords = np.array(toc.TOCX[0], dtype=float)
-        toc_y_coords = np.array(toc.TOCY[0], dtype=float)
-        toc_x_coords, toc_y_coords = zip(*sorted(zip(toc_x_coords, toc_y_coords)))
-        toc_x_coords = np.array(toc_x_coords)
-        toc_y_coords = np.array(toc_y_coords)
+        #
+        self.num_actives = len([b for b in self.booleans if b])
+        self.num_decoys = len([b for b in self.booleans if not b])
+
+        # validate and set alpha
+        if alpha is None:
+            alpha = float(1 / (self.num_decoys * np.e))
+        if not ((alpha > 0.0) and (alpha < 1.0)):
+            raise ValueError("ROC alpha must be in range (0, 1)")
+        self.alpha = alpha
 
         # get ROC points
-        roc_x_coords = toc_x_coords - toc_y_coords  # unshear the TOC
-        roc_y_coords = toc_y_coords
-        mask = np.zeros(len(roc_x_coords), dtype=bool)
-        roc_points_x_unique = list(np.unique(roc_x_coords))
-        for x_unique in roc_points_x_unique:
-            indices = [index for index, x in enumerate(roc_x_coords) if x == x_unique]
-            # set mask element to True only if index corresponds to max y for given x
-            max_index = indices[0]
-            for index in indices:
-                if toc_y_coords[index] > toc_y_coords[max_index]:
-                    max_index = index
-            mask[max_index] = True
-        roc_x_coords = roc_x_coords[mask] / self.num_decoys
-        roc_y_coords = roc_y_coords[mask] / self.num_actives
+        x_coords = []
+        y_coords = []
+        num_decoys_witnessed_so_far = 0
+        num_actives_witnessed_so_far = 0
+        last_bool_was_decoy = False
+        for b in self.booleans:
+            if b:
+                if num_decoys_witnessed_so_far == self.num_decoys:
+                    x_coord = float(num_decoys_witnessed_so_far / self.num_decoys)
+                    y_coord = float(num_actives_witnessed_so_far / self.num_actives)
+                    x_coords.append(x_coord)
+                    y_coords.append(y_coord)
+                    break  # last decoy has been seen, end of ROC, disregard remaining actives
+                num_actives_witnessed_so_far += 1
+                last_bool_was_decoy = False
+            else:
+                if not last_bool_was_decoy:
+                    x_coord = float(num_decoys_witnessed_so_far/self.num_decoys)
+                    y_coord = float(num_actives_witnessed_so_far/self.num_actives)
+                    x_coords.append(x_coord)
+                    y_coords.append(y_coord)
+                num_decoys_witnessed_so_far += 1
+                last_bool_was_decoy = True
+        self.x_coords = x_coords
+        self.y_coords = y_coords
+        self.points = [Point(x_coord, y_coord) for x_coord, y_coord in zip(self.x_coords, self.y_coords)]
 
         #
-        self.points = [Point(roc_x_coords[i], roc_y_coords[i]) for i in range(len(roc_x_coords))]
-
-        #
-        roc_x_coords = [point.x for point in self.points]
-        roc_y_coords = [point.y for point in self.points]
-        self.f = lambda w: float(interpolate.interp1d(roc_x_coords, roc_y_coords, kind='previous')(w))
-
-        #
-        self.alpha = float(1 / (self.num_decoys * np.e))
+        x_coords_for_interpolation = [0.0] + self.x_coords
+        y_coords_for_interpolation = [0.0] + self.y_coords
+        self.f = lambda w: float(interpolate.interp1d(x_coords_for_interpolation, y_coords_for_interpolation, kind='previous')(w))
 
         #
         self.enrichment_score = self._get_enrichment_score()
 
-    @property
-    def num_actives(self):
-        return len([b for b in self.booleans if b])
-
-    @property
-    def num_decoys(self):
-        return len([b for b in self.booleans if not b])
-    
     def _get_enrichment_score(self):
         return (self._get_literal_area_under_roc_curve_with_log_scaled_x_axis() - (1 - self.alpha)) / (-np.log(self.alpha) - (1 - self.alpha))
 
     def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
-        weights = [np.log(1 / (self.alpha * self.num_decoys))] + [np.log((i+1)/i) for i in range(1, self.num_decoys)]
-        y_values_of_interdecoy_intervals = [self.f(self.alpha)] + [self.f(float(i/self.num_decoys)) for i in range(1, self.num_decoys)]  # leave out last point (1,1) since we want n intervals
-        return np.dot(weights, y_values_of_interdecoy_intervals)
+        #
+        weights = []
+        y_values_of_intervals = []
+        last_x_value = self.alpha
+        last_y_value = self.f(last_x_value)
+        for i, (current_x_value, current_y_value) in enumerate(zip(self.x_coords, self.y_coords)):
+            if current_x_value <= self.alpha:
+                continue
+
+            current_y_value = self.f(current_x_value)
+            if current_y_value == last_y_value and (i+1) != len(self.y_coords):  # add for last y no matter what
+                continue
+
+            y_values_of_intervals.append(last_y_value)
+            weights.append(np.log(float(current_x_value/last_x_value)))
+            last_x_value = current_x_value
+            last_y_value = current_y_value
+
+        return np.dot(weights, y_values_of_intervals)
+
+
 
     def plot(self, save_path):
         # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
         fig, ax = plt.subplots()
         fig.set_size_inches(8.0, 8.0)
-        roc_x_coords = [point.x for point in self.points]
-        roc_y_coords = [point.y for point in self.points]
-        ax.step(roc_x_coords, roc_y_coords, where='post', label=f"enrichment_score: {round(self.enrichment_score, 2)}")
+        x_coords_for_plot = [self.alpha] + self.x_coords
+        y_coords_for_plot = [self.f(self.alpha)] + self.y_coords
+        ax.step(x_coords_for_plot, y_coords_for_plot, where='post', label=f"enrichment_score: {round(self.enrichment_score, 2)}")
         ax.legend()
 
         # draw curve of random classifier for reference
-        ax.semilogx([float(i / 100) for i in range(0, 101)], [float(i / 100) for i in range(0, 101)], "--", linewidth=1, color='Black')
+        ax.semilogx([float(i / 1000) for i in range(0, 1001)], [float(i / 1000) for i in range(0, 1001)], "--", linewidth=1, color='Black')
 
         # set axis labels
         ax.set_xlabel('top fraction of decoys')
