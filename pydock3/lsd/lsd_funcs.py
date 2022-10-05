@@ -1,3 +1,36 @@
+# simple cache implementation
+class SimpleFIFOCache:
+    def __init__(self, maxsize=512e6):
+        self.fifo = []
+        self.cache = {}
+        self.lencache = {}
+        self.size = 0
+        self.maxsize = maxsize
+    def get(self, key):
+        return self.cache.get(key)
+    # allow an override length to be specified, e.g when caching a set/list/dict where len() does not accurately reflect space usage
+    def set(self, key, data, overridelen=None):
+        dl = overridelen or len(data)
+        while len(fifo) > 0 and self.size + dl > self.maxsize:
+            pk = self.fifo.pop(0)
+            pl = self.lencache.get(pk):
+            if pl:
+                del self.cache[pk]
+                del self.lencache[pk]
+            else:
+                del self.cache[pk]
+            self.size -= pl
+        if len(fifo) == 0 and self.size + dl > self.maxsize:
+            raise Exception('element too big for cache!')
+        self.cache[key] = data
+        if overridelen:
+            self.lencache[key] = dl
+    def clear(self):
+        self.fifo = []
+        self.cache = {}
+        self.size = 0
+
+
 # standalone SDI implementation w/subsets, blocks, metadata, caching, etc.
 # clarification of terms:
 #
@@ -21,8 +54,7 @@ class SDI:
     def __init__(self, basedir):
         self.basedir = basedir
         self.blocksize = 2000
-        self.sdi_cache = {}
-        self.sdi_cache_fifo = []
+        self.sdi_cache = SimpleFIFOCache()
         self.cache_limit = 1000 # hold up to 1000 blocks in memory
 
     def create(self, sourcefile, name=None):
@@ -55,15 +87,12 @@ class SDI:
         self.add_subset(list(range(len(source_lines))))
 
     def _get_cached_sdi(self, subset, block):
-        return self.sdi_cache.get(f"s{subset}b{block}")
+        blk = self.sdi_cache.get(f"s{subset}b{block}")
+        if not blk:
+            
 
     def _set_cached_sdi(self, subset, block, data):
-        # pop oldest entry when we reach the limit
-        if len(self.sdi_cache) + 1 > self.cache_limit:
-            pop_k = self.sdi_cache_fifo.pop()
-            self.sdi_cache.pop(pop_k)
-        self.sdi_cache[f"s{subset}b{block}"] = data
-        self.sdi_cache_fifo.append()
+        self.sdi_cache.set(f"s{subset}b{block}", data)
 
     def get_entry(self, subset, block, index) -> int, str, DirBase:
         sdi_lines = self._get_cached_sdi(subset, block)
@@ -128,14 +157,25 @@ class SDI:
         self.save_stats()
         return subset
 
+    def subset_contains(self, subset, orig_idx):
+        subset_idx_set = self.cache.get(f'set{subset}')
+        if not subset_idx_set:
+            subset_idx_set = set()
+            for block in self.list_blocks(subset):
+                for orig_idx, entry in self.list_entries(subset, block):
+                    subset_idx_set.add(orig_idx)
+            # we can put sets & lists in the cache too, all they need is a len() method
+            self.cache.set(f'set{subset}', subset_idx_set)
+        return subset_idx_set
+
     def basedir(self):
         return self.basedir
 
     def subsetdir(self, subset):
-        return self.basedir().dir('s{subset}.d')
+        return self.basedir().dir(f's{subset}.d')
 
     def blockdir(self, subset, block):
-        return self.subsetdir(subset).dir('b{block}.sdi')
+        return self.subsetdir(subset).dir(f'b{block}.sdi')
 
     @property
     def stats(self):
@@ -220,10 +260,41 @@ class JobStates(Enum):
 class ComputeSDIStatsBase:
 
     def __init__(self, sdi, queue, outdir):
+        self.cache = SimpleFIFOCache()
         pass
 
-    def _get_output_stats(self, output_index):
+    # defines mapping of input idx -> output idx
+    # an input idx can only be associated with one output idx (no many-many mapping)
+    @abstractmethod
+    def _get_output_idx(self, sdi_orig_idx):
+        pass
+    # does the same, but in reverse
+    @abstractmethod
+    def _list_input_idx(self, output_idx):
+        pass
+    # defines the file structure & how to fetch output statistics for a particular entry
+    @abstractmethod
+    def _get_output_stats_data(self, subset, output_index):
+        pass
 
+    # convenience method for listing all outputs & their inputs in a particular subset
+    def get_subset_output_map(self, subset):
+        out_set = self.cache.get(f'so{subset}')
+        if out_set:
+            return out_set
+
+        out_set = {}
+        for block in self.list_blocks(subset):
+            for orig_idx, entry in self.list_entries():
+                out_idx = self._get_output_idx(orig_idx)
+                if not out_set.get(out_idx):
+                    out_set[out_idx] = [orig_idx]
+
+        self.cache.set(f'so{subset}', out_set, overridelen=len(out_set) + sum([len(v) for v in out_set.values()]))
+        return out_set
+
+    def _get_output_stats(self, subset, output_index):
+        
 
     def _get_queue_stats(self, subsetfilter=None):
         sdim = {}
@@ -244,6 +315,8 @@ class ComputeSDIStatsBase:
                 sdi = self.get_sdi(sdi_id)
                 sdim[sdi_id] = sdi
                 qstats[sdi_id] = {}
+            # if this is not an array job, then j.task_id = 0
+            # this assumes that the job is responsible for producing the output for all input products
             orig_idx = sdi.get_orig_idx(subset, block, j.task_id)
             qstats[sdi_id][orig_idx] = j.state 
 
