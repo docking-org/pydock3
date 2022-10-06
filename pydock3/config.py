@@ -52,7 +52,7 @@ class ParametersConfiguration:
             yamale.validate(self.schema, data)
             logger.debug('Config validation success!')
         except ValueError as e:
-            logger.exception('Config validation failed!\n%s' % str(e))
+            raise Exception('Config validation failed!\n%s' % str(e))
 
         #
         param_dict, = pd.json_normalize(data[0][0]).to_dict('records')  # TODO: add validation
