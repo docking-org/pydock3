@@ -480,6 +480,14 @@ class Dockopt(object):
 
                     #
                     for i in range(int(config.param_dict["matching_spheres_perturbation.num_samples_per_matching_spheres_file"].value)):
+                        #
+                        perturbed_file_name = f"{node_name}_{i+1}"
+                        perturbed_file_path = os.path.join(working_dir.path, perturbed_file_name)
+                        unperturbed_file_name_to_perturbed_file_names_dict[node_name].append(perturbed_file_name)
+
+                        # skip perturbation if perturbed file already exists
+                        if File.file_exists(perturbed_file_path):
+                            continue
 
                         # perturb all spheres in file
                         new_spheres = []
@@ -492,11 +500,7 @@ class Dockopt(object):
                             new_spheres.append(new_sphere)
 
                         # write perturbed spheres to new matching spheres file
-                        perturbed_file_name = f"{node_name}_{i+1}"
-                        write_sph(os.path.join(working_dir.path, perturbed_file_name), new_spheres)
-
-                        #
-                        unperturbed_file_name_to_perturbed_file_names_dict[node_name].append(perturbed_file_name)
+                        write_sph(perturbed_file_path, new_spheres)
 
             #
             dock_files_combinations_for_retro_docking = []
