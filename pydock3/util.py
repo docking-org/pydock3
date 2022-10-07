@@ -75,7 +75,7 @@ class CleanExit(object):
     def __exit__(self, exc_type, exc_value, exc_tb):
         if exc_type is not None:
             logger.info(f"Shutting down job due to exception: {exc_type}")
-            logger.debug(traceback.format_tb(exc_tb))
+            logger.info(traceback.format_exc())
             logger.debug(str(exc_value))
             return True
         return exc_type is None
