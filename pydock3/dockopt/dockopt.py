@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from dirhash import dirhash
 
+from pydock3.scripts import Script
 from pydock3.util import CleanExit, get_dataclass_as_dict
 from pydock3.config import Parameter
 from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
@@ -309,7 +310,7 @@ class FullTargetsDAG(object):
         return len(list(set([self.g.edges[edge]['step_identity'] for edge in edges_in_lineages]))) == len(list(set([self.g.edges[edge]['step_type'] for edge in edges_in_lineages])))
 
 
-class Dockopt(object):
+class Dockopt(Script):
 
     JOB_DIR_NAME = "dockopt_job"
     CONFIG_FILE_NAME = "dockopt_config.yaml"

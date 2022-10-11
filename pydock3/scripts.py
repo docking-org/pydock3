@@ -5,6 +5,7 @@ import fire
 from pydock3.util import get_logger_for_script
 from pydock3.blastermaster.blastermaster import Blastermaster
 from pydock3.dockopt.dockopt import Dockopt
+from pydock3.top_poses import TopPoses
 from pydock3.files import SDIFile
 
 #
@@ -12,12 +13,25 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-SCRIPT_CLASSES = [
+SCRIPT_CLASSES = [  # script classes are those that inherit from the Script class defined in this module
     Blastermaster,
     Dockopt,
+    TopPoses,
+]
+NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS = [  # non-script classes can also be used as scripts through fire; such classes whose functions may be desirable to use as scripts should be included here
     SDIFile,
 ]
-SCRIPT_CLASSES_DICT = {cls.__name__.lower(): cls for cls in SCRIPT_CLASSES}
+
+SCRIPT_CLASSES_DICT = {
+    **{cls.__name__.lower(): cls for cls in SCRIPT_CLASSES},
+    **{cls.__name__.lower(): cls for cls in NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS},
+}
+
+
+class Script(object):
+    """Base class for all classes intended to serve as scripts in the package."""
+    def __init__(self):
+        pass
 
 
 def get_script_class(script_class_name, *args, **kwargs):

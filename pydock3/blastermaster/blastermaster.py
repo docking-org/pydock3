@@ -27,6 +27,7 @@ from pydock3.blastermaster.steps.receptor_transformation_for_ligand_desolvation 
 from pydock3.blastermaster.steps.ligand_desolvation import HydrogenAtomLigandDesolvationScoringGridGenerationStep, \
     HeavyAtomLigandDesolvationScoringGridGenerationStep
 from pydock3.blastermaster.config import BlastermasterParametersConfiguration
+from pydock3.scripts import Script
 from pydock3.util import get_dataclass_as_dict, get_logger_for_script
 from pydock3.files import (
     Dir,
@@ -388,7 +389,7 @@ def get_blaster_steps(blaster_files, param_dict, working_dir):
     return tuple(steps)
 
 
-class Blastermaster(object):
+class Blastermaster(Script):
     JOB_DIR_NAME = "blastermaster_job"
     CONFIG_FILE_NAME = "blastermaster_config.yaml"
     DEFAULT_CONFIG_FILE_PATH = os.path.join(os.path.dirname(BLASTERMASTER_INIT_FILE_PATH), "default_blastermaster_config.yaml")
