@@ -4,7 +4,7 @@ import gzip
 import time
 import multiprocessing
 
-from pydock3.scripts import Script
+from pydock3.util import Script
 
 
 def get_to_search(dock_results_dir_path):

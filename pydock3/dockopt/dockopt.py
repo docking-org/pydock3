@@ -14,8 +14,7 @@ import numpy as np
 import pandas as pd
 from dirhash import dirhash
 
-from pydock3.scripts import Script
-from pydock3.util import CleanExit, get_dataclass_as_dict
+from pydock3.util import Script, CleanExit, get_dataclass_as_dict
 from pydock3.config import Parameter
 from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
 from pydock3.dockopt.config import DockoptParametersConfiguration

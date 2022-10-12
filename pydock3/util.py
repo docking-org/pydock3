@@ -1,4 +1,4 @@
-from dataclasses import dataclass, fields
+from dataclasses import fields
 import subprocess
 import logging
 import os
@@ -40,6 +40,12 @@ def system_call(command_str, cwd=os.getcwd(), timeout_seconds=None, env_vars_dic
         timeout=timeout_seconds,
         env=env_vars_dict,
     )
+
+
+class Script(object):
+    """Base class for all classes intended to serve as scripts in the package."""
+    def __init__(self):
+        pass
 
 
 def get_logger_for_script(log_file_path, debug=False):

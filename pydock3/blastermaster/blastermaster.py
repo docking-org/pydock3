@@ -27,8 +27,7 @@ from pydock3.blastermaster.steps.receptor_transformation_for_ligand_desolvation 
 from pydock3.blastermaster.steps.ligand_desolvation import HydrogenAtomLigandDesolvationScoringGridGenerationStep, \
     HeavyAtomLigandDesolvationScoringGridGenerationStep
 from pydock3.blastermaster.config import BlastermasterParametersConfiguration
-from pydock3.scripts import Script
-from pydock3.util import get_dataclass_as_dict, get_logger_for_script
+from pydock3.util import Script, get_dataclass_as_dict, get_logger_for_script
 from pydock3.files import (
     Dir,
     File,

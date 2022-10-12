@@ -28,12 +28,6 @@ SCRIPT_CLASSES_DICT = {
 }
 
 
-class Script(object):
-    """Base class for all classes intended to serve as scripts in the package."""
-    def __init__(self):
-        pass
-
-
 def get_script_class(script_class_name, *args, **kwargs):
     logger = get_logger_for_script("pydock3.log", debug=False)
 
