@@ -1,6 +1,10 @@
 class ComputeQueue(ABC):
     @abstractmethod
-    def 
+    def acquire_lock(self, lockname, timeout=None):
+        pass
+    @abstractmethod
+    def release_lock(self, lockname):
+        pass
     @abstractmethod
     def ensure_path_is_accessible(fileobj):
         pass

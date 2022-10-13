@@ -1,24 +1,21 @@
+import sys, os
+
 # simple cache implementation
 class SimpleFIFOCache:
     def __init__(self, maxsize=512e6):
         self.fifo = []
         self.cache = {}
-        self.lencache = {}
         self.size = 0
         self.maxsize = maxsize
     def get(self, key):
         return self.cache.get(key)
     # allow an override length to be specified, e.g when caching a set/list/dict where len() does not accurately reflect space usage
-    def set(self, key, data, overridelen=None):
-        dl = overridelen or len(data)
+    def set(self, key, data):
+        dl = sys.getsizeof(data)
         while len(fifo) > 0 and self.size + dl > self.maxsize:
             pk = self.fifo.pop(0)
-            pl = self.lencache.get(pk):
-            if pl:
-                del self.cache[pk]
-                del self.lencache[pk]
-            else:
-                del self.cache[pk]
+            pl = sys.getsizeof(pk)
+            del self.cache[pk]
             self.size -= pl
         if len(fifo) == 0 and self.size + dl > self.maxsize:
             raise Exception('element too big for cache!')
@@ -189,6 +186,9 @@ class SDI:
     def stats(self, st):
         self._stats = st
 
+    def matches_signature(self, sig):
+        return self.stats['sdi']['signature'].startswith(sig)
+
     def save_stats(self):
         self._save_records(self._stats)
 
@@ -238,9 +238,10 @@ class JobStates(Enum):
     FAILURE=1
     PARTIAL=2
     INACTIVE=3
-    SUBMITTED=4
-    RUNNING=5
-    UNKNOWN=6
+    STARTED=4
+    SUBMITTED=5
+    RUNNING=6
+    UNKNOWN=7
     def from_string(s):
         s_dict = {
             "INACTIVE":JobStates.INACTIVE,
@@ -255,13 +256,46 @@ class JobStates(Enum):
         else:
             return s_dict[s]
 
-# an extension to the SDI class which gathers and collates statistics from a compute campaign
-# different implementations 
-class ComputeSDIStatsBase:
+class Job:
+    def __init__(self, jobid, name, state):
+        self.jobid = jobid
+        self.name = name
+        self.state = state
 
-    def __init__(self, sdi, queue, outdir):
-        self.cache = SimpleFIFOCache()
+class SimpleSlurmQueue:
+    def __init__(self, script_locations):
+        self.script_locations = script_locations
+
+    def submit(self, jobtype, jobname, args):
+        script = self.script_locations[jobtype]
+        subprocess.call(["sbatch", "-J", jobname, script] + args)
+
+    def list_jobs(self):
+        jobs = []
+        with subprocess.Popen(["squeue", "--noheader", "-o", '%.18i %.64j, %.2t'], stdout=subprocess.PIPE) as lj:
+            for line in lj.stdout.readlines():
+                jobid, name, state = line.strip().split()
+                if state == "R":
+                    state = JobStates.RUNNING
+                else:
+                    state = JobStates.SUBMITTED
+                jobs.append(Job(jobid, name, state))
+        return jobs
+
+    def acquire_lock(self, name, timeout):
         pass
+
+    def release_lock(self, name):
+        pass
+
+# an extension to the SDI class which gathers and collates statistics from a compute campaign
+class ComputeSDIStatsBase(SDI):
+
+    def __init__(self, basedir, queue, outdir):
+        super().__init__(basedir)
+        self.cache = SimpleFIFOCache()
+        self.queue = queue
+        self.outdir = outdir
 
     # defines mapping of input idx -> output idx
     # an input idx can only be associated with one output idx (no many-many mapping)
@@ -285,121 +319,110 @@ class ComputeSDIStatsBase:
 
         out_set = {}
         for block in self.list_blocks(subset):
-            for orig_idx, entry in self.list_entries():
+            for orig_idx, entry in self.list_entries(subset, block):
                 out_idx = self._get_output_idx(orig_idx)
                 if not out_set.get(out_idx):
-                    out_set[out_idx] = [orig_idx]
+                    out_set[out_idx] = {}
+                    out_set[out_idx]['index'] = set([orig_idx])
+                    out_set[out_idx]['block'] = set([block])
+                else:
+                    out_set[out_idx]['index'].add(orig_idx)
+                    out_set[out_idx]['block'].add(block)
 
-        self.cache.set(f'so{subset}', out_set, overridelen=len(out_set) + sum([len(v) for v in out_set.values()]))
+        self.cache.set(f'so{subset}', out_set)
         return out_set
 
-    def _get_output_stats(self, subset, output_index):
-        
+    def _get_queue_stats(self, subset):
 
-    def _get_queue_stats(self, subsetfilter=None):
-        sdim = {}
+        output_map = self.get_subset_output_map(subset)
+        output_map_rev = {}
+        for o, i in output_map:
+            for b in i['blocks']:
+                output_map_rev[b] = o # set up reverse map
+        submitted_blocks = self._get_blocks_started(subset)
+
         qstats = {}
-
+        # assumed job name format:
+        # {jtype}-{sdisig}-{subset}-{block}
         for job in self.queue.listjobs():
-            jtype, sdi_id, subset, block = j.name.split('-')
-            subset = int(subset)
-            block = int(block)
-            if jtype != self.jtype:
+            try:
+                jtype, sdisig, _subset, block = job.name.split('-')
+            except: # if it doesn't match this format move on
                 continue
-            if sdifilter and sdi_id != sdifilter:
+            # filter out jobs we're not getting the stats for
+            if jtype != self.jtype or not self.matches_signature(sdisig) or _subset != subset:
                 continue
-            if subsetfilter and subset != subsetfilter:
-                continue
-            sdi = sdim.get(sdi_id)
-            if not sdi:
-                sdi = self.get_sdi(sdi_id)
-                sdim[sdi_id] = sdi
-                qstats[sdi_id] = {}
-            # if this is not an array job, then j.task_id = 0
-            # this assumes that the job is responsible for producing the output for all input products
-            orig_idx = sdi.get_orig_idx(subset, block, j.task_id)
-            qstats[sdi_id][orig_idx] = j.state 
+            else:
+                qstats[output_map_rev[block]] = job.state
 
-        if sdifilter:
-            return qstats.get(sdifilter) or {}
+        for block in self._get_blocks_started(subset):
+            if not qstats.get(output_map_rev[block]):
+                qstats[output_map_rev[block]] = JobStates.STARTED
+
         return qstats
 
-    def _get_all_stats(self):
-        qstats = self._get_queue_stats()
-        stats_all = []
-        for sdi in self.list_sdi():
-            qstats_sdi = qstats.get(sdi.id) or {}
-            stats_all.append(self._get_sdi_stats(sdi, qstats=qstats_sdi))
-        return stats_all
+    # returns stats : dict, complete : bool
+    def _get_subset_stats(self, subset):
+        stats = self._load_subset_stats(subset)
 
-    def _get_sdi_stats(self, sdi, qstats=None):
-        stats = {}
-        if not qstats:
-            qstats = self._get_queue_stats(sdifilter=sdi.id)
-
-        started_subsets = self._get_subsets_started(sdi)
-        complete_subsets = self._get_subsets_complete(sdi)
-
-        for subset in sdi.list_subsets():
-            complete = subset in complete_subsets
-            started  = subset in started_subsets
-            if started:
-                stats.update(self._get_subset_stats(sdi, subset, qstats=qstats, complete=complete))
-        return stats
-
-    def _get_subset_stats(self, sdi, subset, qstats=None, complete=False):
-        if not qstats:
-            qstats = self._get_queue_stats(sdi, sdifilter=sdi.id, subsetfilter=subset)
-
-        stats = self._load_subset_stats(sdi, subset)
-        if complete:
+        if not self._subset_is_started(subset):
+            return {'all':'inactive'}
+        elif self._subset_is_complete(subset):
             return stats
 
-        ss_complete = True
-        started_blocks = self._get_blocks_started(sdi, subset)
-        complete_blocks = self._get_blocks_complete(sdi, subset)
+        sslength = self.stats['subsets'][subset]['length']
+        if len(stats) == sslength:
+            return stats, True
 
-        for block in sdi.list_blocks(subset):
-            if (block in complete_blocks):
-                continue
-            if not (block in started_blocks):
-                for orig_idx, entry in sdi.list_entries(subset, block):
-                    qstats[orig_idx] = JobStates.SUBMITTED
-            bk_complete = True
-            for orig_idx, entry in sdi.list_entries(subset, block):
-                if qstats.get(orig_idx):
-                    bk_complete = False
-                    continue
-                elif stats.get(orig_idx):
-                    continue
+        # maps out_index -> submission state
+        qstats = self._get_queue_stats(subset)
+        to_save = []
+
+        all_complete = True
+        for out_index, input_set in self.get_subset_output_map(subset).items():
+
+            if not stats.get(out_index):
+                out_stats = self._get_output_stats_data(subset, out_index)
+                if not out_stats:
+                    all_complete = False
+                    # job being in "STARTED" status here means it was submitted, but is no longer visible in the queue
+                    # thus if there are no available stats for this job, it must have failed somehow
+                    if   qstats.get(out_index) == JobStates.STARTED:
+                        out_stats = {'state':JobStates.FAILURE}
+                        to_save.append(out_index) # save this
+                    # if the job is visible in the queue in any other way (SUBMITTED/RUNNING) mark it here and move on
+                    elif qstats.get(out_index):
+                        out_stats = {'state':qstats.get(out_index)}
+                    # otherwise this job hasn't officially been submitted yet, so mark it as "STARTED"
+                    else:
+                        out_stats = {'state':JobStates.INACTIVE}
                 else:
-                    stats.update(self._get_entry_stats(sdi, subset, orig_idx))
-            if not bk_complete:
-                ss_complete = False
+                    to_save.append(out_index)
+                stats[out_index] = out_stats
             else:
-                self._mark_block_complete(sdi, subset, block)
+                to_save.append(out_index)
 
-        if ss_complete:
-            self._mark_subset_complete(sdi, subset)
-        self._save_subset_stats(sdi, subset, stats)
+        # only save final states, i.e success, failure
+        stats_to_save = {out : stats[out] for out in to_save}
+        self._save_subset_stats(subset, stats_to_save)
 
-        return stats
+        if len(to_save) == sslength:
+            return stats, True
+        else:
+            return stats, False
 
-    def _get_entry_stats(self, sdi, subset, orig_index):
-        outdir = sdi.get_entry_outdir(index)
-        statsf = outdir.file(f'{subset}-stats.json')
-        if not statsf.exists():
-            return JobStates.INACTIVE, {}
-        with statsf.open('r') as statsf_obj:
-            stats = json.loads(statsf_obj.read())
-        return stats
+    def get_output_stats(self):
+        allstats = {}
+        for subset in self.list_subsets():
+            allstats[subset] = self.get_subset_stats(subset)
+        return allstats
 
-    def _load_subset_stats(self, sdi, subset):
-        statfile = sdi.subsetdir(subset).file('stats.json')
+    def _load_subset_stats(self, subset):
+        statfile = self.subsetdir(subset).file('stats.json')
         return self._load_stats(statfile)
 
-    def _save_subset_stats(self, sdi, subset, stats):
-        statfile = sdi.subsetdir(subset).file('stats.json')
+    def _save_subset_stats(self, subset, stats):
+        statfile = self.subsetdir(subset).file('stats.json')
         return self._save_stats(statfile, stats)
 
     def _load_stats(self, statfile):
@@ -415,29 +438,17 @@ class ComputeSDIStatsBase:
 
     # functions for setting various completion markers
     # all of these assume a lock has been acquired for exclusive access to relevant files
-    def _get_subsets_started(self, sdi):
-        return self._load_completion(sdi.basedir().file('started'))
+    def _get_subsets_started(self):
+        return self._load_completion(self.basedir().file('started'))
 
-    def _get_subsets_complete(self, sdi):
-        return self._load_completion(sdi.basedir().file('complete'))
+    def _get_blocks_started(self, subset):
+        return self._load_completion(self.subsetdir(subset).file('started'))
 
-    def _get_blocks_started(self, sdi, subset):
-        return self._load_completion(sdi.subsetdir(subset).file('started'))
+    def _mark_block_started(self, subset, block):
+        self._save_completion(self.subsetdir(subset).file('started'), block)
 
-    def _get_blocks_complete(self, sdi, subset):
-        return self._load_completion(sdi.subsetdir(subset).file('complete'))
-
-    def _mark_block_started(self, sdi, subset, block):
-        self._save_completion(sdi.subsetdir(subset).file('started'), block)
-
-    def _mark_block_complete(self, sdi, subset, block):
-        self._save_completion(sdi.subsetdir(subset).file('complete'), block)
-
-    def _mark_subset_started(self, sdi, subset):
-        self._save_completion(sdi.basedir().file('started'), subset)
-
-    def _mark_subset_complete(self, sdi, subset):
-        self._save_completion(sdi.basedir().file('complete'), subset)
+    def _mark_subset_started(self, subset):
+        self._save_completion(self.basedir().file('started'), subset)
 
     def _load_completion(self, cfile):
         with cfile.open('r') as cfile_o:
@@ -453,8 +464,7 @@ class LSDBase(QBlasterBase):
         self.filebase = filebase
         self.sdibase = filebase.dir('sdi')
         self.jtype = "lsd"
-
-    
+        self.queue = SimpleSlurmQueue()
 
     ### internal stats logic, used by jobs & status command
     # returns a string representing overall state, followed by a list of all jobs & their individual states
@@ -467,16 +477,16 @@ class LSDBase(QBlasterBase):
     # succeeded   | optional
 
     ### queue logic
-    def set_queue(self, queue_name):
-        queue_obj = load_queue(queue_name)
-        if not queue_obj:
-            print("Could not find queue!")
-            return
-        else:
-            queue_obj.ensure_path_is_accessible(self.filebase)
-            self.queue = queue
+    #def set_queue(self, queue_name):
+    #    queue_obj = load_queue(queue_name)
+    #    if not queue_obj:
+    #        print("Could not find queue!")
+    #        return
+    #    else:
+    #        queue_obj.ensure_path_is_accessible(self.filebase)
+    #        self.queue = queue
             
-    def get_queue(self):
+    #def get_queue(self):
         
 
     ### dockfiles logic
@@ -488,25 +498,22 @@ class LSDBase(QBlasterBase):
             DirBase.copy(df_src, df_dst)
             print("Successfully copied over dockfiles")
         else:
-            rough_status = self.get_rough_lsd_status()
-            if rough_status == "submitted":
-                print("Error! Active jobs are currently using dockfiles. Wait for them to finish or cancel them.")
-            elif rough_status in ["partial", "complete"]:
-                print("Warning! You are trying to change your dockfiles but some poses have already been produced from them.")
-                print("Choose one of the following actions:")
-                print("1. Archive existing work, initialize a fresh run with new dockfiles")
-                print("2. Destroy existing work, initialize a fresh run with new dockfiles")
-                print("3. Continue with existing run, just swap out dockfiles.")
-                choice = input("[choose from 1, 2, or 3]: ")
 
-                if choice == 1:
-                    self.create_archive()
-                    self.set_dockfiles(dockfiles_path)
-                elif choice == 2:
-                    self.destroy_base()
-                    self.set_dockfiles(dockfiles_path)
-                elif choice == 3:
-                    self.set_dockfiles(dockfiles_path, force=True)
+            print("Warning! You are changing dockfiles that have already been set.")
+            print("Choose one of the following actions:")
+            print("1. Archive existing work, initialize a fresh run with new dockfiles")
+            print("2. Destroy existing work, initialize a fresh run with new dockfiles")
+            print("3. Continue with existing run, just swap out dockfiles.")
+            choice = input("[choose from 1, 2, or 3]: ")
+
+            if choice == 1:
+                self.create_archive()
+                self.set_dockfiles(dockfiles_path)
+            elif choice == 2:
+                self.destroy_base()
+                self.set_dockfiles(dockfiles_path)
+            elif choice == 3:
+                self.set_dockfiles(dockfiles_path, force=True)
 
     def get_dockfiles(self):
         df = self.filebase.dir("dockfiles").file("INDOCK")
@@ -516,6 +523,7 @@ class LSDBase(QBlasterBase):
             return None
 
     ### archive/delete logic
+    ### TODO
     def list_archives(self):
         pass
     def create_archive(self):
@@ -544,12 +552,12 @@ class LSDBase(QBlasterBase):
 
     def get_sdi(self, sdi_id):
         
-        sdi_file = self.sdibase.file(sdi_id)
-        if sdi_file.exists():
-            sdi = SDI.from_file(sdi_file)
-            return sdi
-        else:
-            return None
+        for sdi in self.list_sdi():
+            if sdi.matches_signature(sdi_id):
+                return sdi
+            elif sdi.name == sdi_id:
+                return sdi
+        return None
 
     def rm_sdi(self, sdi_id):
 
@@ -562,7 +570,9 @@ class LSDBase(QBlasterBase):
             sdi.destroy()
 
     def list_sdi(self):
-        pass
+        sdi = []
+        for sdi_base in self.stats.sdi:
+            sdi.append(ComputeSDIStatsBase(sdi_base))
 
     ### submit logic
     ### funny enough, doesn't *actually* submit jobs to the queue, it just marks them as such
@@ -585,13 +595,14 @@ class LSDBase(QBlasterBase):
     ### this also means we need to have a lock accessible from the queue
     def __submit_sdi(self, sdi_id, dockfilesname, submitlist=None):
 
+        sdi = self.get_sdi(sdi_id)
         self.queue.acquire_lock(timeout=60, name=f"stats-{jtype}-{sdi_id}")
 
         try:
-            sdi_blocks_status, sdi_flattened_status = self.get_lsd_stats(sdi_id)
+            sdi_stats = sdi.get_output_stats()
 
             # you are not permitted (period) to submit a job that is already submitted/running
-            banned_resubmit_states = ["submitted", "running"]
+            banned_resubmit_states = [JobStates.SUBMITTED, JobStates.RUNNING, JobStates.STARTED]
             resub_stats = {
                 "inactive" : 0,
                 "failed"   : 0,
@@ -599,8 +610,8 @@ class LSDBase(QBlasterBase):
                 "succeeded": 0
             }
             if not submitlist:
-                default_resubmit_states = ["inactive", "failed"]
-                sdi_ready_list = filter(lambda x: (x[1] in default_resubmit_states) and (x[1] not in banned_resubmit_states), sdi_flattened_status)
+                default_resubmit_states = [JobStates.INACTIVE, JobStates.FAILED]
+                sdi_ready_list = filter(lambda x: (x['state'] in default_resubmit_states) and (x['state'] not in banned_resubmit_states), sdi_stats)
                 for resub_type in resub_stats:
                     resub_stats[resub_type] = len(filter(lambda x:x[1] == resub_type, sdi_ready_list))
                 sdi_ready_list = [x[0] for x in sdi_ready_list]
@@ -611,7 +622,6 @@ class LSDBase(QBlasterBase):
                 for resub_type in resub_stats:
                     resub_stats[resub_type] = len(filter(lambda x:flattened_status[x]==resub_type, submitlist))
 
-            sdi = self.get_sdi(sdi_id)
             subset = sdi.add_subset(subset_indices=sdi_ready_list)
 
             # no actual submission happens yet- we merely mark it as such
@@ -640,14 +650,25 @@ class LSDBase(QBlasterBase):
     # this allows all jobs to share the same queue, while not requiring a dedicated process that constantly exists and monitors for free space in the queue per sdi
     def continue_submission(self):
 
-        self.queue.acquire_lock(timeout=60, name=f"continue")
+        try:
+            self.queue.acquire_lock(timeout=60, name=f"continue")
 
+            for sdi in self.list_sdi():
+                for subset in sdi.list_subsets():
+                    if not sdi.subset_started(subset):
+                        continue
+                    for block in sdi.get_available_blocks():
+                        jobname = '-'.join([self.jtype, sdi.signature, str(subset), str(block)])
+                        self.queue.submit(self.jtype, jobname, sdi.blockfile(subset, block))
+                        sdi._mark_block_started(subset, block)
+        finally:
+            self.queue.release_lock(name=f"continue")
         # psuedocode:
         # for sdi_id, subset, block in get_available_blocks_to_submit():
         #   queue.submit('lsd', array=blocksize(block), params={sdi_id, subset, block})
         #   mark_block_submitted(sdi_id, subset, block)
     
-    def status(self, sdiname=None):
+    def status(self):
 
         pass
 
@@ -721,3 +742,90 @@ class LSDBase(QBlasterBase):
     # > cp 
     # > rm
     # > 
+
+
+
+
+    """ JAIL
+        def _get_all_stats(self):
+        qstats = self._get_queue_stats()
+        stats_all = []
+        for sdi in self.list_sdi():
+            qstats_sdi = qstats.get(sdi.id) or {}
+            stats_all.append(self._get_sdi_stats(sdi, qstats=qstats_sdi))
+        return stats_all
+
+    def _get_sdi_stats(self, sdi, qstats=None):
+        stats = {}
+        if not qstats:
+            qstats = self._get_queue_stats(sdifilter=sdi.id)
+
+        started_subsets = self._get_subsets_started(sdi)
+        complete_subsets = self._get_subsets_complete(sdi)
+
+        for subset in sdi.list_subsets():
+            complete = subset in complete_subsets
+            started  = subset in started_subsets
+            if started:
+                stats.update(self._get_subset_stats(sdi, subset, qstats=qstats, complete=complete))
+        return stats
+
+    def _get_subset_stats(self, sdi, subset, qstats=None, complete=False):
+        if not qstats:
+            qstats = self._get_queue_stats(sdi, sdifilter=sdi.id, subsetfilter=subset)
+
+        stats = self._load_subset_stats(sdi, subset)
+        if complete:
+            return stats
+
+        ss_complete = True
+        started_blocks = self._get_blocks_started(sdi, subset)
+        complete_blocks = self._get_blocks_complete(sdi, subset)
+
+        for block in sdi.list_blocks(subset):
+            if (block in complete_blocks):
+                continue
+            if not (block in started_blocks):
+                for orig_idx, entry in sdi.list_entries(subset, block):
+                    qstats[orig_idx] = JobStates.SUBMITTED
+            bk_complete = True
+            for orig_idx, entry in sdi.list_entries(subset, block):
+                if qstats.get(orig_idx):
+                    bk_complete = False
+                    continue
+                elif stats.get(orig_idx):
+                    continue
+                else:
+                    stats.update(self._get_entry_stats(sdi, subset, orig_idx))
+            if not bk_complete:
+                ss_complete = False
+            else:
+                self._mark_block_complete(sdi, subset, block)
+
+        if ss_complete:
+            self._mark_subset_complete(sdi, subset)
+        self._save_subset_stats(sdi, subset, stats)
+
+        return stats
+
+    def _get_entry_stats(self, sdi, subset, orig_index):
+        outdir = sdi.get_entry_outdir(index)
+        statsf = outdir.file(f'{subset}-stats.json')
+        if not statsf.exists():
+            return JobStates.INACTIVE, {}
+        with statsf.open('r') as statsf_obj:
+            stats = json.loads(statsf_obj.read())
+        return stats
+
+    def _mark_block_complete(self, subset, block):
+        self._save_completion(self.subsetdir(subset).file('complete'), block)
+
+    def _get_blocks_complete(self, subset):
+        return self._load_completion(self.subsetdir(subset).file('complete'))
+
+    def _get_subsets_complete(self):
+        return self._load_completion(self.basedir().file('complete'))
+
+    def _mark_subset_complete(self, subset):
+        self._save_completion(self.basedir().file('complete'), subset)
+"""

@@ -50,6 +50,10 @@ class FileBase(FileSystemEntity):
     def open(self, mode) -> IOBase:
         pass
 
+    @abstractmethod
+    def dir(self) -> DirBase:
+        pass
+
     # abstract copy method- used to transfer files between different platforms
     @staticmethod
     def copy(f1 : FileBase, f2: FileBase):
@@ -71,6 +75,14 @@ class DirBase(FileSystemEntity):
     @abstractmethod
     def create(self) -> None:
         pass
+
+    @abstractmethod
+    def file(self, name) -> FileBase:
+        pass
+    
+    @abstractmethod
+    def dir(self, name) -> DirBase:
+        pass
     
 class S3Path:
     def __init__(self, path):
@@ -83,6 +95,9 @@ class S3Path:
         self.bucket = bucket
         self.object = key
         self.path = '/'.join([bucket, key])
+
+    def dirname(self):
+        return '/'.join(self.path.split('/')[:-1])
 
 class S3IOWrapper(IOBase):
     def __init__(self, s3path : S3Path, session : boto3.Session , mode : str):
@@ -162,6 +177,8 @@ class S3File(FileBase):
             return False
         return True
 
+    def dir(self):
+        return S3Dir(self.path.dirname())
 
 class S3Dir(DirBase):
 
@@ -223,6 +240,12 @@ class Dir(DirBase):
 
     def listdir(self) -> list:
         return os.listdir(self.path)
+
+    def dir(self):
+        return Dir(os.path.join(self.path, name))
+
+    def file(self, name):
+        return File(os.path.join(self.path, name))
     ###
 
     @property
@@ -334,6 +357,9 @@ class File(FileBase):
 
     def open(self, mode) -> IOBase:
         return open(self.path, mode)
+
+    def dir(self):
+        return Dir(File.get_dir_path_of_file(self.path))
     ### 
 
     @property
