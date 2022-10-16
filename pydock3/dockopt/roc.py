@@ -5,6 +5,8 @@ import numpy as np
 from scipy import interpolate
 from matplotlib import pyplot as plt
 
+plt.rcParams.update({'font.size': 22})
+
 
 @dataclass
 class Point:
@@ -89,23 +91,38 @@ class ROC(object):
 
         return np.dot(weights, y_values_of_intervals)
 
-
-
     def plot(self, save_path):
         # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
         fig, ax = plt.subplots()
         fig.set_size_inches(8.0, 8.0)
         x_coords_for_plot = [self.alpha] + self.x_coords
         y_coords_for_plot = [self.f(self.alpha)] + self.y_coords
-        ax.step(x_coords_for_plot, y_coords_for_plot, where='post', label=f"enrichment_score: {round(self.enrichment_score, 2)}")
-        ax.legend()
+        ax.step(
+            x_coords_for_plot,
+            y_coords_for_plot,
+            where='post',
+            label=f"ROC curve",
+        )
 
         # draw curve of random classifier for reference
-        ax.semilogx([float(i / 1000) for i in range(0, 1001)], [float(i / 1000) for i in range(0, 1001)], "--", linewidth=1, color='Black')
+        ax.semilogx(
+            [float(i / 1000) for i in range(0, 1001)],
+            [float(i / 1000) for i in range(0, 1001)],
+            "--",
+            linewidth=1,
+            color='Black',
+            label=f"random classifier",
+        )
+
+        # add an extra label of enrichment score (nothing extra will be plotted)
+        plt.plot([], [], ' ', label=f"enrichment score: {round(self.enrichment_score, 3)}")
+
+        # set legend
+        ax.legend()
 
         # set axis labels
-        ax.set_xlabel('top fraction of decoys')
-        ax.set_ylabel('top fraction of actives')
+        ax.set_xlabel('false positive rate (i.e., top fraction of decoys accepted)')
+        ax.set_ylabel('true positive rate (i.e., top fraction of actives accepted)')
 
         # set log scale x-axis
         ax.set_xscale('log')
@@ -120,7 +137,7 @@ class ROC(object):
         ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
         # set title and include alpha to account for inconsistent inclusion of alpha in xticks
-        ax.set_title(f"Log ROC (num_decoys={self.num_decoys}, num_actives={self.num_actives}, cutoff={np.format_float_scientific(self.alpha, precision=3)})")
+        ax.set_title(f"linear-log ROC plot (decoys: {self.num_decoys}, actives: {self.num_actives}, cutoff: {np.format_float_scientific(self.alpha, precision=3)})")
 
         # save image and close
         plt.tight_layout()

@@ -8,6 +8,8 @@ import matplotlib.image as mpimg
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 
+plt.rcParams.update({'font.size': 22})
+
 
 def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_report.pdf", opt_results_csv_file_name="dockopt_job_results.csv", enrichment_metric="enrichment_score"):
     opt_results_csv_file_path = os.path.join(dockopt_job_dir_path, opt_results_csv_file_name)
@@ -20,7 +22,7 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
         image_file_path = os.path.join(dockopt_job_dir_path, "best_retrodock_job", "roc.png")
         image = mpimg.imread(image_file_path)
         plt.axis('off')
-        plt.suptitle("Best Log ROC")
+        plt.suptitle("linear-log ROC plot of best job")
         plt.imshow(image)
 
         f.savefig(fig)
