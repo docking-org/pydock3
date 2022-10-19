@@ -5,7 +5,7 @@ import numpy as np
 from scipy import interpolate
 from matplotlib import pyplot as plt
 
-plt.rcParams.update({'font.size': 16})
+plt.rcParams.update({'font.size': 14})
 
 
 @dataclass
