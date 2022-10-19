@@ -1,87 +1,134 @@
-matching_spheres_perturbation:
-  use: false
-  num_samples_per_matching_spheres_file: 10
-  standard_deviation_angstroms: 0.5
+definitions:
+  steps:
+    - step: &step_1
+        keep_top_n: 1
+        optimization_criterion: enrichment_score
+        dock_files_generation: &dock_files_generation_1
+          dock_files_to_copy_from_previous_step:
+            matching_spheres_file: false
+            electrostatics_trim_phi_file: false
+            vdw_file: false
+            vdw_bump_map_file: false
+            vdw_parameters_file: false
+            ligand_desolvation_heavy_file: false
+            ligand_desolvation_hydrogen_file: false
+          receptor_protonation:
+            reduce_options: "-HIS -FLIPs"
+          thin_spheres_elec:
+            use: true
+            molecular_surface_density: 1.0
+            distance_to_surface: 1.0
+            penetration: 0.0
+            distance_to_ligand: 2.0
+          thin_spheres_desolv:
+            use: true
+            molecular_surface_density: 1.0
+            distance_to_surface: 0.1
+            penetration: 0.0
+            distance_to_ligand: 2.0
+          ligand_desolvation:
+            other_radius: 1.0
+          covalent:
+            use: false
+            residue_num: 1
+            residue_name: CYS
+            residue_atoms: CA,CB,SG
+        dock_files_modification: &dock_files_modification_1
+          matching_spheres_perturbation:
+            use: true
+            num_samples_per_matching_spheres_file: 50
+            standard_deviation_angstroms: 0.3
+        indock: &indock_1
+          ligand_atom_file: split_database_index
+          output_file_prefix: test.
+          match_method: 2
+          distance_tolerance: 0.05
+          match_goal: 1000
+          distance_step: 0.05
+          distance_maximum: 0.5
+          timeout: 10.0
+          nodes_maximum: 4
+          nodes_minimum: 4
+          bump_maximum: 10.0
+          bump_rigid: 10.0
+          mol2_score_maximum: 100.0
+          chemical_matching: no
+          case_sensitive: no
+          atom_minimum: 4
+          atom_maximum: 100
+          number_save: 1
+          number_write: 1
+          flush_int: 100
+          check_clashes: yes
+          do_premax: no
+          do_clusters: no
+          ligand_desolvation: volume
+          ligand_desolv_scale: 1.0
+          electrostatic_scale: 1.0
+          vdw_scale: 1.0
+          internal_scale: 0.0
+          per_atom_scores: no
+          dockovalent: no
+          bond_len: 1.8
+          bond_ang1: 109.5
+          bond_ang2: 109.5
+          len_range: 0.0
+          len_step: 0.1
+          ang1_range: 10.0
+          ang2_range: 10.0
+          ang1_step: 2.5
+          ang2_step: 2.5
+          minimize: yes
+          sim_itmax: 500
+          sim_trnstep: 0.2
+          sim_rotstep: 5.0
+          sim_need_to_restart: 1.0
+          sim_cnvrge: 0.1
+          min_cut: 1.0e15
+          iseed: 777
+          flexible_receptor: no
+          total_receptors: 1
+          rec_number: 1
+          rec_group: 1
+          rec_group_option: 1
+          check_strain: true
+          total_strain: 8
+          max_strain: 3
+    - step: &step_2
+        <<: *step_1
+        dock_files_generation:
+          <<: *dock_files_generation_1
+          dock_files_to_copy_from_previous_step:
+            matching_spheres_file: true
+            electrostatics_trim_phi_file: false
+            vdw_file: false
+            vdw_bump_map_file: false
+            vdw_parameters_file: false
+            ligand_desolvation_heavy_file: false
+            ligand_desolvation_hydrogen_file: false
+        dock_files_modification:
+          <<: *dock_files_modification_1
+          matching_spheres_perturbation:
+            use: true
+            num_samples_per_matching_spheres_file: 50
+            standard_deviation_angstroms: 0.3
+    - step: &step_3
+        <<: *step_1
+        keep_top_n: 1
+        optimization_criterion: rmsd
+  sequences:
+    - sequence: &sequence_1
+        n_repetitions: 10
+        stop_if_no_progress_for_n_iterations: 1
+        steps:
+        - step: *step_2
+        - step: *step_3
 
-receptor_protonation:
-  reduce_options: "-HIS -FLIPs"
+pipeline:
+  - step: *step_1
+  - sequence: *sequence_1
+  - step: *step_1
+  - sequence:
+      <<: *sequence_1
+      n_repetitions: 0
 
-thin_spheres_elec:
-  use: true
-  molecular_surface_density: 1.0
-  distance_to_surface: 1.0
-  penetration: 0.0
-  distance_to_ligand: 2.0
-
-thin_spheres_desolv:
-  use: true
-  molecular_surface_density: 1.0
-  distance_to_surface: 0.1
-  penetration: 0.0
-  distance_to_ligand: 2.0
-
-ligand_desolvation:
-  other_radius: 1.0
-
-covalent:
-  use: false
-  residue_num: 1
-  residue_name: CYS
-  residue_atoms: CA,CB,SG
-
-indock:
-  ligand_atom_file: split_database_index
-  output_file_prefix: test.
-  match_method: 2
-  distance_tolerance: 0.05
-  match_goal: 1000
-  distance_step: 0.05
-  distance_maximum: 0.5
-  timeout: 10.0
-  nodes_maximum: 4
-  nodes_minimum: 4
-  bump_maximum: 10.0
-  bump_rigid: 10.0
-  mol2_score_maximum: 100.0
-  chemical_matching: no
-  case_sensitive: no
-  atom_minimum: 4
-  atom_maximum: 100
-  number_save: 1
-  number_write: 1
-  flush_int: 100
-  check_clashes: yes
-  do_premax: no
-  do_clusters: no
-  ligand_desolvation: volume
-  ligand_desolv_scale: 1.0
-  electrostatic_scale: 1.0
-  vdw_scale: 1.0
-  internal_scale: 0.0
-  per_atom_scores: no
-  dockovalent: no
-  bond_len: 1.8
-  bond_ang1: 109.5
-  bond_ang2: 109.5
-  len_range: 0.0
-  len_step: 0.1
-  ang1_range: 10.0
-  ang2_range: 10.0
-  ang1_step: 2.5
-  ang2_step: 2.5
-  minimize: yes
-  sim_itmax: 500
-  sim_trnstep: 0.2
-  sim_rotstep: 5.0
-  sim_need_to_restart: 1.0
-  sim_cnvrge: 0.1
-  min_cut: 1.0e15
-  iseed: 777
-  flexible_receptor: no
-  total_receptors: 1
-  rec_number: 1
-  rec_group: 1
-  rec_group_option: 1
-  check_strain: true
-  total_strain: 8
-  max_strain: 3
