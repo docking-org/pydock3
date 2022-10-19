@@ -412,9 +412,9 @@ class Dockopt(Script):
 
         #
         try:
-            TEMP_STORAGE_PATH = os.environ["TEMP_STORAGE_PATH"]
+            TMPDIR = os.environ["TMPDIR"]
         except KeyError:
-            logger.error("The following environmental variables are required to submit retrodock jobs: TEMP_STORAGE_PATH")
+            logger.error("The following environmental variables are required to submit retrodock jobs: TMPDIR")
             return
 
         #
@@ -594,7 +594,7 @@ class Dockopt(Script):
                 indock_file=indock_file,
                 output_dir=retrodock_job_output_dir,
                 job_scheduler=scheduler,
-                temp_storage_path=TEMP_STORAGE_PATH,
+                temp_storage_path=TMPDIR,
                 max_reattempts=retrodock_job_max_reattempts,
             )
             retrodock_jobs.append(retrodock_job)
