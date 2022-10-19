@@ -378,6 +378,8 @@ class Dockopt(Script):
             decoys_tgz_file_path=None,
             retrodock_job_max_reattempts=0,
             retrodock_job_timeout_minutes=None,
+            max_scheduler_jobs_running_at_a_time=None,  # TODO
+            export_decoy_poses=False,  # TODO
             ):
         # validate args
         if config_file_path is None:
