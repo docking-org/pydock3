@@ -5,7 +5,7 @@ import numpy as np
 from scipy import interpolate
 from matplotlib import pyplot as plt
 
-plt.rcParams.update({'font.size': 22})
+plt.rcParams.update({'font.size': 16})
 
 
 @dataclass
@@ -92,17 +92,8 @@ class ROC(object):
         return np.dot(weights, y_values_of_intervals)
 
     def plot(self, save_path):
-        # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
         fig, ax = plt.subplots()
         fig.set_size_inches(8.0, 8.0)
-        x_coords_for_plot = [self.alpha] + self.x_coords
-        y_coords_for_plot = [self.f(self.alpha)] + self.y_coords
-        ax.step(
-            x_coords_for_plot,
-            y_coords_for_plot,
-            where='post',
-            label=f"ROC curve",
-        )
 
         # draw curve of random classifier for reference
         ax.semilogx(
@@ -114,7 +105,20 @@ class ROC(object):
             label=f"random classifier",
         )
 
+        # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
+        x_coords_for_plot = [self.alpha] + self.x_coords
+        y_coords_for_plot = [self.f(self.alpha)] + self.y_coords
+        ax.step(
+            x_coords_for_plot,
+            y_coords_for_plot,
+            where='post',
+            label=f"ROC curve",
+        )
+
         # add an extra label of enrichment score (nothing extra will be plotted)
+        plt.plot([], [], ' ', label=f"# of actives: {self.num_actives}")
+        plt.plot([], [], ' ', label=f"# of decoys: {self.num_decoys}")
+        plt.plot([], [], ' ', label=f"x-axis cutoff: {np.format_float_scientific(self.alpha, precision=3)}")
         plt.plot([], [], ' ', label=f"enrichment score: {round(self.enrichment_score, 3)}")
 
         # set legend
@@ -132,12 +136,12 @@ class ROC(object):
         ax.set_ylim(bottom=0.0, top=1.0)
 
         # set axis ticks
-        order_of_magnitude = math.floor(math.log(self.num_decoys, 10))
+        order_of_magnitude = -math.floor(math.log(self.alpha, 10)) - 1
         ax.set_xticks([self.alpha] + [float(10 ** x) for x in range(-order_of_magnitude, 1, 1)])
         ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
-        # set title and include alpha to account for inconsistent inclusion of alpha in xticks
-        ax.set_title(f"linear-log ROC plot (decoys: {self.num_decoys}, actives: {self.num_actives}, cutoff: {np.format_float_scientific(self.alpha, precision=3)})")
+        # set title
+        ax.set_title(f"linear-log ROC plot")
 
         # save image and close
         plt.tight_layout()
