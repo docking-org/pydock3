@@ -11,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 14})
 
 
-ENRICHMENT_METRICS = ["enrichment_metric"]
+ENRICHMENT_METRICS = ["enrichment_score"]
 
 POSSIBLE_NON_PARAMETER_COLUMNS = ENRICHMENT_METRICS + ["retrodock_job_num"]
 
