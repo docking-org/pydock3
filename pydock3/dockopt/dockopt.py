@@ -656,14 +656,16 @@ class Dockopt(Script):
                 continue  # move on to next job in queue while job continues to run
             else:
                 if not retrodock_job.is_complete:  # not all expected OUTDOCK files exist yet
-                    # job must have timed out / failed
-                    logger.warning(f"Job failure / time out witnessed for job: {retrodock_job.name}")
-                    if retrodock_job.num_attempts > retrodock_job_max_reattempts:
-                        logger.warning(f"Max job reattempts exhausted for job: {retrodock_job.name}")
-                        continue  # move on to next job in queue without re-attempting failed job
-                    submit_retrodock_job(retrodock_job, skip_if_complete=False)  # re-attempt job
-                    retrodock_jobs_processing_queue.append(retrodock_job_info_tuple)  # move job to back of queue
-                    continue  # move on to next job in queue while docking job runs
+                    time.sleep(1)  # sleep for a bit and check again in case job just finished
+                    if not retrodock_job.is_complete:
+                        # job must have timed out / failed
+                        logger.warning(f"Job failure / time out witnessed for job: {retrodock_job.name}")
+                        if retrodock_job.num_attempts > retrodock_job_max_reattempts:
+                            logger.warning(f"Max job reattempts exhausted for job: {retrodock_job.name}")
+                            continue  # move on to next job in queue without re-attempting failed job
+                        submit_retrodock_job(retrodock_job, skip_if_complete=False)  # re-attempt job
+                        retrodock_jobs_processing_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+                        continue  # move on to next job in queue while docking job runs
 
             #
             actives_outdock_file_path = os.path.join(retrodock_job.output_dir.path, "1", "OUTDOCK.0")
