@@ -1,3 +1,5 @@
+custom_dock_executable: null
+
 matching_spheres_perturbation:
   use: false
   num_samples_per_matching_spheres_file: 10

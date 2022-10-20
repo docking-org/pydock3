@@ -1,3 +1,5 @@
+custom_dock_executable: any(null(), str(), list(null(), str()))
+
 matching_spheres_perturbation:
   use: bool()
   num_samples_per_matching_spheres_file: num()

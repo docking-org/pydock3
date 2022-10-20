@@ -27,7 +27,7 @@ from pydock3.files import (
 )
 from pydock3.blastermaster.util import WorkingDir, BlasterFile, DockFiles, BlasterFileNames
 from pydock3.dockopt.roc import ROC
-from pydock3.jobs import RetrodockJob
+from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt.report import generate_dockopt_job_report
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
@@ -526,13 +526,27 @@ class Dockopt(Script):
         job_param_dicts_indock_subset = [dict(s) for s in set(frozenset(job_param_dict.items()) for job_param_dict in job_param_dicts_indock_subset)]  # get unique dicts
 
         #
-        docking_configuration_info_combinations = list(itertools.product(zip(dock_files_combinations_for_retro_docking, input_parameters_combinations_for_retro_docking), job_param_dicts_indock_subset))
+        if isinstance(config.param_dict["custom_dock_executable"].value, list):
+            dock_executable_paths = []
+            for dock_executable_path in config.param_dict["custom_dock_executable"].value:
+                if dock_executable_path is None:
+                    dock_executable_paths.append(DOCK3_EXECUTABLE_PATH)
+                else:
+                    dock_executable_paths.append(dock_executable_path)
+        else:
+            if config.param_dict["custom_dock_executable"].value is None:
+                dock_executable_paths = [DOCK3_EXECUTABLE_PATH]
+            else:
+                dock_executable_paths = [config.param_dict["custom_dock_executable"].value]
+
+        #
+        docking_configuration_info_combinations = list(itertools.product(dock_executable_paths, zip(dock_files_combinations_for_retro_docking, input_parameters_combinations_for_retro_docking), job_param_dicts_indock_subset))
 
         # make indock file for each combination of (1) set of dock files and (2) job_param_dict_indock_subset
         logger.info("Making INDOCK files...")
         parameter_dicts = []
         docking_configurations = []
-        for i, ((dock_files, input_parameters), job_param_dict_indock_subset) in enumerate(docking_configuration_info_combinations):
+        for i, (dock_executable_path, (dock_files, input_parameters), job_param_dict_indock_subset) in enumerate(docking_configuration_info_combinations):
             # get full parameter dict
             parameter_dict = {p.name: p.value for p in input_parameters}
             parameter_dict.update(matching_spheres_perturbation_param_dict) # add matching spheres perturbation params
@@ -545,11 +559,12 @@ class Dockopt(Script):
 
             #
             parameter_dicts.append(parameter_dict)
-            docking_configurations.append((dock_files, indock_file))
+            docking_configurations.append((dock_executable_path, dock_files, indock_file))
 
         #
         all_docking_configuration_file_names = []
-        for dock_files, indock_file in docking_configurations:
+        for dock_executable_path, dock_files, indock_file in docking_configurations:
+            all_docking_configuration_file_names.append(dock_executable_path)
             dock_file_names = [getattr(dock_files, dock_file_field.name).name for dock_file_field in fields(dock_files)]
             all_docking_configuration_file_names += dock_file_names
             all_docking_configuration_file_names.append(indock_file.name)
@@ -576,7 +591,7 @@ class Dockopt(Script):
         retrodock_jobs = []
         retrodock_job_dirs = []
         retrodock_job_num_to_docking_configuration_file_names_dict = {}
-        for i, (dock_files, indock_file) in enumerate(docking_configurations):
+        for i, (dock_executable_path, dock_files, indock_file) in enumerate(docking_configurations):
             #
             retro_dock_job_num = str(i+1)
             docking_configuration_file_names = [getattr(dock_files, dock_file_field.name).name for dock_file_field in fields(dock_files)] + [indock_file.name]
@@ -594,6 +609,7 @@ class Dockopt(Script):
                 indock_file=indock_file,
                 output_dir=retrodock_job_output_dir,
                 job_scheduler=scheduler,
+                dock_executable_path=dock_executable_path,
                 temp_storage_path=TMPDIR,
                 max_reattempts=retrodock_job_max_reattempts,
             )
