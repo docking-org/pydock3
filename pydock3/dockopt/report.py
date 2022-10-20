@@ -31,21 +31,23 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
         plt.suptitle("linear-log ROC plot of best job")
         plt.imshow(image)
 
-        f.savefig(fig)
+        f.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
         #
         multivalued_config_param_columns = [column for column in df.columns if column not in POSSIBLE_NON_PARAMETER_COLUMNS and df[column].nunique() > 1]
         for column in multivalued_config_param_columns:
-            fig = plt.figure(figsize=(11.0, 8.5))
+            fig = plt.figure(figsize=(8, 6))
 
             if len(df) == len(df.drop_duplicates(subset=[column])):
                 df.plot.bar(x=column, y=enrichment_metric, rot=0)
             else:
                 sns.boxplot(data=df, x=column, y=enrichment_metric, showfliers=False, boxprops={'facecolor': 'None'})
                 sns.stripplot(data=df, x=column, y=enrichment_metric, zorder=0.5)
+                fig.autofmt_xdate(rotation=25)
+                plt.yticks(rotation=0)
 
-            f.savefig(fig)
+            f.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
         #
@@ -53,7 +55,7 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
         for column_1, column_2 in itertools.combinations(multivalued_config_param_columns, 2):
             #
             fig, ax = plt.subplots()
-            fig.set_size_inches(11.0, 8.5)
+            fig.set_size_inches(8.0, 6.0)
 
             #
             df_no_duplicates = df.drop_duplicates(subset=[column_1, column_2], keep="first", ignore_index=True)
@@ -63,8 +65,10 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
             df_pivot = df_pivot.sort_index(axis=0, ascending=False)
             sns.heatmap(df_pivot, ax=ax, annot=True, square=True, fmt='.2f', center=0, cmap='icefire', robust=True,
                         cbar_kws={'label': enrichment_metric})
+            fig.autofmt_xdate(rotation=25)
+            plt.yticks(rotation=0)
 
-            f.savefig(fig)
+            f.savefig(fig, bbox_inches="tight")
             plt.close(fig)
 
 
