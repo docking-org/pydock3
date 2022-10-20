@@ -11,6 +11,11 @@ from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 14})
 
 
+ENRICHMENT_METRICS = ["enrichment_metric"]
+
+POSSIBLE_NON_PARAMETER_COLUMNS = ENRICHMENT_METRICS + ["retrodock_job_num"]
+
+
 def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_report.pdf", opt_results_csv_file_name="dockopt_job_results.csv", enrichment_metric="enrichment_score"):
     opt_results_csv_file_path = os.path.join(dockopt_job_dir_path, opt_results_csv_file_name)
     df = pd.read_csv(opt_results_csv_file_path)
@@ -29,7 +34,7 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
         plt.close(fig)
 
         #
-        multivalued_config_param_columns = [column for column in df.columns if "." in column and df[column].nunique() > 1]
+        multivalued_config_param_columns = [column for column in df.columns if column not in POSSIBLE_NON_PARAMETER_COLUMNS and df[column].nunique() > 1]
         for column in multivalued_config_param_columns:
             fig = plt.figure(figsize=(11.0, 8.5))
 
