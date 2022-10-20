@@ -551,6 +551,7 @@ class Dockopt(Script):
             parameter_dict = {p.name: p.value for p in input_parameters}
             parameter_dict.update(matching_spheres_perturbation_param_dict) # add matching spheres perturbation params
             parameter_dict.update(job_param_dict_indock_subset)  # add indock params
+            parameter_dict["dock_executable_path"] = dock_executable_path
 
             # make indock file for each combination of dock files
             indock_file_name = f"{INDOCK_FILE_NAME}_{i+1}"
