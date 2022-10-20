@@ -19,6 +19,7 @@ POSSIBLE_NON_PARAMETER_COLUMNS = ENRICHMENT_METRICS + ["retrodock_job_num"]
 def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_report.pdf", opt_results_csv_file_name="dockopt_job_results.csv", enrichment_metric="enrichment_score"):
     opt_results_csv_file_path = os.path.join(dockopt_job_dir_path, opt_results_csv_file_name)
     df = pd.read_csv(opt_results_csv_file_path)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]  # remove useless index column
 
     with PdfPages(pdf_path) as f:
         #
