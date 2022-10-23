@@ -74,7 +74,7 @@ class RetrodockJob(ABC):
             "EXPORT_DEST": self.output_dir.path,
             "INPUT_SOURCE": self.input_sdi_file.path,
             "DOCKEXEC": self.dock_executable_path,
-            "TEMP_STORAGE_PATH": self.temp_storage_path,
+            "TMPDIR": self.temp_storage_path,
             "DOCKFILE_PATHS_LIST": " ".join(dock_file_paths),
             "INDOCK_PATH": self.indock_file.path,
             "ONLY_EXPORT_MOL2_FOR_TASK_1": "true",

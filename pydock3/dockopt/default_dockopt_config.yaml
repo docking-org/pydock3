@@ -3,6 +3,7 @@ definitions:
     - step: &step_1
         keep_top_n: 1
         optimization_criterion: enrichment_score
+        custom_dock_executable: null
         dock_files_generation: &dock_files_generation_1
           dock_files_to_copy_from_previous_step:
             matching_spheres_file: false

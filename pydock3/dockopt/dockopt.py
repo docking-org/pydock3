@@ -27,7 +27,7 @@ from pydock3.files import (
 )
 from pydock3.blastermaster.util import WorkingDir, BlasterFile, DockFiles, BlasterFileNames
 from pydock3.dockopt.roc import ROC
-from pydock3.jobs import RetrodockJob
+from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt.report import generate_dockopt_job_report
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
@@ -378,6 +378,8 @@ class Dockopt(Script):
             decoys_tgz_file_path=None,
             retrodock_job_max_reattempts=0,
             retrodock_job_timeout_minutes=None,
+            max_scheduler_jobs_running_at_a_time=None,  # TODO
+            export_decoy_poses=False,  # TODO
             ):
         # validate args
         if config_file_path is None:
@@ -410,9 +412,9 @@ class Dockopt(Script):
 
         #
         try:
-            TEMP_STORAGE_PATH = os.environ["TEMP_STORAGE_PATH"]
+            TMPDIR = os.environ["TMPDIR"]
         except KeyError:
-            logger.error("The following environmental variables are required to submit retrodock jobs: TEMP_STORAGE_PATH")
+            logger.error("The following environmental variables are required to submit retrodock jobs: TMPDIR")
             return
 
         #
@@ -524,17 +526,32 @@ class Dockopt(Script):
         job_param_dicts_indock_subset = [dict(s) for s in set(frozenset(job_param_dict.items()) for job_param_dict in job_param_dicts_indock_subset)]  # get unique dicts
 
         #
-        docking_configuration_info_combinations = list(itertools.product(zip(dock_files_combinations_for_retro_docking, input_parameters_combinations_for_retro_docking), job_param_dicts_indock_subset))
+        if isinstance(config.param_dict["custom_dock_executable"].value, list):
+            dock_executable_paths = []
+            for dock_executable_path in config.param_dict["custom_dock_executable"].value:
+                if dock_executable_path is None:
+                    dock_executable_paths.append(DOCK3_EXECUTABLE_PATH)
+                else:
+                    dock_executable_paths.append(dock_executable_path)
+        else:
+            if config.param_dict["custom_dock_executable"].value is None:
+                dock_executable_paths = [DOCK3_EXECUTABLE_PATH]
+            else:
+                dock_executable_paths = [config.param_dict["custom_dock_executable"].value]
+
+        #
+        docking_configuration_info_combinations = list(itertools.product(dock_executable_paths, zip(dock_files_combinations_for_retro_docking, input_parameters_combinations_for_retro_docking), job_param_dicts_indock_subset))
 
         # make indock file for each combination of (1) set of dock files and (2) job_param_dict_indock_subset
         logger.info("Making INDOCK files...")
         parameter_dicts = []
         docking_configurations = []
-        for i, ((dock_files, input_parameters), job_param_dict_indock_subset) in enumerate(docking_configuration_info_combinations):
+        for i, (dock_executable_path, (dock_files, input_parameters), job_param_dict_indock_subset) in enumerate(docking_configuration_info_combinations):
             # get full parameter dict
             parameter_dict = {p.name: p.value for p in input_parameters}
             parameter_dict.update(matching_spheres_perturbation_param_dict) # add matching spheres perturbation params
             parameter_dict.update(job_param_dict_indock_subset)  # add indock params
+            parameter_dict["dock_executable_path"] = dock_executable_path
 
             # make indock file for each combination of dock files
             indock_file_name = f"{INDOCK_FILE_NAME}_{i+1}"
@@ -543,11 +560,12 @@ class Dockopt(Script):
 
             #
             parameter_dicts.append(parameter_dict)
-            docking_configurations.append((dock_files, indock_file))
+            docking_configurations.append((dock_executable_path, dock_files, indock_file))
 
         #
         all_docking_configuration_file_names = []
-        for dock_files, indock_file in docking_configurations:
+        for dock_executable_path, dock_files, indock_file in docking_configurations:
+            all_docking_configuration_file_names.append(dock_executable_path)
             dock_file_names = [getattr(dock_files, dock_file_field.name).name for dock_file_field in fields(dock_files)]
             all_docking_configuration_file_names += dock_file_names
             all_docking_configuration_file_names.append(indock_file.name)
@@ -574,7 +592,7 @@ class Dockopt(Script):
         retrodock_jobs = []
         retrodock_job_dirs = []
         retrodock_job_num_to_docking_configuration_file_names_dict = {}
-        for i, (dock_files, indock_file) in enumerate(docking_configurations):
+        for i, (dock_executable_path, dock_files, indock_file) in enumerate(docking_configurations):
             #
             retro_dock_job_num = str(i+1)
             docking_configuration_file_names = [getattr(dock_files, dock_file_field.name).name for dock_file_field in fields(dock_files)] + [indock_file.name]
@@ -592,7 +610,8 @@ class Dockopt(Script):
                 indock_file=indock_file,
                 output_dir=retrodock_job_output_dir,
                 job_scheduler=scheduler,
-                temp_storage_path=TEMP_STORAGE_PATH,
+                dock_executable_path=dock_executable_path,
+                temp_storage_path=TMPDIR,
                 max_reattempts=retrodock_job_max_reattempts,
             )
             retrodock_jobs.append(retrodock_job)
@@ -637,14 +656,16 @@ class Dockopt(Script):
                 continue  # move on to next job in queue while job continues to run
             else:
                 if not retrodock_job.is_complete:  # not all expected OUTDOCK files exist yet
-                    # job must have timed out / failed
-                    logger.warning(f"Job failure / time out witnessed for job: {retrodock_job.name}")
-                    if retrodock_job.num_attempts > retrodock_job_max_reattempts:
-                        logger.warning(f"Max job reattempts exhausted for job: {retrodock_job.name}")
-                        continue  # move on to next job in queue without re-attempting failed job
-                    submit_retrodock_job(retrodock_job, skip_if_complete=False)  # re-attempt job
-                    retrodock_jobs_processing_queue.append(retrodock_job_info_tuple)  # move job to back of queue
-                    continue  # move on to next job in queue while docking job runs
+                    time.sleep(1)  # sleep for a bit and check again in case job just finished
+                    if not retrodock_job.is_complete:
+                        # job must have timed out / failed
+                        logger.warning(f"Job failure / time out witnessed for job: {retrodock_job.name}")
+                        if retrodock_job.num_attempts > retrodock_job_max_reattempts:
+                            logger.warning(f"Max job reattempts exhausted for job: {retrodock_job.name}")
+                            continue  # move on to next job in queue without re-attempting failed job
+                        submit_retrodock_job(retrodock_job, skip_if_complete=False)  # re-attempt job
+                        retrodock_jobs_processing_queue.append(retrodock_job_info_tuple)  # move job to back of queue
+                        continue  # move on to next job in queue while docking job runs
 
             #
             actives_outdock_file_path = os.path.join(retrodock_job.output_dir.path, "1", "OUTDOCK.0")
