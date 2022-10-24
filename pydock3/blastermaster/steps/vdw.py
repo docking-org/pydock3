@@ -54,7 +54,10 @@ class VDWScoringGridGenerationStep(BlasterStep):
         self.process_outfiles(
             (vdw_outfile, "vdw_outfile"),
             (bump_map_outfile, "bump_map_outfile"),
-            new_file_names_tuple=(self.MandatoryFileNames.VDW_FILE, self.MandatoryFileNames.VDW_BUMP_MAP_FILE),
+            new_file_names_tuple=(
+                self.MandatoryFileNames.VDW_FILE,
+                self.MandatoryFileNames.VDW_BUMP_MAP_FILE,
+            ),
         )
 
         #

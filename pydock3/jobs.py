@@ -8,8 +8,13 @@ from pydock3.blastermaster.util import DockFiles
 from pydock3.job_schedulers import JobScheduler
 
 from pydock3.docking import __file__ as DOCKING_INIT_FILE_PATH
-DOCK3_EXECUTABLE_PATH = os.path.join(os.path.dirname(DOCKING_INIT_FILE_PATH), 'dock3', 'dock64')
-DOCK_RUN_SCRIPT_PATH = os.path.join(os.path.dirname(DOCKING_INIT_FILE_PATH), "rundock.bash")
+
+DOCK3_EXECUTABLE_PATH = os.path.join(
+    os.path.dirname(DOCKING_INIT_FILE_PATH), "dock3", "dock64"
+)
+DOCK_RUN_SCRIPT_PATH = os.path.join(
+    os.path.dirname(DOCKING_INIT_FILE_PATH), "rundock.bash"
+)
 
 
 #
@@ -19,7 +24,6 @@ logger.setLevel(logging.DEBUG)
 
 @dataclass
 class DockingJob(ABC):
-
     @abstractmethod
     def run(self):
         raise NotImplementedError
@@ -39,8 +43,8 @@ class RetrodockJob(ABC):
     num_attempts: int = 0
 
     N_TASKS = 2
-    ACTIVES_TASK_ID = '1'
-    DECOYS_TASK_ID = '2'
+    ACTIVES_TASK_ID = "1"
+    DECOYS_TASK_ID = "2"
     OUTDOCK_FILE_NAME = "OUTDOCK.0"
     JOBLIST_FILE_NAME = "joblist"
 
@@ -57,19 +61,24 @@ class RetrodockJob(ABC):
         self.output_dir.create()
 
         # make joblist
-        with open(self.input_sdi_file.path, 'r') as f:
+        with open(self.input_sdi_file.path, "r") as f:
             tgz_file_paths = [line.strip() for line in f.readlines()]
         try:
             assert len(tgz_file_paths) == 2
         except AssertionError:
-            raise Exception("Attempted to pass SDI file with more than two lines to RetrodockJob()")
-        with open(os.path.join(self.output_dir.path, self.JOBLIST_FILE_NAME), 'w') as f:
+            raise Exception(
+                "Attempted to pass SDI file with more than two lines to RetrodockJob()"
+            )
+        with open(os.path.join(self.output_dir.path, self.JOBLIST_FILE_NAME), "w") as f:
             for i, tgz_file_path in enumerate(tgz_file_paths):
                 task_id = i + 1
                 f.write(f"{tgz_file_path} {task_id}\n")
 
         # set env vars dict
-        dock_file_paths = [getattr(self.dock_files, dock_file_field.name).path for dock_file_field in fields(self.dock_files)]
+        dock_file_paths = [
+            getattr(self.dock_files, dock_file_field.name).path
+            for dock_file_field in fields(self.dock_files)
+        ]
         env_vars_dict = {
             "EXPORT_DEST": self.output_dir.path,
             "INPUT_SOURCE": self.input_sdi_file.path,
@@ -99,4 +108,11 @@ class RetrodockJob(ABC):
 
     @property
     def is_complete(self):
-        return all([File.file_exists(os.path.join(self.output_dir.path, task_id, self.OUTDOCK_FILE_NAME)) for task_id in [self.ACTIVES_TASK_ID, self.DECOYS_TASK_ID]])
+        return all(
+            [
+                File.file_exists(
+                    os.path.join(self.output_dir.path, task_id, self.OUTDOCK_FILE_NAME)
+                )
+                for task_id in [self.ACTIVES_TASK_ID, self.DECOYS_TASK_ID]
+            ]
+        )

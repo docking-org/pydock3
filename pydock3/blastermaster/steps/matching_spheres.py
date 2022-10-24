@@ -80,70 +80,96 @@ class MatchingSpheresGenerationStep(BlasterStep):
                 f.write("donacc                         (12)\n")
                 f.write("cluster     1   number of spheres in cluster   3\n")
                 # read in receptor to get nucleophile coordinates
-                pdb_h = pdb.PDBData(self.infiles.charged_receptor_infile.path, ignore_waters=False)
+                pdb_h = pdb.PDBData(
+                    self.infiles.charged_receptor_infile.path, ignore_waters=False
+                )
 
                 if self.parameters.covalent_residue_name_parameter.value == "CYS":
                     p_1_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "CYS", "CA"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "CYS",
+                            "CA",
                         )
                     ]
                     p_2_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "CYS", "CB"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "CYS",
+                            "CB",
                         )
                     ]
                     p_3_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "CYS", "SG"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "CYS",
+                            "SG",
                         )
                     ]
                 elif self.parameters.covalent_residue_name_parameter.value == "SER":
                     p_1_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "SER", "CA"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "SER",
+                            "CA",
                         )
                     ]
                     p_2_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "SER", "CB"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "SER",
+                            "CB",
                         )
                     ]
                     p_3_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "SER", "OG"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "SER",
+                            "OG",
                         )
                     ]
                 elif self.parameters.covalent_residue_name_parameter.value == "LYS":
                     p_1_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "LYS", "CD"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "LYS",
+                            "CD",
                         )
                     ]
                     p_2_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "LYS", "CE"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "LYS",
+                            "CE",
                         )
                     ]
                     p_3_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "LYS", "NZ"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "LYS",
+                            "NZ",
                         )
                     ]
                 elif self.parameters.covalent_residue_name_parameter.value == "TYR":
                     p_1_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "TYR", "CE1"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "TYR",
+                            "CE1",
                         )
                     ]
                     p_2_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "TYR", "CZ"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "TYR",
+                            "CZ",
                         )
                     ]
                     p_3_coords = pdb_h.coords[
                         pdb_h.get_index_by_residue_atom(
-                            self.parameters.covalent_residue_num_parameter.value, "TYR", "OH"
+                            self.parameters.covalent_residue_num_parameter.value,
+                            "TYR",
+                            "OH",
                         )
                     ]
                 else:

@@ -1,17 +1,16 @@
 step:
-  keep_top_n: bool()
+  keep_top_n: num()
   optimization_criterion: str()
   custom_dock_executable: any(null(), str(), list(null(), str()))
   dock_files_generation:
-    dock_files_generation:
-      dock_files_to_copy_from_previous_step:
-        matching_spheres_file: bool()
-        electrostatics_trim_phi_file: bool()
-        vdw_file: bool()
-        vdw_bump_map_file: bool()
-        vdw_parameters_file: bool()
-        ligand_desolvation_heavy_file: bool()
-        ligand_desolvation_hydrogen_file: bool()
+    dock_files_to_copy_from_previous_step:
+      matching_spheres_file: bool()
+      electrostatics_trim_phi_file: bool()
+      vdw_file: bool()
+      vdw_bump_map_file: bool()
+      vdw_parameters_file: bool()
+      ligand_desolvation_heavy_file: bool()
+      ligand_desolvation_hydrogen_file: bool()
 
     receptor_protonation:
       reduce_options: any(str(), list(str()))

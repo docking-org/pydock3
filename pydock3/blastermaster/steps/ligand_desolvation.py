@@ -43,15 +43,15 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
     ):
         #
         if atom_type not in self.ATOM_TYPE_TO_RADIUS_DICT:
-            logger.exception(f"atom_type must be one of: {list(self.ATOM_TYPE_TO_RADIUS_DICT.keys())}")
+            logger.exception(
+                f"atom_type must be one of: {list(self.ATOM_TYPE_TO_RADIUS_DICT.keys())}"
+            )
             raise
 
         super().__init__(step_dir=step_dir)
 
         #
-        self.program_file = ProgramFile(
-            path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH
-        )
+        self.program_file = ProgramFile(path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH)
 
         #
         self.process_infiles(
@@ -67,8 +67,14 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         #
         self.process_parameters(
             (thin_spheres_desolv_use_parameter, "thin_spheres_desolv_use_parameter"),
-            (thin_spheres_desolv_distance_to_surface_parameter, "thin_spheres_desolv_distance_to_surface_parameter"),
-            (thin_spheres_desolv_penetration_parameter, "thin_spheres_desolv_penetration_parameter"),
+            (
+                thin_spheres_desolv_distance_to_surface_parameter,
+                "thin_spheres_desolv_distance_to_surface_parameter",
+            ),
+            (
+                thin_spheres_desolv_penetration_parameter,
+                "thin_spheres_desolv_penetration_parameter",
+            ),
             (other_radius_parameter, "other_radius_parameter"),
         )
 
@@ -80,12 +86,21 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         """run the solvmap program"""
 
         # make solvmap parameters file
-        solvmap_parameters_file = File(path=os.path.join(self.step_dir.path, self.MandatoryFileNames.SOLVMAP_PARAMETERS_FILE_NAME))
+        solvmap_parameters_file = File(
+            path=os.path.join(
+                self.step_dir.path, self.MandatoryFileNames.SOLVMAP_PARAMETERS_FILE_NAME
+            )
+        )
         with open(solvmap_parameters_file.path, "w") as f:
             f.write(f"{self.infiles.receptor_pdb_infile.name}\n")  # receptor file name
-            f.write(f"{self.outfiles.ligand_desolvation_outfile.name}\n")  # output file name
+            f.write(
+                f"{self.outfiles.ligand_desolvation_outfile.name}\n"
+            )  # output file name
             if self.parameters.thin_spheres_desolv_use_parameter.value:
-                other_radius = self.parameters.thin_spheres_desolv_distance_to_surface_parameter.value + self.parameters.thin_spheres_desolv_penetration_parameter.value
+                other_radius = (
+                    self.parameters.thin_spheres_desolv_distance_to_surface_parameter.value
+                    + self.parameters.thin_spheres_desolv_penetration_parameter.value
+                )
             else:
                 other_radius = self.parameters.other_radius_parameter.value
             f.write(
@@ -104,7 +119,9 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         self.run_command(run_str)
 
 
-class HydrogenAtomLigandDesolvationScoringGridGenerationStep(LigandDesolvationScoringGridGenerationStep):
+class HydrogenAtomLigandDesolvationScoringGridGenerationStep(
+    LigandDesolvationScoringGridGenerationStep
+):
     def __init__(
         self,
         step_dir,
@@ -125,11 +142,13 @@ class HydrogenAtomLigandDesolvationScoringGridGenerationStep(LigandDesolvationSc
             thin_spheres_desolv_distance_to_surface_parameter=thin_spheres_desolv_distance_to_surface_parameter,
             thin_spheres_desolv_penetration_parameter=thin_spheres_desolv_penetration_parameter,
             other_radius_parameter=other_radius_parameter,
-            atom_type=super().AtomTypes.HYDROGEN
+            atom_type=super().AtomTypes.HYDROGEN,
         )
 
 
-class HeavyAtomLigandDesolvationScoringGridGenerationStep(LigandDesolvationScoringGridGenerationStep):
+class HeavyAtomLigandDesolvationScoringGridGenerationStep(
+    LigandDesolvationScoringGridGenerationStep
+):
     def __init__(
         self,
         step_dir,
@@ -150,5 +169,5 @@ class HeavyAtomLigandDesolvationScoringGridGenerationStep(LigandDesolvationScori
             thin_spheres_desolv_distance_to_surface_parameter=thin_spheres_desolv_distance_to_surface_parameter,
             thin_spheres_desolv_penetration_parameter=thin_spheres_desolv_penetration_parameter,
             other_radius_parameter=other_radius_parameter,
-            atom_type=super().AtomTypes.HEAVY
+            atom_type=super().AtomTypes.HEAVY,
         )

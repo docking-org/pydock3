@@ -32,7 +32,9 @@ def get_script_class(script_class_name, *args, **kwargs):
     logger = get_logger_for_script("pydock3.log", debug=False)
 
     if script_class_name not in SCRIPT_CLASSES_DICT:
-        logger.error(f"script_class_name must be one of:\n{sorted(list(SCRIPT_CLASSES_DICT.keys()))}")
+        logger.error(
+            f"script_class_name must be one of:\n{sorted(list(SCRIPT_CLASSES_DICT.keys()))}"
+        )
         return
 
     return SCRIPT_CLASSES_DICT[script_class_name](*args, **kwargs)
@@ -42,5 +44,5 @@ def main():
     fire.Fire(get_script_class)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

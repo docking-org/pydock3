@@ -1,8 +1,7 @@
 import logging
 
-import pandas as pd
-import yamale
 import oyaml as yaml
+import yamale
 
 from pydock3.files import File
 
@@ -36,30 +35,31 @@ class Parameter(object):
 
 
 class ParametersConfiguration:
-
     def __init__(self, config_file_path, schema_file_path):
         #
         File.validate_file_exists(config_file_path)
-        self.config_file_path = config_file_path
+        File.validate_file_exists(schema_file_path)
 
         #
+        self.config_file_path = config_file_path
         self.schema_file_path = schema_file_path
         self.schema = yamale.make_schema(schema_file_path)
 
-        #
+        # validate config based on specified schema
         data = yamale.make_data(self.config_file_path)
         try:
             yamale.validate(self.schema, data)
-            logger.debug('Config validation success!')
         except ValueError as e:
-            raise Exception('Config validation failed!\n%s' % str(e))
+            raise Exception("Config validation failed!\n%s" % str(e))
 
         #
-        param_dict, = pd.json_normalize(data[0][0]).to_dict('records')  # TODO: add validation
-        self.param_dict = {key: Parameter(name=key, value=value) for key, value in param_dict.items()}
+        with open(self.config_file_path, "r") as f:
+            self.param_dict = yaml.safe_load(f)
 
         #
-        logger.debug(f"Parameters:\n{self.param_dict}")
+        logger.debug(
+            f"ParametersConfiguration instance initialized:\n{self.param_dict}"
+        )
 
     @staticmethod
     def write_config_file(save_path, src_file_path, overwrite=False):
@@ -71,6 +71,6 @@ class ParametersConfiguration:
                 logger.info(f"A config file already exists: {save_path}")
         else:
             logger.info(f"Writing config file: {save_path}")
-        with open(src_file_path, 'r') as infile:
+        with open(src_file_path, "r") as infile:
             with open(save_path, "w") as outfile:
                 yaml.dump(yaml.safe_load(infile), outfile)

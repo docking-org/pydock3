@@ -51,8 +51,12 @@ class ReceptorProtonationStep(BlasterStep):
         Word, et. al. (1999) J. Mol. Biol. 285, 1735-1747.
         then run script to remove nonpolar hydrogens & rename"""
         #
-        charged_receptor_full_h_file_path = f"{self.outfiles.charged_receptor_outfile.path}.fullh"
-        charged_receptor_full_h_file_name = File.get_file_name_of_file(charged_receptor_full_h_file_path)
+        charged_receptor_full_h_file_path = (
+            f"{self.outfiles.charged_receptor_outfile.path}.fullh"
+        )
+        charged_receptor_full_h_file_name = File.get_file_name_of_file(
+            charged_receptor_full_h_file_path
+        )
         run_str = f"{self.program_file.path} -db {self.infiles.add_h_dict_infile.name} {self.parameters.reduce_options_parameter.value} {self.infiles.receptor_infile.name} > {charged_receptor_full_h_file_name}"
         self.run_command(run_str)
 
@@ -65,7 +69,9 @@ class ReceptorProtonationStep(BlasterStep):
         pdb_d.remove_apolar_hydrogen()
 
         #
-        charged_receptor_polar_h_file_path = f"{self.outfiles.charged_receptor_outfile.path}.polarH"
+        charged_receptor_polar_h_file_path = (
+            f"{self.outfiles.charged_receptor_outfile.path}.polarH"
+        )
         pdb_d.write(charged_receptor_polar_h_file_path)
 
         # rename histidines and cysteines

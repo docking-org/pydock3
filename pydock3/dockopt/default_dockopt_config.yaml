@@ -39,7 +39,7 @@ definitions:
             use: true
             num_samples_per_matching_spheres_file: 50
             standard_deviation_angstroms: 0.3
-        indock: &indock_1
+        indock:
           ligand_atom_file: split_database_index
           output_file_prefix: test.
           match_method: 2
@@ -113,23 +113,13 @@ definitions:
             use: true
             num_samples_per_matching_spheres_file: 50
             standard_deviation_angstroms: 0.3
-    - step: &step_3
-        <<: *step_1
-        keep_top_n: 1
-        optimization_criterion: rmsd
   sequences:
     - sequence: &sequence_1
         n_repetitions: 10
         stop_if_no_progress_for_n_iterations: 1
         steps:
-        - step: *step_2
-        - step: *step_3
+          - step: *step_1
+          - step: *step_2
 
 pipeline:
-  - step: *step_1
   - sequence: *sequence_1
-  - step: *step_1
-  - sequence:
-      <<: *sequence_1
-      n_repetitions: 0
-

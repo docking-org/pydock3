@@ -5,7 +5,7 @@ import numpy as np
 from scipy import interpolate
 from matplotlib import pyplot as plt
 
-plt.rcParams.update({'font.size': 14})
+plt.rcParams.update({"font.size": 14})
 
 
 @dataclass
@@ -49,26 +49,36 @@ class ROC(object):
                 last_bool_was_decoy = False
             else:
                 if not last_bool_was_decoy:
-                    x_coord = float(num_decoys_witnessed_so_far/self.num_decoys)
-                    y_coord = float(num_actives_witnessed_so_far/self.num_actives)
+                    x_coord = float(num_decoys_witnessed_so_far / self.num_decoys)
+                    y_coord = float(num_actives_witnessed_so_far / self.num_actives)
                     x_coords.append(x_coord)
                     y_coords.append(y_coord)
                 num_decoys_witnessed_so_far += 1
                 last_bool_was_decoy = True
         self.x_coords = x_coords
         self.y_coords = y_coords
-        self.points = [Point(x_coord, y_coord) for x_coord, y_coord in zip(self.x_coords, self.y_coords)]
+        self.points = [
+            Point(x_coord, y_coord)
+            for x_coord, y_coord in zip(self.x_coords, self.y_coords)
+        ]
 
         #
         x_coords_for_interpolation = [0.0] + self.x_coords
         y_coords_for_interpolation = [0.0] + self.y_coords
-        self.f = lambda w: float(interpolate.interp1d(x_coords_for_interpolation, y_coords_for_interpolation, kind='previous')(w))
+        self.f = lambda w: float(
+            interpolate.interp1d(
+                x_coords_for_interpolation, y_coords_for_interpolation, kind="previous"
+            )(w)
+        )
 
         #
         self.enrichment_score = self._get_enrichment_score()
 
     def _get_enrichment_score(self):
-        return (self._get_literal_area_under_roc_curve_with_log_scaled_x_axis() - (1 - self.alpha)) / (-np.log(self.alpha) - (1 - self.alpha))
+        return (
+            self._get_literal_area_under_roc_curve_with_log_scaled_x_axis()
+            - (1 - self.alpha)
+        ) / (-np.log(self.alpha) - (1 - self.alpha))
 
     def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
         #
@@ -76,16 +86,20 @@ class ROC(object):
         y_values_of_intervals = []
         last_x_value = self.alpha
         last_y_value = self.f(last_x_value)
-        for i, (current_x_value, current_y_value) in enumerate(zip(self.x_coords, self.y_coords)):
+        for i, (current_x_value, current_y_value) in enumerate(
+            zip(self.x_coords, self.y_coords)
+        ):
             if current_x_value <= self.alpha:
                 continue
 
             current_y_value = self.f(current_x_value)
-            if current_y_value == last_y_value and (i+1) != len(self.y_coords):  # add for last y no matter what
+            if current_y_value == last_y_value and (i + 1) != len(
+                self.y_coords
+            ):  # add for last y no matter what
                 continue
 
             y_values_of_intervals.append(last_y_value)
-            weights.append(np.log(float(current_x_value/last_x_value)))
+            weights.append(np.log(float(current_x_value / last_x_value)))
             last_x_value = current_x_value
             last_y_value = current_y_value
 
@@ -101,7 +115,7 @@ class ROC(object):
             [float(i / 1000) for i in range(0, 1001)],
             "--",
             linewidth=1,
-            color='Black',
+            color="Black",
             label=f"random classifier",
         )
 
@@ -111,25 +125,32 @@ class ROC(object):
         ax.step(
             x_coords_for_plot,
             y_coords_for_plot,
-            where='post',
+            where="post",
             label=f"ROC curve",
         )
 
         # add an extra label of enrichment score (nothing extra will be plotted)
-        plt.plot([], [], ' ', label=f"# of actives: {self.num_actives}")
-        plt.plot([], [], ' ', label=f"# of decoys: {self.num_decoys}")
-        plt.plot([], [], ' ', label=f"x-axis cutoff: {np.format_float_scientific(self.alpha, precision=3)}")
-        plt.plot([], [], ' ', label=f"enrichment score: {round(self.enrichment_score, 3)}")
+        plt.plot([], [], " ", label=f"# of actives: {self.num_actives}")
+        plt.plot([], [], " ", label=f"# of decoys: {self.num_decoys}")
+        plt.plot(
+            [],
+            [],
+            " ",
+            label=f"x-axis cutoff: {np.format_float_scientific(self.alpha, precision=3)}",
+        )
+        plt.plot(
+            [], [], " ", label=f"enrichment score: {round(self.enrichment_score, 3)}"
+        )
 
         # set legend
         ax.legend()
 
         # set axis labels
-        ax.set_xlabel('false positive rate (i.e., top fraction of decoys accepted)')
-        ax.set_ylabel('true positive rate (i.e., top fraction of actives accepted)')
+        ax.set_xlabel("false positive rate (i.e., top fraction of decoys accepted)")
+        ax.set_ylabel("true positive rate (i.e., top fraction of actives accepted)")
 
         # set log scale x-axis
-        ax.set_xscale('log')
+        ax.set_xscale("log")
 
         # set plot axis limits
         ax.set_xlim(left=self.alpha, right=1.0)
@@ -137,7 +158,9 @@ class ROC(object):
 
         # set axis ticks
         order_of_magnitude = -math.floor(math.log(self.alpha, 10)) - 1
-        ax.set_xticks([self.alpha] + [float(10 ** x) for x in range(-order_of_magnitude, 1, 1)])
+        ax.set_xticks(
+            [self.alpha] + [float(10**x) for x in range(-order_of_magnitude, 1, 1)]
+        )
         ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
         # set title

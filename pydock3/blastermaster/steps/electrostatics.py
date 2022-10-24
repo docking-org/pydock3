@@ -87,7 +87,9 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
             self.extra_parameters = []
 
         # first make parm file
-        qnifft_parameters_file = File(path=os.path.join(self.step_dir.path, self.QNIFFT_PARAMETERS_FILE_NAME))
+        qnifft_parameters_file = File(
+            path=os.path.join(self.step_dir.path, self.QNIFFT_PARAMETERS_FILE_NAME)
+        )
         with open(qnifft_parameters_file.path, "w") as f:
             with open(self.infiles.delphi_infile.path, "r") as g:
                 for line in g:
@@ -95,10 +97,18 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
             f.write(f"grid={str(self.GRID_SIZE)}\n")
             f.write(f"charge={self.infiles.charge_infile.name}\n")
             f.write(f"radius={self.infiles.radius_infile.name}\n")
-            f.write(f"pdb_input={self.infiles.receptor_low_dielectric_pdb_infile.name}\n")
-            f.write(f"pdb_output_file={self.outfiles.electrostatics_pdb_outfile.name}\n")
-            f.write(f"phi_output_file={self.outfiles.electrostatics_phi_outfile.name}\n")
-            if self.use_receptor_box:  # means we are running the whole protein + 8 angstroms
+            f.write(
+                f"pdb_input={self.infiles.receptor_low_dielectric_pdb_infile.name}\n"
+            )
+            f.write(
+                f"pdb_output_file={self.outfiles.electrostatics_pdb_outfile.name}\n"
+            )
+            f.write(
+                f"phi_output_file={self.outfiles.electrostatics_phi_outfile.name}\n"
+            )
+            if (
+                self.use_receptor_box
+            ):  # means we are running the whole protein + 8 angstroms
                 f.write("border=15\n")
             if self.extra_parameters:
                 for extra_param in self.extra_parameters:
@@ -121,7 +131,7 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
         )
 
         #
-        with open(self.outfiles.electrostatics_phi_size_outfile.path, 'w') as f:
+        with open(self.outfiles.electrostatics_phi_size_outfile.path, "w") as f:
             f.write(str(phi_size))
 
 
@@ -172,8 +182,14 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
 
         #
         self.process_parameters(
-            (thin_spheres_elec_distance_to_ligand_parameter, "thin_spheres_elec_distance_to_ligand_parameter"),
-            (thin_spheres_elec_penetration_parameter, "thin_spheres_elec_penetration_parameter"),
+            (
+                thin_spheres_elec_distance_to_ligand_parameter,
+                "thin_spheres_elec_distance_to_ligand_parameter",
+            ),
+            (
+                thin_spheres_elec_penetration_parameter,
+                "thin_spheres_elec_penetration_parameter",
+            ),
         )
 
         # misc.
@@ -188,7 +204,9 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
             self.extra_parameters = []
 
         # first make parm file
-        qnifft_parameters_file = File(path=os.path.join(self.step_dir.path, self.QNIFFT_PARAMETERS_FILE_NAME))
+        qnifft_parameters_file = File(
+            path=os.path.join(self.step_dir.path, self.QNIFFT_PARAMETERS_FILE_NAME)
+        )
         with open(qnifft_parameters_file.path, "w") as f:
             with open(self.infiles.delphi_infile.path, "r") as g:
                 for line in g:
@@ -196,10 +214,18 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
             f.write(f"grid={str(self.GRID_SIZE)}\n")
             f.write(f"charge={self.infiles.charge_infile.name}\n")
             f.write(f"radius={self.infiles.radius_infile.name}\n")
-            f.write(f"pdb_input={self.infiles.receptor_low_dielectric_pdb_infile.name}\n")
-            f.write(f"pdb_output_file={self.outfiles.electrostatics_pdb_outfile.name}\n")
-            f.write(f"phi_output_file={self.outfiles.electrostatics_phi_outfile.name}\n")
-            if self.use_receptor_box:  # means we are running the whole protein + 8 angstroms
+            f.write(
+                f"pdb_input={self.infiles.receptor_low_dielectric_pdb_infile.name}\n"
+            )
+            f.write(
+                f"pdb_output_file={self.outfiles.electrostatics_pdb_outfile.name}\n"
+            )
+            f.write(
+                f"phi_output_file={self.outfiles.electrostatics_phi_outfile.name}\n"
+            )
+            if (
+                self.use_receptor_box
+            ):  # means we are running the whole protein + 8 angstroms
                 f.write("border=15\n")
             if self.extra_parameters:
                 for extra_param in self.extra_parameters:
@@ -212,7 +238,8 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
 
         #
         command_str = f"sed -i 's/c     sph   1.90/c     sph   %3.2f/g' %s " % (
-            self.parameters.thin_spheres_elec_distance_to_ligand_parameter.value + self.parameters.thin_spheres_elec_penetration_parameter.value,
+            self.parameters.thin_spheres_elec_distance_to_ligand_parameter.value
+            + self.parameters.thin_spheres_elec_penetration_parameter.value,
             self.infiles.radius_infile.name,
         )
         self.run_command(command_str)
@@ -229,5 +256,5 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
         )
 
         #
-        with open(self.outfiles.electrostatics_phi_size_outfile.path, 'w') as f:
+        with open(self.outfiles.electrostatics_phi_size_outfile.path, "w") as f:
             f.write(str(phi_size))

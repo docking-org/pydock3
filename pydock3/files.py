@@ -174,7 +174,9 @@ class File(FileSystemEntity):
         return self.file_is_empty(self.path)
 
     def copy_from(self, src_file_path, overwrite=True):
-        self.copy_file(src_file_path=src_file_path, dst_file_path=self.path, overwrite=overwrite)
+        self.copy_file(
+            src_file_path=src_file_path, dst_file_path=self.path, overwrite=overwrite
+        )
 
     def delete(self):
         self.delete_file(self.path)
@@ -248,15 +250,15 @@ class File(FileSystemEntity):
         File.validate_file_exists(file_path_1)
         File.validate_file_exists(file_path_2)
 
-        with open(file_path_1, 'r') as f:
+        with open(file_path_1, "r") as f:
             a = set(f.readlines())
-        with open(file_path_2, 'r') as f:
+        with open(file_path_2, "r") as f:
             b = set(f.readlines())
 
-        diff = [f'-\t{x}' if x in a else f'+\t{x}' for x in list(a ^ b)]
+        diff = [f"-\t{x}" if x in a else f"+\t{x}" for x in list(a ^ b)]
 
         if verbose:
-            diff_str = '\n'.join(diff)
+            diff_str = "\n".join(diff)
             logger.debug(f"Diff between {file_path_1} and {file_path_2}:\n{diff_str}")
 
         return len(diff) != 0
@@ -268,14 +270,14 @@ class File(FileSystemEntity):
 
     @staticmethod
     def read_file_lines(file_path):
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             lines = [line.strip() for line in f.readlines()]
         return lines
 
     @staticmethod
     def file_is_gzipped(file_path):
-        with open(file_path, 'rb') as f:
-            return f.read(2) == b'\x1f\x8b'
+        with open(file_path, "rb") as f:
+            return f.read(2) == b"\x1f\x8b"
 
     @staticmethod
     def validate_file_exists(file_path):
@@ -302,18 +304,22 @@ class SMIFile(File):
 
         #
         data = []
-        with open(smi_file_path, 'r') as f:
+        with open(smi_file_path, "r") as f:
             for line in f.readlines():
                 line_elements = line.strip().split()
                 if len(line_elements) != 2:
-                    raise Exception(f"Line in .smi file does not contain expected number of columns (2): {line_elements}")
+                    raise Exception(
+                        f"Line in .smi file does not contain expected number of columns (2): {line_elements}"
+                    )
                 smiles_string, zinc_id = line_elements
                 SMIFile.validate_smiles_string(smiles_string)
                 # TODO: validate zinc_id
-                data.append({
-                    'zinc_id': zinc_id,
-                    'smiles': smiles_string,
-                })
+                data.append(
+                    {
+                        "zinc_id": zinc_id,
+                        "smiles": smiles_string,
+                    }
+                )
         df = pd.DataFrame.from_records(data)
 
         return df
@@ -337,13 +343,13 @@ class SDIFile(File):
     def write_tgz(self, tgz_file_name, archive_dir_name=None, filter_regex="(.*?)"):
         if archive_dir_name is None:
             archive_dir_name = File.get_file_name_of_file(tgz_file_name)
-            archive_dir_name = re.sub('.tgz$', '', archive_dir_name)
-            archive_dir_name = re.sub('.tar.gz$', '', archive_dir_name)
+            archive_dir_name = re.sub(".tgz$", "", archive_dir_name)
+            archive_dir_name = re.sub(".tar.gz$", "", archive_dir_name)
         db2_file_paths = self.read_lines()
         pattern = re.compile(filter_regex)
         temp_dir_name = str(uuid.uuid4())
         os.mkdir(temp_dir_name)
-        with tarfile.open(tgz_file_name, 'w:gz') as tar:
+        with tarfile.open(tgz_file_name, "w:gz") as tar:
             i = 0
             for db2_file_path in db2_file_paths:
                 if pattern.match(db2_file_path):
@@ -351,12 +357,12 @@ class SDIFile(File):
                     dst_file_path = os.path.join(temp_dir_name, dst_file_name)
                     file_path_in_archive = os.path.join(archive_dir_name, dst_file_name)
                     if File.file_is_gzipped(db2_file_path):
-                        with gzip.open(db2_file_path, 'rb') as f_in:
-                            with open(dst_file_path, 'wb') as f_out:
+                        with gzip.open(db2_file_path, "rb") as f_in:
+                            with open(dst_file_path, "wb") as f_out:
                                 shutil.copyfileobj(f_in, f_out)
                     else:
-                        with open(db2_file_path, 'r') as f_in:
-                            with open(dst_file_path, 'w') as f_out:
+                        with open(db2_file_path, "r") as f_in:
+                            with open(dst_file_path, "w") as f_out:
                                 shutil.copyfileobj(f_in, f_out)
                     tar.add(dst_file_path, arcname=file_path_in_archive)
                     i += 1
@@ -401,17 +407,19 @@ class IndockFile(File):
 
         def get_yes_or_no(boolean):
             if boolean:
-                return 'yes'
+                return "yes"
             else:
-                return 'no'
+                return "no"
 
         #
         File.validate_file_exists(dock_files.electrostatics_phi_size_file.path)
-        with open(dock_files.electrostatics_phi_size_file.path, 'r') as f:
+        with open(dock_files.electrostatics_phi_size_file.path, "r") as f:
             try:
                 phi_size = int(f.readline().strip())
             except Exception as e:
-                raise Exception("Problem encountered while reading electrostatics phi size file. Check electrostatics phi size file.")
+                raise Exception(
+                    "Problem encountered while reading electrostatics phi size file. Check electrostatics phi size file."
+                )
 
         # TODO: parametrize dock version
         header = f"""DOCK 3.8 parameter
@@ -505,12 +513,22 @@ iseed                         {config_param_dict['indock.iseed']}
             )
             f.write(f"delphi_nsize                  {phi_size}\n")
             if not use_flex:  # normal docking, no flexible sidechains
-                f.write(f"flexible_receptor             {get_yes_or_no(config_param_dict['indock.flexible_receptor'])}\n")
-                f.write(f"total_receptors               {config_param_dict['indock.total_receptors']}\n")
+                f.write(
+                    f"flexible_receptor             {get_yes_or_no(config_param_dict['indock.flexible_receptor'])}\n"
+                )
+                f.write(
+                    f"total_receptors               {config_param_dict['indock.total_receptors']}\n"
+                )
                 f.write("############## grids/data for one receptor\n")
-                f.write(f"rec_number                    {config_param_dict['indock.rec_number']}\n")
-                f.write(f"rec_group                     {config_param_dict['indock.rec_group']}\n")
-                f.write(f"rec_group_option              {config_param_dict['indock.rec_group_option']}\n")
+                f.write(
+                    f"rec_number                    {config_param_dict['indock.rec_number']}\n"
+                )
+                f.write(
+                    f"rec_group                     {config_param_dict['indock.rec_group']}\n"
+                )
+                f.write(
+                    f"rec_group_option              {config_param_dict['indock.rec_group_option']}\n"
+                )
                 f.write(
                     f"solvmap_file                  {os.path.join('..', dock_files_dir_name, dock_files.ligand_desolvation_heavy_file.name)}\n"
                 )
@@ -520,15 +538,23 @@ iseed                         {config_param_dict['indock.iseed']}
                 f.write(
                     f"delphi_file                   {os.path.join('..', dock_files_dir_name, dock_files.electrostatics_trim_phi_file.name)}\n"
                 )
-                f.write(f"chemgrid_file                 {os.path.join('..', dock_files_dir_name, dock_files.vdw_file.name)}\n")
+                f.write(
+                    f"chemgrid_file                 {os.path.join('..', dock_files_dir_name, dock_files.vdw_file.name)}\n"
+                )
                 f.write(
                     f"bumpmap_file                  {os.path.join('..', dock_files_dir_name, dock_files.vdw_bump_map_file.name)}\n"
                 )
                 f.write("#####################################################\n")
                 f.write("#                             STRAIN\n")
-                f.write(f"check_strain                  {get_yes_or_no(config_param_dict['indock.check_strain'])}\n")
-                f.write(f"total_strain                  {config_param_dict['indock.total_strain']}\n")
-                f.write(f"max_strain                    {config_param_dict['indock.max_strain']}\n")
+                f.write(
+                    f"check_strain                  {get_yes_or_no(config_param_dict['indock.check_strain'])}\n"
+                )
+                f.write(
+                    f"total_strain                  {config_param_dict['indock.total_strain']}\n"
+                )
+                f.write(
+                    f"max_strain                    {config_param_dict['indock.max_strain']}\n"
+                )
                 f.write("############## end of INDOCK\n")
             else:  # flexible docking
                 raise NotImplementedError
@@ -610,7 +636,7 @@ class OutdockFile(File):
 
     def get_dataframe(self):
         File.validate_file_exists(self.path)
-        with open(self.path, 'r', errors='ignore') as f:
+        with open(self.path, "r", errors="ignore") as f:
             #
             lines = [x.strip() for x in f.readlines()]
 
@@ -628,25 +654,39 @@ class OutdockFile(File):
                     header_line_index = i
                     break
             if header_line_index is None:
-                raise Exception(f"Header line not found when reading OutdockFile: {self.path}")
+                raise Exception(
+                    f"Header line not found when reading OutdockFile: {self.path}"
+                )
 
             #
-            lines = [lines[first_db2_line_index]] + lines[header_line_index+1:]
+            lines = [lines[first_db2_line_index]] + lines[header_line_index + 1 :]
 
             #
-            db2_file_line_indices = [i for i, line in enumerate(lines) if line.endswith(".db2")]
+            db2_file_line_indices = [
+                i for i, line in enumerate(lines) if line.endswith(".db2")
+            ]
             if len(db2_file_line_indices) % 2 != 0:
                 raise Exception(f"Cannot parse OutdockFile: {self.path}")
 
             #
-            open_file_line_indices = [db2_file_line_indices[i] for i in range(len(db2_file_line_indices)) if i % 2 == 0]
-            close_file_line_indices = [db2_file_line_indices[i] for i in range(len(db2_file_line_indices)) if i % 2 == 1]
+            open_file_line_indices = [
+                db2_file_line_indices[i]
+                for i in range(len(db2_file_line_indices))
+                if i % 2 == 0
+            ]
+            close_file_line_indices = [
+                db2_file_line_indices[i]
+                for i in range(len(db2_file_line_indices))
+                if i % 2 == 1
+            ]
 
             #
             new_close_file_line_indices = []
             for close_file_line_index in close_file_line_indices:
                 new_close_file_line_index = close_file_line_index
-                if "close the file:" not in lines[close_file_line_index]:  # apparently necessary if path is too long b/c Fortran is wacky
+                if (
+                    "close the file:" not in lines[close_file_line_index]
+                ):  # apparently necessary if path is too long b/c Fortran is wacky
                     new_close_file_line_index -= 1
                 new_close_file_line_indices.append(close_file_line_index)
             close_file_line_indices = new_close_file_line_indices
@@ -655,16 +695,27 @@ class OutdockFile(File):
             data = []
             db2_file_paths = []
             df_column_names = ["db2_file_path"] + self.COLUMN_NAMES
-            for open_file_line_index, close_file_line_index in zip(open_file_line_indices, close_file_line_indices):
-                db2_file_path = lines[open_file_line_index].replace("open the file:", "").replace("Input ligand:", "").strip()
+            for open_file_line_index, close_file_line_index in zip(
+                open_file_line_indices, close_file_line_indices
+            ):
+                db2_file_path = (
+                    lines[open_file_line_index]
+                    .replace("open the file:", "")
+                    .replace("Input ligand:", "")
+                    .strip()
+                )
                 db2_file_paths.append(db2_file_path)
-                for data_row_line_index in range(open_file_line_index + 1, close_file_line_index):
+                for data_row_line_index in range(
+                    open_file_line_index + 1, close_file_line_index
+                ):
                     data_row_line = lines[data_row_line_index]
                     data_row = data_row_line.strip().split()
                     if data_row[0].isdigit():
                         data_row = [db2_file_path] + data_row
                     else:
-                        data_row = [db2_file_path] + [np.nan for _ in range(len(self.COLUMN_NAMES))]
+                        data_row = [db2_file_path] + [
+                            np.nan for _ in range(len(self.COLUMN_NAMES))
+                        ]
 
                     # pad missing columns with NaN
                     if len(data_row) != len(df_column_names):
@@ -672,7 +723,10 @@ class OutdockFile(File):
                         data_row += [np.nan for _ in range(num_missing)]
 
                     #
-                    data_row_dict = {column_name: data_row[i] for i, column_name in enumerate(df_column_names)}
+                    data_row_dict = {
+                        column_name: data_row[i]
+                        for i, column_name in enumerate(df_column_names)
+                    }
                     data.append(data_row_dict)
 
             return pd.DataFrame.from_records(data)
@@ -683,7 +737,9 @@ class Mol2Record(object):
     ATOM_RECORD_HEADER = "@<TRIPOS>ATOM"
     BOND_RECORD_HEADER = "@<TRIPOS>BOND"
 
-    def __init__(self, comment_lines, molecule_record_lines, atom_record_lines, bond_record_lines):
+    def __init__(
+        self, comment_lines, molecule_record_lines, atom_record_lines, bond_record_lines
+    ):
         self.comment_lines = comment_lines
         self.molecule_record_lines = molecule_record_lines
         self.atom_record_lines = atom_record_lines
@@ -696,24 +752,41 @@ class Mol2File(File):
 
     def read_mol2_records(self):
 
-        with open(self.path, 'r') as f:
+        with open(self.path, "r") as f:
             remaining_lines = [line.strip() for line in f.readlines()]
 
         mol2_records = []
 
         start_index = remaining_lines.index(Mol2Record.MOLECULE_RECORD_HEADER)
         while True:
-            pre_start_comment_lines = [line for line in remaining_lines[:start_index] if line.startswith("#")]
+            pre_start_comment_lines = [
+                line for line in remaining_lines[:start_index] if line.startswith("#")
+            ]
 
             try:
-                end_index = remaining_lines[start_index + 1:].index(Mol2Record.MOLECULE_RECORD_HEADER) + 1
+                end_index = (
+                    remaining_lines[start_index + 1 :].index(
+                        Mol2Record.MOLECULE_RECORD_HEADER
+                    )
+                    + 1
+                )
                 mol2_record_lines = remaining_lines[start_index:end_index]
                 mol2_record_string = "\n".join(mol2_record_lines)
-                molecule_record_string, remaining_string = mol2_record_string.replace(Mol2Record.MOLECULE_RECORD_HEADER, '').split(Mol2Record.ATOM_RECORD_HEADER)
-                atom_record_string, bond_record_string = remaining_string.split(Mol2Record.BOND_RECORD_HEADER)
-                molecule_record_lines = [line.split() for line in molecule_record_string.split('\n') if line]
-                atom_record_lines = [line.split() for line in atom_record_string.split('\n') if line]
-                bond_record_lines = [line.split() for line in bond_record_string.split('\n') if line]
+                molecule_record_string, remaining_string = mol2_record_string.replace(
+                    Mol2Record.MOLECULE_RECORD_HEADER, ""
+                ).split(Mol2Record.ATOM_RECORD_HEADER)
+                atom_record_string, bond_record_string = remaining_string.split(
+                    Mol2Record.BOND_RECORD_HEADER
+                )
+                molecule_record_lines = [
+                    line.split() for line in molecule_record_string.split("\n") if line
+                ]
+                atom_record_lines = [
+                    line.split() for line in atom_record_string.split("\n") if line
+                ]
+                bond_record_lines = [
+                    line.split() for line in bond_record_string.split("\n") if line
+                ]
                 mol2_record = Mol2Record(
                     comment_lines=pre_start_comment_lines,
                     molecule_record_lines=molecule_record_lines,
@@ -725,13 +798,21 @@ class Mol2File(File):
             except ValueError:
                 mol2_record_lines = remaining_lines[start_index:]
                 mol2_record_string = "\n".join(mol2_record_lines)
-                molecule_record_string, remaining_string = mol2_record_string.replace(Mol2Record.MOLECULE_RECORD_HEADER,
-                                                                                      '').split(
-                    Mol2Record.ATOM_RECORD_HEADER)
-                atom_record_string, bond_record_string = remaining_string.split(Mol2Record.BOND_RECORD_HEADER)
-                molecule_record_lines = [line.split() for line in molecule_record_string.split('\n') if line]
-                atom_record_lines = [line.split() for line in atom_record_string.split('\n') if line]
-                bond_record_lines = [line.split() for line in bond_record_string.split('\n') if line]
+                molecule_record_string, remaining_string = mol2_record_string.replace(
+                    Mol2Record.MOLECULE_RECORD_HEADER, ""
+                ).split(Mol2Record.ATOM_RECORD_HEADER)
+                atom_record_string, bond_record_string = remaining_string.split(
+                    Mol2Record.BOND_RECORD_HEADER
+                )
+                molecule_record_lines = [
+                    line.split() for line in molecule_record_string.split("\n") if line
+                ]
+                atom_record_lines = [
+                    line.split() for line in atom_record_string.split("\n") if line
+                ]
+                bond_record_lines = [
+                    line.split() for line in bond_record_string.split("\n") if line
+                ]
                 mol2_record = Mol2Record(
                     comment_lines=pre_start_comment_lines,
                     molecule_record_lines=molecule_record_lines,
@@ -743,16 +824,31 @@ class Mol2File(File):
 
         return mol2_records
 
-    def write_mol2_file_with_molecules_cloned_and_transformed(self, rotation_matrix, translation_vector, write_path, num_applications=1, bidirectional=False):
+    def write_mol2_file_with_molecules_cloned_and_transformed(
+        self,
+        rotation_matrix,
+        translation_vector,
+        write_path,
+        num_applications=1,
+        bidirectional=False,
+    ):
 
         #
         def transform(xyz, rot_mat, transl_vec):
             return np.dot(rot_mat, xyz) + transl_vec
 
         def get_inverse_transform(rot_mat, transl_vec):
-            a = np.array([[1., 0., 0., 0.]])
+            a = np.array([[1.0, 0.0, 0.0, 0.0]])
             for i in range(3):
-                a = np.concatenate((a, np.array([np.concatenate((np.array([transl_vec[i]]), rot_mat[i, :]))])), axis=0)
+                a = np.concatenate(
+                    (
+                        a,
+                        np.array(
+                            [np.concatenate((np.array([transl_vec[i]]), rot_mat[i, :]))]
+                        ),
+                    ),
+                    axis=0,
+                )
             a_inv = np.linalg.inv(a)
             rot_mat_inv = a_inv[1:, 1:]
             transl_vec_inv = a_inv[1:, 0]
@@ -760,18 +856,32 @@ class Mol2File(File):
             return rot_mat_inv, transl_vec_inv
 
         #
-        def get_record_text_block(rows, header, alignment='right', num_spaces_before_line=5, num_spaces_between_columns=2):
-            return get_text_block(rows, header, alignment=alignment, num_spaces_before_line=num_spaces_before_line, num_spaces_between_columns=num_spaces_between_columns)
+        def get_record_text_block(
+            rows,
+            header,
+            alignment="right",
+            num_spaces_before_line=5,
+            num_spaces_between_columns=2,
+        ):
+            return get_text_block(
+                rows,
+                header,
+                alignment=alignment,
+                num_spaces_before_line=num_spaces_before_line,
+                num_spaces_between_columns=num_spaces_between_columns,
+            )
 
         #
         mol2_records = self.read_mol2_records()
 
         #
         if bidirectional:
-            rotation_matrix_inv, translation_vector_inv = get_inverse_transform(rotation_matrix, translation_vector)
+            rotation_matrix_inv, translation_vector_inv = get_inverse_transform(
+                rotation_matrix, translation_vector
+            )
 
         #
-        with open(write_path, 'w') as f:
+        with open(write_path, "w") as f:
 
             for mol2_record in mol2_records:
                 #
@@ -782,14 +892,19 @@ class Mol2File(File):
                     multiplier = (2 * num_applications) + 1
                 else:
                     multiplier = num_applications + 1
-                new_molecule_row = [int(molecule_row[0]) * multiplier, int(molecule_row[1]) * multiplier] + molecule_row[2:]
+                new_molecule_row = [
+                    int(molecule_row[0]) * multiplier,
+                    int(molecule_row[1]) * multiplier,
+                ] + molecule_row[2:]
                 new_molecule_record_lines.append(new_molecule_row)
 
                 #
                 atom_element_to_id_nums_dict = collections.defaultdict(list)
                 atom_names = [atom_row[1] for atom_row in mol2_record.atom_record_lines]
                 for atom_name in atom_names:
-                    element, id_num = [token for token in re.split(r'(\d+)', atom_name) if token]
+                    element, id_num = [
+                        token for token in re.split(r"(\d+)", atom_name) if token
+                    ]
                     atom_element_to_id_nums_dict[element].append(int(id_num))
 
                 #
@@ -803,23 +918,38 @@ class Mol2File(File):
                         atom_id = atom_row[0]
                         new_atom_id = f"{int(atom_id) + (n * num_atoms)}"
                         atom_name = atom_row[1]
-                        element, id_num = [token for token in re.split(r'(\d+)', atom_name) if token]
+                        element, id_num = [
+                            token for token in re.split(r"(\d+)", atom_name) if token
+                        ]
                         new_atom_name = f"{element}{int(id_num) + (n * max(atom_element_to_id_nums_dict[element]))}"
-                        current_xyz = np.array([float(coord) for coord in atom_row[2:5]])
+                        current_xyz = np.array(
+                            [float(coord) for coord in atom_row[2:5]]
+                        )
                         for j in range(num_app):
                             new_xyz = transform(current_xyz, rot_mat, transl_vec)
                             current_xyz = new_xyz
-                        new_atom_row = [new_atom_id, new_atom_name] + list(new_xyz) + atom_row[5:]
+                        new_atom_row = (
+                            [new_atom_id, new_atom_name] + list(new_xyz) + atom_row[5:]
+                        )
                         new_atom_record_lines.append(new_atom_row)
 
                 #
-                for i, n in enumerate(list(range(1, num_applications+1))):
-                    apply_to_atoms(rotation_matrix, translation_vector, n, num_app=i+1)
+                for i, n in enumerate(list(range(1, num_applications + 1))):
+                    apply_to_atoms(
+                        rotation_matrix, translation_vector, n, num_app=i + 1
+                    )
 
                 #
                 if bidirectional:
-                    for i, n in enumerate(list(range(num_applications+1, (2*num_applications)+1))):
-                        apply_to_atoms(rotation_matrix_inv, translation_vector_inv, n, num_app=i+1)
+                    for i, n in enumerate(
+                        list(range(num_applications + 1, (2 * num_applications) + 1))
+                    ):
+                        apply_to_atoms(
+                            rotation_matrix_inv,
+                            translation_vector_inv,
+                            n,
+                            num_app=i + 1,
+                        )
 
                 #
                 num_bonds = len(mol2_record.bond_record_lines)
@@ -829,45 +959,73 @@ class Mol2File(File):
 
                 def apply_to_bonds(n):
                     for bond_row in mol2_record.bond_record_lines:
-                        new_bond_row = [int(bond_row[1]) + (n * num_bonds)] + [int(num) + (n * num_atoms) for num in bond_row[1:3]] + bond_row[3:]
+                        new_bond_row = (
+                            [int(bond_row[1]) + (n * num_bonds)]
+                            + [int(num) + (n * num_atoms) for num in bond_row[1:3]]
+                            + bond_row[3:]
+                        )
                         new_bond_record_lines.append(new_bond_row)
 
                 #
-                for n in range(1, num_applications+1):
+                for n in range(1, num_applications + 1):
                     apply_to_bonds(n)
 
                 #
                 if bidirectional:
-                    for n in range(num_applications+1, (2*num_applications)+1):
+                    for n in range(num_applications + 1, (2 * num_applications) + 1):
                         apply_to_bonds(n)
 
                 #
-                f.write("\n".join(mol2_record.comment_lines)+"\n")
-                f.write(get_record_text_block(new_molecule_record_lines, Mol2Record.MOLECULE_RECORD_HEADER))
-                f.write(get_record_text_block(new_atom_record_lines, Mol2Record.ATOM_RECORD_HEADER))
-                f.write(get_record_text_block(new_bond_record_lines, Mol2Record.BOND_RECORD_HEADER))
+                f.write("\n".join(mol2_record.comment_lines) + "\n")
+                f.write(
+                    get_record_text_block(
+                        new_molecule_record_lines, Mol2Record.MOLECULE_RECORD_HEADER
+                    )
+                )
+                f.write(
+                    get_record_text_block(
+                        new_atom_record_lines, Mol2Record.ATOM_RECORD_HEADER
+                    )
+                )
+                f.write(
+                    get_record_text_block(
+                        new_bond_record_lines, Mol2Record.BOND_RECORD_HEADER
+                    )
+                )
 
 
-def get_text_block(rows, header=None, alignment='left', num_spaces_between_columns=1, num_spaces_before_line=0):
+def get_text_block(
+    rows,
+    header=None,
+    alignment="left",
+    num_spaces_between_columns=1,
+    num_spaces_before_line=0,
+):
     rows = [[str(token) for token in row] for row in rows]
 
     max_row_size = max([len(row) for row in rows])
-    columns = [[row[i] if i < len(row) else "" for row in rows] for i in range(max_row_size)]
-    column_max_token_length_list = [max([len(token) for token in column]) for column in columns]
+    columns = [
+        [row[i] if i < len(row) else "" for row in rows] for i in range(max_row_size)
+    ]
+    column_max_token_length_list = [
+        max([len(token) for token in column]) for column in columns
+    ]
     spacing_between_columns = " " * num_spaces_between_columns
     formatted_lines = []
     for row in rows:
         formatted_tokens = []
         for i, token in enumerate(row):
-            if alignment == 'left':
+            if alignment == "left":
                 formatted_token = token.ljust(column_max_token_length_list[i])
-            elif alignment == 'right':
+            elif alignment == "right":
                 formatted_token = token.rjust(column_max_token_length_list[i])
             else:
                 formatted_token = token
             formatted_tokens.append(formatted_token)
         spacing_before_line = num_spaces_before_line * " "
-        formatted_line = spacing_before_line + spacing_between_columns.join(formatted_tokens)
+        formatted_line = spacing_before_line + spacing_between_columns.join(
+            formatted_tokens
+        )
         formatted_lines.append(formatted_line)
 
     text_block = ""

@@ -33,7 +33,10 @@ class ReceptorMostOccupiedResiduesRenamingStep(BlasterStep):
 
         #
         self.process_outfiles(
-            (receptor_most_occupied_residues_renamed_outfile, "receptor_most_occupied_residues_renamed_outfile"),
+            (
+                receptor_most_occupied_residues_renamed_outfile,
+                "receptor_most_occupied_residues_renamed_outfile",
+            ),
         )
 
         #
@@ -51,10 +54,12 @@ class ReceptorMostOccupiedResiduesRenamingStep(BlasterStep):
             pdb_file_path=self.outfiles.receptor_most_occupied_residues_renamed_outfile.path,
             outfile_path=self.outfiles.receptor_most_occupied_residues_renamed_outfile.path,
         )
-        pdb_pre_rename_residues = pdb.PDBData(self.outfiles.receptor_most_occupied_residues_renamed_outfile.path)
+        pdb_pre_rename_residues = pdb.PDBData(
+            self.outfiles.receptor_most_occupied_residues_renamed_outfile.path
+        )
         pdb_pre_rename_residues.replace_alt_chars(" ")
         pdb_pre_rename_residues.delete_insertion_codes()
         pdb_pre_rename_residues.fix_chain_ids()
-        pdb_pre_rename_residues.write(self.outfiles.receptor_most_occupied_residues_renamed_outfile.path)
-
-
+        pdb_pre_rename_residues.write(
+            self.outfiles.receptor_most_occupied_residues_renamed_outfile.path
+        )
