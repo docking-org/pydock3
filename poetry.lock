@@ -797,6 +797,17 @@ json-logging = ["json-logging"]
 test = ["coverage", "nbval", "pytest", "pytest-cov", "requests", "requests-unixsocket", "selenium", "testpath"]
 
 [[package]]
+name = "number-parser"
+version = "0.3.0"
+description = "parse numbers written in natural language"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+attrs = ">=17.3.0"
+
+[[package]]
 name = "numpy"
 version = "1.23.1"
 description = "NumPy is the fundamental package for array computing with Python."
@@ -1551,7 +1562,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "a72458dc6ef175b47e2e134228175300e4211b05076dff795796b2993950ff79"
+content-hash = "d4f8c60774efe65762d1652814d9db844bad325a064fd2ef8a98b69e47278c84"
 
 [metadata.files]
 2to3 = [
@@ -2025,6 +2036,10 @@ nodeenv = [
 notebook = [
     {file = "notebook-6.4.12-py3-none-any.whl", hash = "sha256:8c07a3bb7640e371f8a609bdbb2366a1976c6a2589da8ef917f761a61e3ad8b1"},
     {file = "notebook-6.4.12.tar.gz", hash = "sha256:6268c9ec9048cff7a45405c990c29ac9ca40b0bc3ec29263d218c5e01f2b4e86"},
+]
+number-parser = [
+    {file = "number-parser-0.3.0.tar.gz", hash = "sha256:c7a98542a6e412ccf126f5f0a08bfe4098504808155692df59af3ecc8b2a1314"},
+    {file = "number_parser-0.3.0-py2.py3-none-any.whl", hash = "sha256:0ea8250a51cf3176f6d59e04e3a4180446d1cafb57b44211ca726f8566bc3630"},
 ]
 numpy = [
     {file = "numpy-1.23.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b15c3f1ed08df4980e02cc79ee058b788a3d0bef2fb3c9ca90bb8cbd5b8a3a04"},
