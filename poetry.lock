@@ -1688,7 +1688,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "flake8 
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "a8943eb50f84ba45ff01ca8aae25d81cdb702981357a3c040580ff9d04278350"
+content-hash = "ff65f8aee5aac7f1fe3019e0ed92c033cc487e3f7d42c9783797d5289333813a"
 
 [metadata.files]
 2to3 = [
