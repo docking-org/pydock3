@@ -1,3 +1,7 @@
+pipeline: list(include('step'), include('sequence'), min=1)
+
+---
+
 step:
   top_n: num()
   criterion: str()
@@ -105,5 +109,3 @@ sequence:
   n_repetitions: int(min=0)
   stop_if_no_progress_for_n_iterations: int(min=0)
   steps: list(include('step'), include('sequence'), min=1)
-
-pipeline: list(include('step'), include('sequence'), min=1)
