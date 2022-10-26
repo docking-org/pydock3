@@ -1,6 +1,6 @@
 step:
-  keep_top_n: num()
-  optimization_criterion: str()
+  top_n: num()
+  criterion: str()
   custom_dock_executable: any(null(), str(), list(null(), str()))
   dock_files_generation:
     dock_files_to_copy_from_previous_step:

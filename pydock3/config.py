@@ -1,4 +1,6 @@
 import logging
+import itertools
+from copy import deepcopy
 
 import oyaml as yaml
 import yamale
@@ -74,3 +76,41 @@ class ParametersConfiguration:
         with open(src_file_path, "r") as infile:
             with open(save_path, "w") as outfile:
                 yaml.dump(yaml.safe_load(infile), outfile)
+
+
+def flatten_param_dict(d, key_prefix=""):
+    new_d = {}
+    for key, value in d.items():
+        this_key = f"{key_prefix}{key}"
+        if isinstance(value, dict):
+            new_d.update(flatten_param_dict(value, f"{this_key}."))
+        else:
+            new_d[this_key] = Parameter(this_key, value)
+    return new_d
+
+
+def get_univalued_flat_param_dicts_from_multivalued_param_dict(multivalued_param_dict):
+    #
+    keys, multivalues_list = zip(*flatten_param_dict(multivalued_param_dict.items()))
+
+    #
+    new_multivalues_list = []
+    for multivalue in multivalues_list:
+        if isinstance(multivalue, list):
+            new_multivalues_list.append(multivalue)  # is multivalue
+        else:
+            new_multivalues_list.append(
+                [multivalue]
+            )  # is univalue, so cast as multivalue
+    multivalues_list = new_multivalues_list
+
+    #
+    univalued_param_dicts = []
+    for univalues_tuple in itertools.product(*multivalues_list):
+        univalued_param_dict = deepcopy(multivalued_param_dict)
+        for i, univalue in enumerate(univalues_tuple):
+            key = keys[i]
+            univalued_param_dict[key] = Parameter(name=key, value=univalue)
+        univalued_param_dicts.append(univalued_param_dict)
+
+    return univalued_param_dicts

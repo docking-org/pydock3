@@ -29,7 +29,11 @@ from pydock3.util import (
 )
 from pydock3.config import Parameter
 from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
-from pydock3.dockopt.config import DockoptParametersConfiguration
+from pydock3.dockopt.config import (
+    DockoptParametersConfiguration,
+    flatten_param_dict,
+    get_univalued_flat_param_dicts_from_multivalued_param_dict,
+)
 from pydock3.files import (
     Dir,
     File,
@@ -205,11 +209,11 @@ class Dockopt(Script):
 
         #
         logger.info("Loading config file...")
-        config = DockoptParametersConfiguration(config_file_path)  # TODO
+        config = DockoptParametersConfiguration(config_file_path)
         logger.info("done.")
 
         #
-        config_params_str = "\n".join(  # TODO
+        config_params_str = "\n".join(
             [
                 f"{param_name}: {param.value}"
                 for param_name, param in config.param_dict.items()
@@ -228,7 +232,7 @@ class Criterion(object):
     def name(self):
         raise NotImplementedError
 
-    def calculate(self, runnable):
+    def calculate(self, *args, **kwargs):
         raise NotImplementedError
 
 
@@ -240,9 +244,14 @@ class EnrichmentScore(Criterion):
     def name(self):
         return "enrichment_score"
 
-    def calculate(self, runnable):
-        # TODO
-        pass
+    def calculate(self, booleans, indices, image_save_path=None):
+        roc = ROC(booleans, indices)
+
+        # save plot
+        if image_save_path is not None:
+            roc.plot(save_path=image_save_path)
+
+        return roc.enrichment_score
 
 
 def record_started_utc_and_finished_utc_for_run_method(_cls):
@@ -259,10 +268,10 @@ def record_started_utc_and_finished_utc_for_run_method(_cls):
 
 
 class RunnableJob(object):
-    def __init__(self, job_dir_path, criterion, top_n_jobs_to_keep):
+    def __init__(self, job_dir_path, criterion, top_n):
         #
         self.criterion = criterion
-        self.top_n_job_to_keep = top_n_jobs_to_keep
+        self.top_n_job_to_keep = top_n
 
         #
         self.job_dir = Dir(job_dir_path)
@@ -299,11 +308,11 @@ class RunnableJob(object):
 
 
 class RunnableJobWithReport(RunnableJob):
-    def __init__(self, job_dir_path, criterion, top_n_jobs_to_keep):
+    def __init__(self, job_dir_path, criterion, top_n):
         super().__init__(
             job_dir_path=job_dir_path,
             criterion=criterion,
-            top_n_jobs_to_keep=top_n_jobs_to_keep,
+            top_n=top_n,
         )
 
         #
@@ -329,7 +338,9 @@ class RunnableJobWithReport(RunnableJob):
             fig = plt.figure(figsize=(11.0, 8.5))
 
             # write box plot for data grouped by runnable sequence identifier
-            # TODO
+            if "pipeline_unit_id" in df.columns:
+                # TODO
+                pass
 
             #
             for i, best_job_dir_path in enumerate(self.get_n_best_jobs_dir_paths()):
@@ -420,13 +431,19 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
     BEST_RETRODOCK_JOBS_DIR_NAME = "best_retrodock_jobs"
 
     def __init__(
-        self, job_dir_path, criterion, top_n_jobs_to_keep, blaster_files_to_copy_in
+        self,
+        job_dir_path,
+        param_dict,
+        blaster_files_to_copy_in,
     ):
         super().__init__(
             job_dir_path=job_dir_path,
-            criterion=criterion,
-            top_n_jobs_to_keep=top_n_jobs_to_keep,
+            criterion=param_dict["criterion"],
+            top_n=param_dict["top_n"],
         )
+
+        #
+        self.param_dict = param_dict
 
         #
         backup_blaster_files = []  # TODO
@@ -449,42 +466,30 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         )
 
         #
-        self.config_yaml_dict = None  # TODO
-
-        #
         self.actives_tgz_file = None  # set at beginning of .run()
         self.decoys_tgz_file = None  # set at beginning of .run()
 
         #
-        dock_files_generation_param_dicts = None  # TODO
+        self.blaster_files = BlasterFiles(working_dir=self.working_dir)
 
         #
-        self.blaster_files = BlasterFiles(working_dir=self.working_dir)
+        self.dock_files_generation_flat_param_dicts = (
+            get_univalued_flat_param_dicts_from_multivalued_param_dict(
+                param_dict["dock_files_generation"]
+            )
+        )
 
         # get directed acyclical graph defining how to get all combinations of dock files we need from the provided input files and parameters
         graph = nx.DiGraph()
-        dock_file_nodes_combinations = []
-        for dock_files_generation_param_dict in dock_files_generation_param_dicts:
+        dock_files_combinations = []
+        for (
+            dock_files_generation_flat_param_dict
+        ) in self.dock_files_generation_flat_param_dicts:
             # get param_dict for get_blaster_steps
             # each value in dict must be an instance of Parameter
-            def flatten_dict_into_parameter_dict(d, key_prefix=""):
-                new_d = {}
-                for key, value in d.items():
-                    this_key = f"{key_prefix}{key}"
-                    if isinstance(value, dict):
-                        new_d.update(
-                            flatten_dict_into_parameter_dict(value, f"{this_key}.")
-                        )
-                    else:
-                        new_d[this_key] = Parameter(this_key, value)
-                return new_d
-
-            #
             steps = get_blaster_steps(
                 blaster_files=self.blaster_files,
-                param_dict=flatten_dict_into_parameter_dict(
-                    dock_files_generation_param_dict
-                ),
+                flat_param_dict=dock_files_generation_flat_param_dict,
                 working_dir=self.working_dir,
             )
 
@@ -594,21 +599,35 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                         child_node_step_var_name=outfile_step_var_name,
                     )
 
-                # record the combination of dock file nodes for this subgraph
-                dock_file_nodes_combinations.append(
-                    sorted(
-                        (
-                            [
-                                node
-                                for node in subgraph.nodes
-                                if subgraph.out_degree(node) == 0
-                            ]
-                        )
+                # record the combination of dock files for this subgraph
+                kwargs = {}
+                for node in self._get_end_nodes(subgraph):
+                    dock_file = subgraph.nodes[node]["blaster_file"]
+                    arg_name = self.blaster_files.get_attribute_name_of_blaster_file_with_file_name(
+                        dock_file.name
                     )
-                )
+                    kwargs[arg_name] = dock_file
+                dock_files_combinations.append(DockFiles(**kwargs))
 
                 # merge subgraph into full graph
                 graph = nx.compose(graph, subgraph)
+
+        # update self.graph blaster_files' file paths
+        blaster_file_nodes = [
+            graph.nodes[node]
+            for node in graph.nodes
+            if graph.nodes[node].get("blaster_file")
+        ]
+        blaster_file_name_to_num_unique_instances_witnessed_so_far_counter = (
+            collections.defaultdict(int)
+        )
+        for blaster_file_node in blaster_file_nodes:
+            blaster_file = graph.nodes[blaster_file_node]["blaster_file"]
+            blaster_file_name_to_num_unique_instances_witnessed_so_far_counter[
+                blaster_file.name
+            ] += 1
+            blaster_file.path = f"{blaster_file.path}_{blaster_file_name_to_num_unique_instances_witnessed_so_far_counter[blaster_file.name]}"
+            graph.nodes[blaster_file_node]["blaster_file"] = blaster_file
 
         #
         step_hash_to_edges_dict = collections.defaultdict(list)
@@ -693,7 +712,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         )
 
         #
-        self.dock_file_nodes_combinations = dock_file_nodes_combinations
+        self.dock_files_combinations = dock_files_combinations
 
     def run(
         self,
@@ -716,154 +735,168 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         else:
             self.decoys_tgz_file = None
 
-        # run edge steps
-        logger.info("Running blaster steps / validating blaster files")
-        for edge in nx.edge_bfs(self.graph, self._get_start_nodes(self.graph)):
-            self._run_edge_step(edge, self.graph)
+        # run necessary steps to get all dock files
+        logger.info("Generating dock files for all docking configurations")
+        for dock_file_node in self._get_end_nodes(self.graph):
+            self._run_unrun_steps_needed_to_create_this_blaster_file_node(
+                dock_file_node, self.graph
+            )
+
+        #
+        dock_files_modification_flat_param_dicts = (
+            get_univalued_flat_param_dicts_from_multivalued_param_dict(
+                self.param_dict["dock_files_modification"]
+            )
+        )
+
+        #
+        if (
+            len(
+                list(
+                    set(
+                        [
+                            flat_param_dict["matching_spheres_perturbation.use"].value
+                            for flat_param_dict in dock_files_modification_flat_param_dicts
+                        ]
+                    )
+                )
+            )
+            != 1
+        ):
+            raise Exception(
+                "matching_spheres_perturbation.use cannot be both True and False."
+            )
 
         # matching spheres perturbation
-        if self.param_dict["matching_spheres_perturbation.use"].value:
-            #
-            unperturbed_file_name_to_perturbed_file_names_dict = (
-                collections.defaultdict(list)
-            )
-            blaster_file_nodes = [
-                node_name
-                for node_name, node_data in self.graph.nodes(data=True)
-                if node_data.get("blaster_file")
-            ]
-            for node_name, node_data in self.graph.nodes(data=True):
-                if (
-                    node_data["blaster_file"].name
-                    == self.blaster_files.matching_spheres_file.name
-                ):
-                    spheres = read_sph(
-                        os.path.join(self.working_dir.path, node_name),
-                        chosen_cluster="A",
-                        color="A",
-                    )
-
-                    #
-                    for i in range(
-                        int(
-                            self.param_dict[
-                                "matching_spheres_perturbation.num_samples_per_matching_spheres_file"
-                            ].value
+        if dock_files_modification_flat_param_dicts[0][
+            "matching_spheres_perturbation.use"
+        ].value:
+            dock_files_combinations_after_modifications = []
+            dock_files_generation_flat_param_dicts_after_modifications = []
+            dock_files_modification_flat_param_dicts_after_modifications = []
+            for (
+                dock_files_modification_flat_param_dict
+            ) in dock_files_modification_flat_param_dicts:
+                #
+                unperturbed_file_name_to_perturbed_file_names_dict = (
+                    collections.defaultdict(list)
+                )
+                for node_name, node_data in self.graph.nodes(data=True):
+                    if node_data.get("blaster_file") is None:
+                        continue
+                    file_name = node_data["blaster_file"].name
+                    if file_name == self.blaster_files.matching_spheres_file.name:
+                        spheres = read_sph(
+                            os.path.join(self.working_dir.path, file_name),
+                            chosen_cluster="A",
+                            color="A",
                         )
-                    ):
+
                         #
-                        perturbed_file_name = f"{node_name}_{i + 1}"
-                        perturbed_file_path = os.path.join(
-                            self.working_dir.path, perturbed_file_name
-                        )
-                        unperturbed_file_name_to_perturbed_file_names_dict[
-                            node_name
-                        ].append(perturbed_file_name)
-
-                        # skip perturbation if perturbed file already exists
-                        if File.file_exists(perturbed_file_path):
-                            continue
-
-                        # perturb all spheres in file
-                        new_spheres = []
-                        for sphere in spheres:
-                            new_sphere = copy(sphere)
-                            max_deviation = float(
-                                config.param_dict[
-                                    "matching_spheres_perturbation.max_deviation_angstroms"
+                        for i in range(
+                            int(
+                                dock_files_modification_flat_param_dict[
+                                    "matching_spheres_perturbation.num_samples_per_matching_spheres_file"
                                 ].value
                             )
-                            perturbation_xyz = tuple(
-                                [
-                                    random.uniform(
-                                        -max_deviation,
-                                        max_deviation,
-                                    )
-                                    for _ in range(3)
-                                ]
+                        ):
+                            #
+                            perturbed_file_name = f"{file_name}_{i + 1}"
+                            perturbed_file_path = os.path.join(
+                                self.working_dir.path, perturbed_file_name
                             )
-                            new_sphere.X += perturbation_xyz[0]
-                            new_sphere.Y += perturbation_xyz[1]
-                            new_sphere.Z += perturbation_xyz[2]
-                            new_spheres.append(new_sphere)
+                            unperturbed_file_name_to_perturbed_file_names_dict[
+                                file_name
+                            ].append(perturbed_file_name)
 
-                        # write perturbed spheres to new matching spheres file
-                        write_sph(perturbed_file_path, new_spheres)
+                            # skip perturbation if perturbed file already exists
+                            if File.file_exists(perturbed_file_path):
+                                continue
 
-            #
-            dock_files_combinations_after_modifications = []
-            dock_files_generation_param_dicts_after_modifications = []
-            for i, (
-                dock_files_combination,
-                dock_files_generation_param_dict,
-            ) in enumerate(
-                zip(
-                    self.dock_files_combinations, self.dock_files_generation_param_dicts
-                )
-            ):
-                for (
-                    perturbed_file_name
-                ) in unperturbed_file_name_to_perturbed_file_names_dict[
-                    dock_files_combination.matching_spheres_file.name
-                ]:
-                    new_dock_files_combination = copy(dock_files_combination)
-                    new_dock_files_combination.matching_spheres_file = BlasterFile(
-                        os.path.join(self.working_dir.path, perturbed_file_name)
+                            # perturb all spheres in file
+                            new_spheres = []
+                            for sphere in spheres:
+                                new_sphere = copy(sphere)
+                                max_deviation = float(
+                                    dock_files_modification_flat_param_dict[
+                                        "matching_spheres_perturbation.max_deviation_angstroms"
+                                    ].value
+                                )
+                                perturbation_xyz = tuple(
+                                    [
+                                        random.uniform(
+                                            -max_deviation,
+                                            max_deviation,
+                                        )
+                                        for _ in range(3)
+                                    ]
+                                )
+                                new_sphere.X += perturbation_xyz[0]
+                                new_sphere.Y += perturbation_xyz[1]
+                                new_sphere.Z += perturbation_xyz[2]
+                                new_spheres.append(new_sphere)
+
+                            # write perturbed spheres to new matching spheres file
+                            write_sph(perturbed_file_path, new_spheres)
+
+                #
+                for i, (
+                    dock_files_combination,
+                    dock_files_generation_flat_param_dict,
+                ) in enumerate(
+                    zip(
+                        self.dock_files_combinations,
+                        self.dock_files_generation_flat_param_dicts,
                     )
-                    dock_files_combinations_after_modifications.append(
-                        new_dock_files_combination
-                    )
-                    dock_files_generation_param_dicts_after_modifications.append(
-                        self.dock_files_generation_param_dicts[i]
-                    )
+                ):
+                    for (
+                        perturbed_file_name
+                    ) in unperturbed_file_name_to_perturbed_file_names_dict[
+                        dock_files_combination.matching_spheres_file.name
+                    ]:
+                        new_dock_files_combination = copy(dock_files_combination)
+                        new_dock_files_combination.matching_spheres_file = BlasterFile(
+                            os.path.join(self.working_dir.path, perturbed_file_name)
+                        )
+                        dock_files_combinations_after_modifications.append(
+                            new_dock_files_combination
+                        )
+                        dock_files_generation_flat_param_dicts_after_modifications.append(
+                            dock_files_generation_flat_param_dict
+                        )
+                        dock_files_modification_flat_param_dicts_after_modifications.append(
+                            dock_files_modification_flat_param_dicts
+                        )
+
         else:
             dock_files_combinations_after_modifications = self.dock_files_combinations
-            dock_files_generation_param_dicts_after_modifications = (
-                self.dock_files_generation_param_dicts
+            dock_files_generation_flat_param_dicts_after_modifications = (
+                self.dock_files_generation_flat_param_dicts
+            )
+            dock_files_modification_flat_param_dicts_after_modifications = (
+                dock_files_modification_flat_param_dicts
             )
 
         #
-        matching_spheres_perturbation_param_dict = {  # TODO
-            key: value
-            for key, value in self.param_dict.items()
-            if key.startswith("matching_spheres_perturbation.")
-        }
-
-        #
-        # TODO: there is an assumption here that none of the indock config params are used in any of the blaster steps; if this assumption ever breaks, this method will need to be replaced.
-        job_param_dicts_indock_subset = [
-            {
-                key: value
-                for key, value in job_param_dict.items()
-                if key.startswith("indock.")
-            }
-            for job_param_dict in config.job_param_dicts
-        ]
-        job_param_dicts_indock_subset = [
-            dict(s)
-            for s in set(
-                frozenset(job_param_dict.items())
-                for job_param_dict in job_param_dicts_indock_subset
+        indock_flat_param_dicts = (
+            get_univalued_flat_param_dicts_from_multivalued_param_dict(
+                self.param_dict["indock"]
             )
-        ]  # get unique dicts
+        )
 
         #
-        if isinstance(config.param_dict["custom_dock_executable"].value, list):
+        if isinstance(self.param_dict["custom_dock_executable"], list):
             dock_executable_paths = []
-            for dock_executable_path in config.param_dict[
-                "custom_dock_executable"
-            ].value:
+            for dock_executable_path in self.param_dict["custom_dock_executable"].value:
                 if dock_executable_path is None:
                     dock_executable_paths.append(DOCK3_EXECUTABLE_PATH)
                 else:
                     dock_executable_paths.append(dock_executable_path)
         else:
-            if config.param_dict["custom_dock_executable"].value is None:
+            if self.param_dict["custom_dock_executable"] is None:
                 dock_executable_paths = [DOCK3_EXECUTABLE_PATH]
             else:
-                dock_executable_paths = [
-                    config.param_dict["custom_dock_executable"].value
-                ]
+                dock_executable_paths = [self.param_dict["custom_dock_executable"]]
 
         #
         docking_configuration_info_combinations = list(
@@ -871,38 +904,42 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 dock_executable_paths,
                 zip(
                     dock_files_combinations_after_modifications,
-                    dock_files_generation_param_dicts_after_modifications,
+                    dock_files_generation_flat_param_dicts_after_modifications,
+                    dock_files_modification_flat_param_dicts_after_modifications,
                 ),
-                job_param_dicts_indock_subset,
+                indock_flat_param_dicts,
             )
         )
 
-        # make indock file for each combination of (1) set of dock files and (2) job_param_dict_indock_subset
+        # make indock file for each combination of (1) set of dock files and (2) indock_flat_param_dict
         logger.info("Making INDOCK files...")
-        parameter_dicts = []
+        flat_param_dicts = []
         docking_configurations = []
         for i, (
             dock_executable_path,
-            (dock_files, dock_files_generation_param_dict),
-            job_param_dict_indock_subset,
+            (
+                dock_files,
+                dock_files_generation_flat_param_dict,
+                dock_files_modification_flat_param_dict,
+            ),
+            indock_flat_param_dict,
         ) in enumerate(docking_configuration_info_combinations):
-            # get full parameter dict
-            parameter_dict = {p.name: p.value for p in dock_files_generation_param_dict}
-            parameter_dict.update(
-                matching_spheres_perturbation_param_dict
-            )  # add matching spheres perturbation params
-            parameter_dict.update(job_param_dict_indock_subset)  # add indock params
-            parameter_dict["dock_executable_path"] = dock_executable_path
+            # get full flat parameter dict
+            flat_param_dict = {}
+            flat_param_dict["dock_executable_path"] = dock_executable_path
+            flat_param_dict.update(dock_files_generation_flat_param_dict)
+            flat_param_dict.update(dock_files_modification_flat_param_dict)
+            flat_param_dict.update(indock_flat_param_dict)
 
             # make indock file for each combination of dock files
             indock_file_name = f"{INDOCK_FILE_NAME}_{i + 1}"
             indock_file = IndockFile(
                 path=os.path.join(self.working_dir.path, indock_file_name)
             )
-            indock_file.write(dock_files, parameter_dict)
+            indock_file.write(dock_files, flat_param_dict)
 
             #
-            parameter_dicts.append(parameter_dict)
+            flat_param_dicts.append(flat_param_dict)
             docking_configurations.append(
                 (dock_executable_path, dock_files, indock_file)
             )
@@ -1008,11 +1045,11 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         # make a queue of tuples containing job-relevant data for processing
         RetrodockJobInfoTuple = collections.namedtuple(
-            "RetrodockJobInfoTuple", "job job_dir parameter_dict"
+            "RetrodockJobInfoTuple", "job job_dir flat_param_dict"
         )
         retrodock_jobs_processing_queue = [
             RetrodockJobInfoTuple(
-                retrodock_jobs[i], retrodock_job_dirs[i], parameter_dicts[i]
+                retrodock_jobs[i], retrodock_job_dirs[i], flat_param_dicts[i]
             )
             for i in range(len(retrodock_jobs))
         ]
@@ -1025,7 +1062,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         while len(retrodock_jobs_processing_queue) > 0:
             #
             retrodock_job_info_tuple = retrodock_jobs_processing_queue.pop(0)
-            retrodock_job, retrodock_job_dir, parameter_dict = retrodock_job_info_tuple
+            retrodock_job, retrodock_job_dir, flat_param_dict = retrodock_job_info_tuple
 
             #
             if retrodock_job.is_running:
@@ -1116,24 +1153,24 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             )
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
-            data_dict = copy(parameter_dict)
+            data_dict = copy(flat_param_dict)
             data_dict["retrodock_job_num"] = retrodock_job_dir.name
 
             # get ROC and calculate enrichment score of this job's docking set-up
-            logger.debug("Calculating ROC and enrichment score...")
-            booleans = df["is_active"]
-            indices = df["Total"].fillna(
-                np.inf
-            )  # unscored molecules are assumed to have worst possible score (pessimistic approach)
-            roc = ROC(booleans, indices)
-            data_dict["enrichment_score"] = roc.enrichment_score
-            logger.debug("done.")
-
-            # write ROC plot image
-            roc_plot_image_path = os.path.join(
-                retrodock_job_dir.path, ROC_IMAGE_FILE_NAME
-            )
-            roc.plot(save_path=roc_plot_image_path)
+            if isinstance(self.criterion, EnrichmentScore):
+                logger.debug("Calculating ROC and enrichment score...")
+                booleans = df["is_active"]
+                indices = df["Total"].fillna(
+                    np.inf
+                )  # unscored molecules are assumed to have worst possible score (pessimistic approach)
+                data_dict[self.criterion.name] = self.criterion.calculate(
+                    booleans,
+                    indices,
+                    image_save_path=os.path.join(
+                        retrodock_job_dir.path, ROC_IMAGE_FILE_NAME
+                    ),
+                )
+                logger.debug("done.")
 
             # save data_dict for this job
             data_dicts.append(data_dict)
@@ -1165,30 +1202,32 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         df.to_csv(optimization_results_csv_file_path)
 
         # copy best job to output dir
-        best_retrodock_job_dir = Dir(
-            os.path.join(self.job_dir.path, "best_retrodock_job")
-        )  # TODO
         logger.debug(
-            f"Copying dockfiles of best job results to {best_retrodock_job_dir.path}"
+            f"Copying {self.top_n_job_to_keep} best jobs to {self.best_retrodock_jobs_dir.path}"
         )
-        if os.path.isdir(best_retrodock_job_dir.path):
-            shutil.rmtree(best_retrodock_job_dir.path, ignore_errors=True)
-        best_retrodock_job_num = df["retrodock_job_num"]
-        shutil.copytree(
-            os.path.join(self.retrodock_jobs_dir.path, best_retrodock_job_num),
-            best_retrodock_job_dir.path,
-        )
-
-        # copy docking configuration files to best jobs dir
-        best_retrodock_job_dockfiles_dir = Dir(  # TODO
-            os.path.join(best_retrodock_job_dir.path, "dockfiles"), create=True
-        )
-        for file_name in retrodock_job_num_to_docking_configuration_file_names_dict[
-            best_retrodock_job_num
-        ]:
-            best_retrodock_job_dockfiles_dir.copy_in_file(
-                os.path.join(self.working_dir.path, file_name)
+        if os.path.isdir(self.best_retrodock_jobs_dir.path):
+            shutil.rmtree(self.best_retrodock_jobs_dir.path, ignore_errors=True)
+        for i, best_retrodock_job_num in enumerate(
+            df.head(self.top_n_job_to_keep)["retrodock_job_num"]
+        ):
+            best_job_dir_path = os.path.join(
+                self.best_retrodock_jobs_dir.path, str(i + 1)
             )
+            shutil.copytree(
+                os.path.join(self.retrodock_jobs_dir.path, best_retrodock_job_num),
+                best_job_dir_path,
+            )
+
+            # copy docking configuration files to best jobs dir
+            best_job_dockfiles_dir = Dir(
+                os.path.join(best_job_dir_path, "dockfiles"), create=True
+            )
+            for file_name in retrodock_job_num_to_docking_configuration_file_names_dict[
+                best_retrodock_job_num
+            ]:
+                best_job_dockfiles_dir.copy_in_file(
+                    os.path.join(self.working_dir.path, file_name)
+                )
 
         # write report PDF
         self.write_report_pdf()
@@ -1241,29 +1280,37 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         return start_nodes
 
     @staticmethod
-    def _run_edge_step(edge, g):
-        if g.get_edge_data(*edge).get("step").is_done:
-            return
+    def _get_end_nodes(g):
+        end_nodes = []
+        for node in g.nodes:
+            if g.out_degree(node) == 0:
+                end_nodes.append(node)
+        return end_nodes
 
-        _, child_node = edge
-        all_parent_nodes = g.predecessors(child_node)
-        for parent_node in all_parent_nodes:
-            parent_parent_nodes = g.predecessors(parent_node)
-            for parent_parent_node in parent_parent_nodes:
-                DockingConfigurationNodeBranchingJob._run_edge_step(
-                    (parent_parent_node, parent_node), g
-                )
-
-        logger.debug(f"Running step of full dag edge: {edge}")
-        g.get_edge_data(*edge)["step"].run()
+    @staticmethod
+    def _run_unrun_steps_needed_to_create_this_blaster_file_node(blaster_file_node, g):
+        blaster_file = g.nodes[blaster_file_node].get("blaster_file")
+        if blaster_file is not None:
+            if not blaster_file.exists:
+                for parent_node in g.predecessors(blaster_file_node):
+                    DockingConfigurationNodeBranchingJob._run_unrun_steps_needed_to_create_this_blaster_file_node(
+                        parent_node, g
+                    )
+                a_parent_node = list(g.predecessors(blaster_file_node))[0]
+                step_instance = g[a_parent_node][blaster_file_node]["step_instance"]
+                if step_instance.is_done:
+                    raise Exception(
+                        f"blaster file {blaster_file.path} does not exist but step instance is_done=True"
+                    )
+                step_instance.run()
 
 
 class RunnableJobSequenceWithReport(RunnableJobWithReport):
-    def __init__(self, job_dir_path, criterion, top_n_jobs_to_keep, steps):
+    def __init__(self, job_dir_path, criterion, top_n, steps):
         super().__init__(
             job_dir_path=job_dir_path,
             criterion=criterion,
-            top_n_jobs_to_keep=top_n_jobs_to_keep,
+            top_n=top_n,
         )
 
         # validate
@@ -1285,19 +1332,25 @@ class RunnableJobSequenceWithReport(RunnableJobWithReport):
         self.write_report_pdf()
 
     def write_results_csv(self):
-        # TODO: write / overwrite special column identifying ordinal position in sequence
         df = pd.DataFrame()
         for step in self.steps:
-            df = pd.concat([df, step.load_results_csv()], ignore_index=True)
+            step_df = step.load_results_csv()
+            step_df["pipeline_unit_id"] = [
+                step.job_dir_path for _ in range(len(step_df))
+            ]
+            df = pd.concat([df, step_df], ignore_index=True)
+        df = df.sort_values(
+            by=self.criterion.name, ascending=False, ignore_index=True
+        )  # TODO: make this work with more than one criterion option
         df.to_csv()
 
 
 class Pipeline(RunnableJobSequenceWithReport):
-    def __init__(self, job_dir_path, criterion, top_n_jobs_to_keep, steps):
+    def __init__(self, job_dir_path, criterion, top_n, steps):
         super().__init__(
             job_dir_path=job_dir_path,
             criterion=criterion,
-            top_n_jobs_to_keep=top_n_jobs_to_keep,
+            top_n=top_n,
             steps=steps,
         )
 
@@ -1307,7 +1360,7 @@ class RepeatableRunnableSequence(RunnableJobSequenceWithReport):
         self,
         job_dir_path,
         criterion,
-        top_n_jobs_to_keep,
+        top_n,
         steps,
         n_repetitions=0,
         max_iterations_with_no_improvement=sys.maxsize,
@@ -1315,7 +1368,7 @@ class RepeatableRunnableSequence(RunnableJobSequenceWithReport):
         super().__init__(
             job_dir_path=job_dir_path,
             criterion=criterion,
-            top_n_jobs_to_keep=top_n_jobs_to_keep,
+            top_n=top_n,
             steps=steps,
         )
 
@@ -1329,10 +1382,10 @@ class RepeatableRunnableSequence(RunnableJobSequenceWithReport):
 
 
 class RunnableSequenceIteration(RunnableJobSequenceWithReport):
-    def __init__(self, job_dir_path, criterion, top_n_jobs_to_keep, steps):
+    def __init__(self, job_dir_path, criterion, top_n, steps):
         super().__init__(
             job_dir_path=job_dir_path,
             criterion=criterion,
-            top_n_jobs_to_keep=top_n_jobs_to_keep,
+            top_n=top_n,
             steps=steps,
         )
