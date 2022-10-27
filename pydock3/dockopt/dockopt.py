@@ -73,11 +73,11 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 }
 
 #
-METRICS = ["enrichment_score"]
-POSSIBLE_NON_PARAMETER_COLUMNS = METRICS + ["retrodock_job_num"]
+RETRODOCK_JOB_DIR_PATH_COLUMN_NAME = "retrodock_job_dir"
 
 #
-RETRODOCK_JOB_DIR_PATH_COLUMN_NAME = "retrodock_job_dir"
+METRICS = ["enrichment_score"]
+ALL_POSSIBLE_NON_PARAMETER_COLUMNS = [RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] + METRICS
 
 #
 ROC_IMAGE_FILE_NAME = "roc.png"
@@ -397,7 +397,7 @@ class RunnableJobWithReport(RunnableJob):
             multivalued_config_param_columns = [
                 column
                 for column in df.columns
-                if column not in POSSIBLE_NON_PARAMETER_COLUMNS
+                if column not in ALL_POSSIBLE_NON_PARAMETER_COLUMNS
                 and df[column].nunique() > 1
             ]
             for column in multivalued_config_param_columns:
@@ -1142,23 +1142,25 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         #
         retrodock_jobs = []
         retrodock_job_dirs = []
-        retrodock_job_num_to_docking_configuration_file_names_dict = {}
+        retrodock_job_dir_path_to_docking_configuration_file_names_dict = {}
         for i, (dock_executable_path, dock_files, indock_file) in enumerate(
             docking_configurations
         ):
             #
-            retro_dock_job_num = str(i + 1)
+            retro_dock_job_dir_path = os.path.join(
+                self.retrodock_jobs_dir.path, str(i + 1)
+            )
             docking_configuration_file_names = [
                 getattr(dock_files, dock_file_field.name).name
                 for dock_file_field in fields(dock_files)
             ] + [indock_file.name]
-            retrodock_job_num_to_docking_configuration_file_names_dict[
-                retro_dock_job_num
+            retrodock_job_dir_path_to_docking_configuration_file_names_dict[
+                retro_dock_job_dir_path
             ] = docking_configuration_file_names
 
             #
             retrodock_job_dir = Dir(
-                path=os.path.join(self.retrodock_jobs_dir.path, retro_dock_job_num),
+                path=retro_dock_job_dir_path,
                 create=True,
             )
             retrodock_job_output_dir = Dir(
@@ -1369,23 +1371,25 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         )
         if os.path.isdir(self.best_retrodock_jobs_dir.path):
             shutil.rmtree(self.best_retrodock_jobs_dir.path, ignore_errors=True)
-        for i, best_retrodock_job_num in enumerate(
-            df.head(self.top_n_job_to_keep)["retrodock_job_num"]
+        for i, best_retrodock_job_dir_path in enumerate(
+            df.head(self.top_n_job_to_keep)[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME]
         ):
-            best_job_dir_path = os.path.join(
+            dst_best_job_dir_path = os.path.join(
                 self.best_retrodock_jobs_dir.path, str(i + 1)
             )
             shutil.copytree(
-                os.path.join(self.retrodock_jobs_dir.path, best_retrodock_job_num),
-                best_job_dir_path,
+                best_retrodock_job_dir_path,
+                dst_best_job_dir_path,
             )
 
             # copy docking configuration files to best jobs dir
             best_job_dockfiles_dir = Dir(
-                os.path.join(best_job_dir_path, "dockfiles"), create=True
+                os.path.join(dst_best_job_dir_path, "dockfiles"), create=True
             )
-            for file_name in retrodock_job_num_to_docking_configuration_file_names_dict[
-                best_retrodock_job_num
+            for (
+                file_name
+            ) in retrodock_job_dir_path_to_docking_configuration_file_names_dict[
+                best_retrodock_job_dir_path
             ]:
                 best_job_dockfiles_dir.copy_in_file(
                     os.path.join(self.working_dir.path, file_name)
