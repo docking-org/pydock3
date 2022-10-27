@@ -1,9 +1,9 @@
 custom_dock_executable: null
 
 matching_spheres_perturbation:
-  use: false
-  num_samples_per_matching_spheres_file: 10
-  standard_deviation_angstroms: 0.5
+  use: true
+  num_samples_per_matching_spheres_file: 20
+  max_deviation_angstroms: 0.5
 
 receptor_protonation:
   reduce_options: "-HIS -FLIPs"
@@ -11,14 +11,14 @@ receptor_protonation:
 thin_spheres_elec:
   use: true
   molecular_surface_density: 1.0
-  distance_to_surface: 1.0
+  distance_to_surface: [1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2]
   penetration: 0.0
   distance_to_ligand: 2.0
 
 thin_spheres_desolv:
   use: true
   molecular_surface_density: 1.0
-  distance_to_surface: 0.1
+  distance_to_surface: [0.1, 0.3, 0.5, 0.7, 0.9]
   penetration: 0.0
   distance_to_ligand: 2.0
 
@@ -42,7 +42,7 @@ indock:
   timeout: 10.0
   nodes_maximum: 4
   nodes_minimum: 4
-  bump_maximum: 10.0
+  bump_maximum: [10.0, 100.0]
   bump_rigid: 10.0
   mol2_score_maximum: 100.0
   chemical_matching: no

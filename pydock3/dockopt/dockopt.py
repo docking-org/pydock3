@@ -495,7 +495,8 @@ class Dockopt(Script):
                         new_spheres = []
                         for sphere in spheres:
                             new_sphere = copy(sphere)
-                            perturbation_xyz = tuple([random.gauss(0.0, float(config.param_dict["matching_spheres_perturbation.standard_deviation_angstroms"].value)) for _ in range(3)])
+                            max_deviation_angstroms = float(config.param_dict["matching_spheres_perturbation.max_deviation_angstroms"].value)
+                            perturbation_xyz = tuple([random.uniform(-max_deviation_angstroms, max_deviation_angstroms) for _ in range(3)])
                             new_sphere.X += perturbation_xyz[0]
                             new_sphere.Y += perturbation_xyz[1]
                             new_sphere.Z += perturbation_xyz[2]
