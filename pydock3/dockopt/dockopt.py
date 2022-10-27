@@ -4,12 +4,13 @@ import shutil
 import sys
 from functools import wraps
 from dataclasses import fields
-from copy import copy
+from copy import copy, deepcopy
 import logging
 import collections
 import time
 import random
 from datetime import datetime
+import hashlib
 
 import networkx as nx
 import numpy as np
@@ -76,11 +77,18 @@ METRICS = ["enrichment_score"]
 POSSIBLE_NON_PARAMETER_COLUMNS = METRICS + ["retrodock_job_num"]
 
 #
-RETRODOCK_JOB_DIR_COLUMN_NAME = "retrodock_job_num"
+RETRODOCK_JOB_DIR_PATH_COLUMN_NAME = "retrodock_job_dir"
 
 #
 ROC_IMAGE_FILE_NAME = "roc.png"
 RESULTS_CSV_FILE_NAME = "results.csv"
+
+
+def get_persistent_hash_of_tuple(t):
+    m = hashlib.md5()
+    for s in t:
+        m.update(str(s).encode())
+    return m.hexdigest()
 
 
 class Dockopt(Script):
@@ -224,7 +232,7 @@ class Dockopt(Script):
                 ).items()
             ]
         )
-        logger.info(f"Parameters:\n{config_params_str}")
+        logger.debug(f"Parameters:\n{config_params_str}")
 
         #
         blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
@@ -328,7 +336,7 @@ class RunnableJob(object):
 
         return (
             df.nlargest(self.top_n_job_to_keep, self.criterion.name)[
-                RETRODOCK_JOB_DIR_COLUMN_NAME
+                RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
             ]
             .apply(str)
             .tolist()
@@ -372,10 +380,11 @@ class RunnableJobWithReport(RunnableJob):
 
             #
             for i, best_job_dir_path in enumerate(self.get_n_best_jobs_dir_paths()):
-                if File.file_exists(
-                    os.path.join(best_job_dir_path, ROC_IMAGE_FILE_NAME)
-                ):
-                    image = mpimg.imread(f)
+                best_job_roc_file_path = os.path.join(
+                    best_job_dir_path, ROC_IMAGE_FILE_NAME
+                )
+                if File.file_exists(best_job_roc_file_path):
+                    image = mpimg.imread(best_job_roc_file_path)
                     plt.axis("off")
                     plt.suptitle(
                         f"linear-log ROC plot of {get_ordinal(i+1)} best job\n{best_job_dir_path}"
@@ -442,7 +451,7 @@ class RunnableJobWithReport(RunnableJob):
                     square=True,
                     fmt=".2f",
                     center=0,
-                    cmap="icefire",
+                    cmap="turbo",
                     robust=True,
                     cbar_kws={"label": self.criterion.name},
                 )
@@ -519,11 +528,30 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         self.blaster_files = BlasterFiles(working_dir=self.working_dir)
 
         #
-        self.dock_files_generation_flat_param_dicts = (
+        dock_files_generation_flat_param_dicts = (
             get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
-                param_dict["dock_files_generation"]
+                self.param_dict["dock_files_generation"]
             )
         )
+        param_dict_hashes = []
+        for p_dict in dock_files_generation_flat_param_dicts:
+            p_dict_items_interleaved_sorted_by_key_tuple = tuple(
+                itertools.chain.from_iterable(
+                    sorted(list(zip(*list(zip(*p_dict.items())))), key=lambda x: x[0])
+                )
+            )
+            param_dict_hashes.append(
+                get_persistent_hash_of_tuple(
+                    p_dict_items_interleaved_sorted_by_key_tuple
+                )
+            )
+        self.dock_files_generation_flat_param_dicts = [
+            x
+            for x, y in sorted(
+                zip(dock_files_generation_flat_param_dicts, param_dict_hashes),
+                key=lambda pair: pair[1],
+            )
+        ]
 
         # get directed acyclical graph defining how to get all combinations of dock files we need from the provided input files and parameters
         graph = nx.DiGraph()
@@ -556,7 +584,9 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                     ):
                         blaster_file_name_to_hash_dict[
                             infile.original_file_in_working_dir.name
-                        ] = hash(infile.original_file_in_working_dir.name)
+                        ] = get_persistent_hash_of_tuple(
+                            (infile.original_file_in_working_dir.name,)
+                        )
                     infile_hash_tuples.append(
                         (
                             infile_step_var_name,
@@ -566,12 +596,22 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                         )
                     )
 
-                # get step hash from infile hashes
-                step_hash = hash(
+                # get step hash from infile hashes, step dir, parameters, and outfiles
+                step_hash = get_persistent_hash_of_tuple(
                     tuple(
                         infile_hash_tuples
-                        + [type(step)]
-                        + list(sorted(step.__dict__.items(), key=lambda it: it[0]))
+                        + [step.__class__.__name__, step.step_dir.name]
+                        + [
+                            (parameter_step_var_name, parameter.__hash__())
+                            for parameter_step_var_name, parameter in parameters_dict_items_list
+                        ]
+                        + [
+                            (
+                                outfile_step_var_name,
+                                outfile.original_file_in_working_dir.name,
+                            )
+                            for outfile_step_var_name, outfile in outfiles_dict_items_list
+                        ]
                     )
                 )
 
@@ -579,7 +619,9 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 for outfile_step_var_name, outfile in outfiles_dict_items_list:
                     blaster_file_name_to_hash_dict[
                         outfile.original_file_in_working_dir.name
-                    ] = hash((step_hash, outfile.original_file_in_working_dir.name))
+                    ] = get_persistent_hash_of_tuple(
+                        (step_hash, outfile.original_file_in_working_dir.name)
+                    )
 
                 # add infile nodes
                 for infile in step.infiles:
@@ -594,7 +636,8 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                         blaster_file_name_to_hash_dict[
                             infile.original_file_in_working_dir.name
                         ],
-                        blaster_file=infile.original_file_in_working_dir,
+                        blaster_file=deepcopy(infile.original_file_in_working_dir),
+                        original_blaster_file_name=infile.original_file_in_working_dir.name,
                     )
 
                 # add outfile nodes
@@ -609,12 +652,15 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                         blaster_file_name_to_hash_dict[
                             outfile.original_file_in_working_dir.name
                         ],
-                        blaster_file=outfile.original_file_in_working_dir,
+                        blaster_file=deepcopy(outfile.original_file_in_working_dir),
+                        original_blaster_file_name=outfile.original_file_in_working_dir.name,
                     )
 
                 # add parameter nodes
                 for parameter in step.parameters:
-                    subgraph.add_node(parameter.__hash__(), parameter=parameter)
+                    subgraph.add_node(
+                        parameter.__hash__(), parameter=deepcopy(parameter)
+                    )
 
                 # connect each infile node to every outfile node
                 for (infile_step_var_name, infile), (
@@ -631,7 +677,8 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                             outfile.original_file_in_working_dir.name
                         ],
                         step_class=step.__class__,
-                        step_instance=step,
+                        original_step_dir_name=step.step_dir.name,
+                        step_instance=deepcopy(step),
                         step_hash=step_hash,
                         parent_node_step_var_name=infile_step_var_name,
                         child_node_step_var_name=outfile_step_var_name,
@@ -650,7 +697,10 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                             outfile.original_file_in_working_dir.name
                         ],
                         step_class=step.__class__,
-                        step_instance=step,  # this will be replaced with step instance with unique dir path
+                        original_step_dir_name=step.step_dir.name,
+                        step_instance=deepcopy(
+                            step
+                        ),  # this will be replaced with step instance with unique dir path
                         step_hash=step_hash,
                         parent_node_step_var_name=parameter_step_var_name,
                         child_node_step_var_name=outfile_step_var_name,
@@ -665,85 +715,72 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         #
         self.dock_file_nodes_combinations = dock_file_nodes_combinations
 
-        #
-        dock_files_combinations = []
-        for dock_file_nodes_combination in self.dock_file_nodes_combinations:
-            kwargs = {}
-            for node in dock_file_nodes_combination:
-                dock_file = graph.nodes[node]["blaster_file"]
-                kwargs[
-                    self.blaster_files.get_attribute_name_of_blaster_file_with_file_name(
-                        dock_file.name
-                    )
-                ] = dock_file
-            dock_files_combinations.append(DockFiles(**kwargs))
-        self.dock_files_combinations = dock_files_combinations
-
         # update self.graph blaster_files' file paths
         blaster_file_nodes = [
             node_name
             for node_name, node_data in graph.nodes.items()
             if graph.nodes[node_name].get("blaster_file")
         ]
-        blaster_file_name_to_num_unique_instances_witnessed_so_far_counter = (
+        blaster_file_nodes_sorted = sorted(blaster_file_nodes)
+
+        #
+        original_blaster_file_name_to_num_unique_instances_witnessed_so_far_counter = (
             collections.defaultdict(int)
         )
-        for blaster_file_node in blaster_file_nodes:
+        for blaster_file_node in blaster_file_nodes_sorted:
             blaster_file = graph.nodes[blaster_file_node]["blaster_file"]
-            blaster_file_name_to_num_unique_instances_witnessed_so_far_counter[
-                blaster_file.name
+            original_blaster_file_name = graph.nodes[blaster_file_node][
+                "original_blaster_file_name"
+            ]
+            original_blaster_file_name_to_num_unique_instances_witnessed_so_far_counter[
+                original_blaster_file_name
             ] += 1
-            blaster_file.path = f"{blaster_file.path}_{blaster_file_name_to_num_unique_instances_witnessed_so_far_counter[blaster_file.name]}"
+            blaster_file.path = f"{blaster_file.path}_{original_blaster_file_name_to_num_unique_instances_witnessed_so_far_counter[original_blaster_file_name]}"
             graph.nodes[blaster_file_node]["blaster_file"] = blaster_file
 
         #
         step_hash_to_edges_dict = collections.defaultdict(list)
-        step_hash_to_step_class_dict = {}
         step_hash_to_step_class_instance_dict = {}
         for u, v, data in graph.edges(data=True):
             step_hash_to_edges_dict[data["step_hash"]].append((u, v))
-            step_hash_to_step_class_dict[data["step_hash"]] = data["step_class"]
             step_hash_to_step_class_instance_dict[data["step_hash"]] = data[
                 "step_instance"
             ]
+        step_hash_to_edges_dict_sorted = {
+            key: value
+            for key, value in sorted(
+                step_hash_to_edges_dict.items(), key=lambda x: x[0]
+            )
+        }
 
         #
-        step_class_name_to_num_unique_instances_witnessed_so_far_counter = (
+        original_step_dir_name_to_num_unique_instances_witnessed_so_far_counter = (
             collections.defaultdict(int)
         )
         step_hash_to_step_dir_path_dict = {}
-        for step_hash, edges in step_hash_to_edges_dict.items():
+        for step_hash, edges in step_hash_to_edges_dict_sorted.items():
+            original_step_dir_name = graph.get_edge_data(*edges[0])[
+                "original_step_dir_name"
+            ]  # just get the first edge since they all have the same original_step_dir_name
+            original_step_dir_name_to_num_unique_instances_witnessed_so_far_counter[
+                original_step_dir_name
+            ] += 1
             step_dir_path = graph.get_edge_data(*edges[0])[
                 "step_instance"
             ].step_dir.path
-            step_class_name = graph.get_edge_data(*edges[0])["step_class"].__name__
-            if (
-                step_class_name
-                not in step_class_name_to_num_unique_instances_witnessed_so_far_counter
-            ):
-                step_class_name_to_num_unique_instances_witnessed_so_far_counter[
-                    step_class_name
-                ] += 1
             if step_hash not in step_hash_to_step_dir_path_dict:
-                step_hash_to_step_dir_path_dict[step_hash] = os.path.join(
-                    f"{step_dir_path}_{step_class_name_to_num_unique_instances_witnessed_so_far_counter[step_class_name]}"
-                )
+                step_hash_to_step_dir_path_dict[
+                    step_hash
+                ] = f"{step_dir_path}_{original_step_dir_name_to_num_unique_instances_witnessed_so_far_counter[original_step_dir_name]}"
 
         #
-        for step_hash, edges in step_hash_to_edges_dict.items():
-            #
-            step_class = graph.get_edge_data(*edges[0])["step_class"]
-
+        for step_hash, edges in step_hash_to_edges_dict_sorted.items():
             #
             step_dir = Dir(path=step_hash_to_step_dir_path_dict[step_hash])
 
             #
             kwargs = {"step_dir": step_dir}
             for (parent_node, child_node) in edges:
-                graph[parent_node][child_node][
-                    "step_instance"
-                ] = step_hash_to_step_class_instance_dict[step_hash]
-
                 edge_data_dict = graph.get_edge_data(parent_node, child_node)
                 parent_node_data_dict = graph.nodes[parent_node]
                 child_node_data_dict = graph.nodes[child_node]
@@ -765,6 +802,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                     kwargs[child_node_step_var_name] = child_node_data_dict["parameter"]
 
             #
+            step_class = graph.get_edge_data(*edges[0])["step_class"]
             step_hash_to_step_class_instance_dict[step_hash] = step_class(**kwargs)
 
             #
@@ -781,6 +819,21 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         self.graph = graph
         logger.debug(
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
+        )
+
+        dock_file_node_to_dock_files_arg_dict = {}
+        for dock_file_nodes_combination in self.dock_file_nodes_combinations:
+            for node in dock_file_nodes_combination:
+                original_blaster_file_name = self.graph.nodes[node][
+                    "original_blaster_file_name"
+                ]
+                dock_file_node_to_dock_files_arg_dict[
+                    node
+                ] = self.blaster_files.get_attribute_name_of_blaster_file_with_file_name(
+                    original_blaster_file_name
+                )
+        self.dock_file_node_to_dock_files_arg_dict = (
+            dock_file_node_to_dock_files_arg_dict
         )
 
     def run(
@@ -813,11 +866,23 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 )
 
         #
+        logger.info("Getting dock files combinations...")
+        dock_files_combinations = []
+        for dock_file_nodes_combination in self.dock_file_nodes_combinations:
+            kwargs = {}
+            for node in dock_file_nodes_combination:
+                kwargs[
+                    self.dock_file_node_to_dock_files_arg_dict[node]
+                ] = self.graph.nodes[node]["blaster_file"]
+            dock_files_combinations.append(DockFiles(**kwargs))
+
+        #
         dock_files_modification_flat_param_dicts = (
             get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
                 self.param_dict["dock_files_modification"]
             )
         )
+        logger.info("done.")
 
         #
         if (
@@ -841,6 +906,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         if dock_files_modification_flat_param_dicts[0][
             "matching_spheres_perturbation.use"
         ].value:
+            logger.info("Running matching spheres perturbation...")
             dock_files_combinations_after_modifications = []
             dock_files_generation_flat_param_dicts_after_modifications = []
             dock_files_modification_flat_param_dicts_after_modifications = []
@@ -854,8 +920,11 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 for node_name, node_data in self.graph.nodes(data=True):
                     if node_data.get("blaster_file") is None:
                         continue
-                    file_name = node_data["blaster_file"].name
-                    if file_name == self.blaster_files.matching_spheres_file.name:
+                    if (
+                        node_data["original_blaster_file_name"]
+                        == self.blaster_files.matching_spheres_file.name
+                    ):
+                        file_name = node_data["blaster_file"].name
                         spheres = read_sph(
                             os.path.join(self.working_dir.path, file_name),
                             chosen_cluster="A",
@@ -915,7 +984,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                     dock_files_generation_flat_param_dict,
                 ) in enumerate(
                     zip(
-                        self.dock_files_combinations,
+                        dock_files_combinations,
                         self.dock_files_generation_flat_param_dicts,
                     )
                 ):
@@ -937,9 +1006,9 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                         dock_files_modification_flat_param_dicts_after_modifications.append(
                             dock_files_modification_flat_param_dict
                         )
-
+            logger.info("done")
         else:
-            dock_files_combinations_after_modifications = self.dock_files_combinations
+            dock_files_combinations_after_modifications = dock_files_combinations
             dock_files_generation_flat_param_dicts_after_modifications = (
                 self.dock_files_generation_flat_param_dicts
             )
@@ -1029,19 +1098,27 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 (dock_executable_path, dock_files, indock_file)
             )
 
-        #
+        # TODO: improve this
         all_docking_configuration_file_names = []
-        for dock_executable_path, dock_files, indock_file in docking_configurations:
-            all_docking_configuration_file_names.append(dock_executable_path)
-            dock_file_names = [
-                getattr(dock_files, dock_file_field.name).name
-                for dock_file_field in fields(dock_files)
-            ]
-            all_docking_configuration_file_names += dock_file_names
-            all_docking_configuration_file_names.append(indock_file.name)
-        all_docking_configuration_file_names = list(
-            set(all_docking_configuration_file_names)
+        for node_name, node_data in self.graph.nodes.items():
+            original_blaster_file_name = node_data.get("original_blaster_file_name")
+            if original_blaster_file_name is not None:
+                all_docking_configuration_file_names.append(
+                    node_data["blaster_file"].path
+                )
+        unique_dock_file_nodes = list(
+            set(
+                [
+                    node
+                    for dock_file_nodes_combination in self.dock_file_nodes_combinations
+                    for node in dock_file_nodes_combination
+                ]
+            )
         )
+        for node in unique_dock_file_nodes:
+            all_docking_configuration_file_names.append(
+                self.graph.nodes[node]["blaster_file"].name
+            )
 
         #
         job_hash = dirhash(
@@ -1239,7 +1316,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
             data_dict = copy(flat_param_dict)
-            data_dict["retrodock_job_num"] = retrodock_job_dir.name
+            data_dict[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] = retrodock_job_dir.path
 
             # get ROC and calculate enrichment score of this job's docking set-up
             if isinstance(self.criterion, EnrichmentScore):

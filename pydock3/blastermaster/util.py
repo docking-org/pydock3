@@ -483,10 +483,9 @@ class BlasterFiles(object):
                 if getattr(self, a).name == file_name:
                     return a
 
-        logger.exception(
+        raise Exception(
             f"Blaster file with file name '{file_name}' not found in attributes of BlasterFiles instance."
         )
-        raise
 
 
 @dataclass
