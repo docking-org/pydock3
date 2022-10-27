@@ -122,4 +122,4 @@ definitions:
           - step: *step_2
 
 pipeline:
-  - sequence: *sequence_1
+  - *step_1

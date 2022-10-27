@@ -128,30 +128,40 @@ class WorkingDir(Dir):
         create=False,
         reset=False,
         files_to_copy_in=None,
+        new_file_names=None,
         backup_files_to_copy_in=None,
+        new_backup_file_names=None,
     ):
         super().__init__(path, create=create, reset=reset)
 
         #
         if files_to_copy_in is None:
             files_to_copy_in = []
+        if new_file_names is None:
+            new_file_names = []
         if backup_files_to_copy_in is None:
             backup_files_to_copy_in = []
+        if new_backup_file_names is None:
+            new_file_names = []
 
         # copy in specified files if they exist, otherwise try to copy in backup files
         file_names_to_copy_in = [
             File.get_file_name_of_file(file_path) for file_path in files_to_copy_in
         ]
-        for backup_file_path in backup_files_to_copy_in:
+        for src_backup_file_path, dst_backup_file_name in zip(
+            backup_files_to_copy_in, new_backup_file_names
+        ):
             if (
-                File.get_file_name_of_file(backup_file_path)
+                File.get_file_name_of_file(src_backup_file_path)
                 not in file_names_to_copy_in
             ):
-                if File.file_exists(backup_file_path):
-                    self.copy_in_file(backup_file_path)
-        for file_path in files_to_copy_in:
-            if File.file_exists(file_path):
-                self.copy_in_file(file_path)
+                if File.file_exists(src_backup_file_path):
+                    self.copy_in_file(
+                        src_backup_file_path, dst_file_name=dst_backup_file_name
+                    )
+        for src_file_path, dst_file_name in zip(files_to_copy_in, new_file_names):
+            if File.file_exists(src_file_path):
+                self.copy_in_file(src_file_path, dst_file_name=dst_file_name)
 
 
 @dataclass
@@ -223,6 +233,19 @@ class BlasterFileNames(object):
 
     ligand_desolvation_heavy_file_name: str = "ligand.desolv.heavy"
     ligand_desolvation_hydrogen_file_name: str = "ligand.desolv.hydrogen"
+
+    @property
+    def dock_file_names(self):
+        return [
+            self.matching_spheres_file_name,
+            self.electrostatics_trim_phi_file_name,
+            self.vdw_file_name,
+            self.vdw_bump_map_file_name,
+            self.vdw_parameters_file_name,
+            self.ligand_desolvation_heavy_file_name,
+            self.ligand_desolvation_hydrogen_file_name,
+            self.electrostatics_phi_size_file_name,
+        ]
 
 
 class BlasterFiles(object):

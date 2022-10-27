@@ -1,3 +1,8 @@
+definitions:
+  steps:
+    list(include('step_list_item'), min=1)
+  sequences:
+    list(include('sequence_list_item'), min=0)
 pipeline: list(include('step'), include('sequence'), min=1)
 
 ---
@@ -46,7 +51,7 @@ step:
     matching_spheres_perturbation:
       use: bool()
       num_samples_per_matching_spheres_file: num()
-      standard_deviation_angstroms: num()
+      max_deviation_angstroms: num()
 
   indock:
     ligand_atom_file: any(str(), list(str()))
@@ -108,4 +113,10 @@ step:
 sequence:
   n_repetitions: int(min=0)
   stop_if_no_progress_for_n_iterations: int(min=0)
-  steps: list(include('step'), include('sequence'), min=1)
+  steps: list(include('step_list_item'), include('sequence_list_item'), min=1)
+
+step_list_item:
+  step: include('step')
+
+sequence_list_item:
+  sequence: include('sequence')

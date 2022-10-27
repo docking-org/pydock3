@@ -85,32 +85,47 @@ def flatten_param_dict(d, key_prefix=""):
         if isinstance(value, dict):
             new_d.update(flatten_param_dict(value, f"{this_key}."))
         else:
+            new_d[this_key] = value
+    return new_d
+
+
+def flatten_and_parameter_cast_param_dict(d, key_prefix=""):
+    new_d = {}
+    for key, value in d.items():
+        this_key = f"{key_prefix}{key}"
+        if isinstance(value, dict):
+            new_d.update(flatten_and_parameter_cast_param_dict(value, f"{this_key}."))
+        else:
             new_d[this_key] = Parameter(this_key, value)
     return new_d
 
 
-def get_univalued_flat_param_dicts_from_multivalued_param_dict(multivalued_param_dict):
+def get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
+    multivalued_param_dict,
+):
     #
-    keys, multivalues_list = zip(*flatten_param_dict(multivalued_param_dict.items()))
+    keys, multivalues = zip(*flatten_param_dict(multivalued_param_dict).items())
 
     #
-    new_multivalues_list = []
-    for multivalue in multivalues_list:
+    new_multivalues = []
+    for multivalue in multivalues:
         if isinstance(multivalue, list):
-            new_multivalues_list.append(multivalue)  # is multivalue
+            new_multivalues.append(multivalue)  # is multivalue
         else:
-            new_multivalues_list.append(
-                [multivalue]
-            )  # is univalue, so cast as multivalue
-    multivalues_list = new_multivalues_list
+            new_multivalues.append([multivalue])  # is univalue, so cast as multivalue
+    multivalues = new_multivalues
 
     #
-    univalued_param_dicts = []
-    for univalues_tuple in itertools.product(*multivalues_list):
-        univalued_param_dict = deepcopy(multivalued_param_dict)
-        for i, univalue in enumerate(univalues_tuple):
+    univalued_flat_parameter_cast_param_dicts = []
+    for univalues_combination in itertools.product(*multivalues):
+        univalued_flat_parameter_cast_param_dict = {}
+        for i, univalue in enumerate(univalues_combination):
             key = keys[i]
-            univalued_param_dict[key] = Parameter(name=key, value=univalue)
-        univalued_param_dicts.append(univalued_param_dict)
+            univalued_flat_parameter_cast_param_dict[key] = Parameter(
+                name=key, value=univalue
+            )
+        univalued_flat_parameter_cast_param_dicts.append(
+            univalued_flat_parameter_cast_param_dict
+        )
 
-    return univalued_param_dicts
+    return univalued_flat_parameter_cast_param_dicts

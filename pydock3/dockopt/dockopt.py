@@ -27,13 +27,13 @@ from pydock3.util import (
     get_dataclass_as_dict,
     validate_variable_type,
 )
-from pydock3.config import Parameter
-from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
-from pydock3.dockopt.config import (
-    DockoptParametersConfiguration,
-    flatten_param_dict,
-    get_univalued_flat_param_dicts_from_multivalued_param_dict,
+from pydock3.config import (
+    Parameter,
+    flatten_and_parameter_cast_param_dict,
+    get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict,
 )
+from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
+from pydock3.dockopt.config import DockoptParametersConfiguration
 from pydock3.files import (
     Dir,
     File,
@@ -63,6 +63,9 @@ logger.setLevel(logging.DEBUG)
 plt.rcParams.update({"font.size": 14})
 
 #
+DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
+
+#
 SCHEDULER_NAME_TO_CLASS_DICT = {
     "sge": SGEJobScheduler,
     "slurm": SlurmJobScheduler,
@@ -73,10 +76,11 @@ METRICS = ["enrichment_score"]
 POSSIBLE_NON_PARAMETER_COLUMNS = METRICS + ["retrodock_job_num"]
 
 #
-RETRODOCK_JOB_DIR_COLUMN_NAME = "retrodock_job_dir"
+RETRODOCK_JOB_DIR_COLUMN_NAME = "retrodock_job_num"
 
 #
 ROC_IMAGE_FILE_NAME = "roc.png"
+RESULTS_CSV_FILE_NAME = "results.csv"
 
 
 class Dockopt(Script):
@@ -87,7 +91,6 @@ class Dockopt(Script):
     DEFAULT_CONFIG_FILE_PATH = os.path.join(
         os.path.dirname(DOCKOPT_INIT_FILE_PATH), "default_dockopt_config.yaml"
     )
-    DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(self):
         super().__init__()
@@ -110,16 +113,16 @@ class Dockopt(Script):
 
         # create working dir & copy in blaster files
         blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
-        backup_blaster_file_paths = [
-            os.path.join(self.DEFAULT_FILES_DIR_PATH, blaster_file_name)
-            for blaster_file_name in blaster_file_names
+        user_provided_blaster_file_paths = [
+            os.path.abspath(f) for f in blaster_file_names if os.path.isfile(f)
         ]
-        blaster_file_names_in_cwd = [f for f in blaster_file_names if os.path.isfile(f)]
-        files_to_copy_str = "\n\t".join(blaster_file_names_in_cwd)
-        if blaster_file_names_in_cwd:
+        files_to_copy_str = "\n\t".join(user_provided_blaster_file_paths)
+        if user_provided_blaster_file_paths:
             logger.info(
                 f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}"
             )
+            for blaster_file_path in user_provided_blaster_file_paths:
+                self.job_dir.copy_in_file(blaster_file_path)
         else:
             logger.info(
                 f"No blaster files detected in current working directory. Be sure to add them manually before running the job."
@@ -216,12 +219,31 @@ class Dockopt(Script):
         config_params_str = "\n".join(
             [
                 f"{param_name}: {param.value}"
-                for param_name, param in config.param_dict.items()
+                for param_name, param in flatten_and_parameter_cast_param_dict(
+                    config.param_dict
+                ).items()
             ]
         )
         logger.info(f"Parameters:\n{config_params_str}")
 
-        # TODO
+        #
+        blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
+        blaster_files_to_copy_in = [
+            os.path.abspath(f) for f in blaster_file_names if os.path.isfile(f)
+        ]
+        branching_job = DockingConfigurationNodeBranchingJob(
+            job_dir_path=job_dir_path,
+            param_dict=config.param_dict["pipeline"][0],  # TODO
+            blaster_files_to_copy_in=blaster_files_to_copy_in,
+        )
+        branching_job.run(
+            scheduler=scheduler,
+            temp_dir_path=temp_dir_path,
+            actives_tgz_file_path=actives_tgz_file_path,
+            decoys_tgz_file_path=decoys_tgz_file_path,
+            retrodock_job_max_reattempts=retrodock_job_max_reattempts,
+            retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
+        )
 
 
 class Criterion(object):
@@ -257,9 +279,9 @@ class EnrichmentScore(Criterion):
 def record_started_utc_and_finished_utc_for_run_method(_cls):
     run = getattr(_cls, "run")
 
-    def new_run(self):
+    def new_run(self, *args, **kwargs):
         self.started_utc = datetime.utcnow()
-        run(self)
+        run(self, *args, **kwargs)
         self.finished_utc = datetime.utcnow()
 
     setattr(_cls, "run", new_run)
@@ -275,7 +297,9 @@ class RunnableJob(object):
 
         #
         self.job_dir = Dir(job_dir_path)
-        self.results_csv_file_path = os.path.join(self.job_dir.path, "results.csv")
+        self.results_csv_file_path = os.path.join(
+            self.job_dir.path, RESULTS_CSV_FILE_NAME
+        )
 
         #
         self.started_utc = None  # set by record_started_utc_and_finished_utc_for_run_method() decorator; see .__init_subclass__()
@@ -302,9 +326,13 @@ class RunnableJob(object):
     def get_n_best_jobs_dir_paths(self):
         df = self.load_results_csv()
 
-        return df.nlargest(self.top_n_job_to_keep, self.criterion.name)[
-            RETRODOCK_JOB_DIR_COLUMN_NAME
-        ].tolist()
+        return (
+            df.nlargest(self.top_n_job_to_keep, self.criterion.name)[
+                RETRODOCK_JOB_DIR_COLUMN_NAME
+            ]
+            .apply(str)
+            .tolist()
+        )
 
 
 class RunnableJobWithReport(RunnableJob):
@@ -425,6 +453,10 @@ class RunnableJobWithReport(RunnableJob):
                 plt.close(fig)
 
 
+#
+CRITERION_CLASS_DICT = {"enrichment_score": EnrichmentScore}
+
+
 class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
     WORKING_DIR_NAME = "working"
     RETRODOCK_JOBS_DIR_NAME = "retrodock_jobs"
@@ -438,7 +470,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
     ):
         super().__init__(
             job_dir_path=job_dir_path,
-            criterion=param_dict["criterion"],
+            criterion=CRITERION_CLASS_DICT[param_dict["criterion"]](),
             top_n=param_dict["top_n"],
         )
 
@@ -446,13 +478,27 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         self.param_dict = param_dict
 
         #
-        backup_blaster_files = []  # TODO
+        blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
+        backup_blaster_file_paths = [
+            os.path.join(DEFAULT_FILES_DIR_PATH, blaster_file_name)
+            for blaster_file_name in blaster_file_names
+        ]
+        new_file_names = [
+            f"{File.get_file_name_of_file(file_path)}_1"
+            for file_path in blaster_files_to_copy_in
+        ]  # all nodes in graph will be numerically indexed, including input files
+        new_backup_file_names = [
+            f"{File.get_file_name_of_file(file_path)}_1"
+            for file_path in backup_blaster_file_paths
+        ]  # ^
         self.working_dir = WorkingDir(
             path=os.path.join(self.job_dir.path, self.WORKING_DIR_NAME),
             create=True,
             reset=False,
             files_to_copy_in=blaster_files_to_copy_in,
-            backup_files_to_copy_in=backup_blaster_files,
+            new_file_names=new_file_names,
+            backup_files_to_copy_in=backup_blaster_file_paths,
+            new_backup_file_names=new_backup_file_names,
         )
         self.retrodock_jobs_dir = Dir(
             path=os.path.join(self.job_dir.path, self.RETRODOCK_JOBS_DIR_NAME),
@@ -474,14 +520,14 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         #
         self.dock_files_generation_flat_param_dicts = (
-            get_univalued_flat_param_dicts_from_multivalued_param_dict(
+            get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
                 param_dict["dock_files_generation"]
             )
         )
 
         # get directed acyclical graph defining how to get all combinations of dock files we need from the provided input files and parameters
         graph = nx.DiGraph()
-        dock_files_combinations = []
+        dock_file_nodes_combinations = []
         for (
             dock_files_generation_flat_param_dict
         ) in self.dock_files_generation_flat_param_dicts:
@@ -495,77 +541,80 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
             # form subgraph for this dock_files_generation_param_dict from the blaster steps it defines
             subgraph = nx.DiGraph()
+            blaster_file_name_to_hash_dict = {}
             for step in steps:
+                infiles_dict_items_list = sorted(step.infiles._asdict().items())
+                outfiles_dict_items_list = sorted(step.outfiles._asdict().items())
+                parameters_dict_items_list = sorted(step.parameters._asdict().items())
+
+                # get infiles hashes
+                infile_hash_tuples = []
+                for infile_step_var_name, infile in infiles_dict_items_list:
+                    if (
+                        infile.original_file_in_working_dir.name
+                        not in blaster_file_name_to_hash_dict
+                    ):
+                        blaster_file_name_to_hash_dict[
+                            infile.original_file_in_working_dir.name
+                        ] = hash(infile.original_file_in_working_dir.name)
+                    infile_hash_tuples.append(
+                        (
+                            infile_step_var_name,
+                            blaster_file_name_to_hash_dict[
+                                infile.original_file_in_working_dir.name
+                            ],
+                        )
+                    )
+
+                # get step hash from infile hashes
+                step_hash = hash(
+                    tuple(
+                        infile_hash_tuples
+                        + [type(step)]
+                        + list(sorted(step.__dict__.items(), key=lambda it: it[0]))
+                    )
+                )
+
+                # get outfile hashes from step_hash
+                for outfile_step_var_name, outfile in outfiles_dict_items_list:
+                    blaster_file_name_to_hash_dict[
+                        outfile.original_file_in_working_dir.name
+                    ] = hash((step_hash, outfile.original_file_in_working_dir.name))
 
                 # add infile nodes
                 for infile in step.infiles:
                     if (
-                        self._get_blaster_file_node_with_same_name(
+                        self._get_blaster_file_node_with_same_file_name(
                             infile.original_file_in_working_dir.name, subgraph
                         )
                         is not None
                     ):
                         continue
                     subgraph.add_node(
-                        self._get_hash_for_new_blaster_file_node(
-                            infile, step, subgraph
-                        ),
+                        blaster_file_name_to_hash_dict[
+                            infile.original_file_in_working_dir.name
+                        ],
                         blaster_file=infile.original_file_in_working_dir,
                     )
 
                 # add outfile nodes
                 for outfile in step.outfiles:
-                    if self._get_blaster_file_node_with_same_name(
+                    if self._get_blaster_file_node_with_same_file_name(
                         outfile.original_file_in_working_dir.name, subgraph
                     ):
                         raise Exception(
                             f"Attempting to add outfile to subgraph that already has said outfile as node: {outfile.original_file_in_working_dir.name}"
                         )
                     subgraph.add_node(
-                        self._get_hash_for_new_blaster_file_node(
-                            outfile, step, subgraph
-                        ),
+                        blaster_file_name_to_hash_dict[
+                            outfile.original_file_in_working_dir.name
+                        ],
                         blaster_file=outfile.original_file_in_working_dir,
                     )
 
                 # add parameter nodes
                 for parameter in step.parameters:
                     subgraph.add_node(parameter.__hash__(), parameter=parameter)
-
-                # get step hash
-                infiles_dict_items_list = step.infiles._asdict().items()
-                outfiles_dict_items_list = step.outfiles._asdict().items()
-                parameters_dict_items_list = step.parameters._asdict().items()
-                step_hash = hash(
-                    tuple(
-                        sorted(
-                            [
-                                (
-                                    infile_step_var_name,
-                                    self._get_blaster_file_node_with_same_name(
-                                        infile.original_file_in_working_dir.name,
-                                        subgraph,
-                                    ),
-                                )
-                                for infile_step_var_name, infile in infiles_dict_items_list
-                            ]
-                            + [
-                                (
-                                    outfile_step_var_name,
-                                    self._get_blaster_file_node_with_same_name(
-                                        outfile.original_file_in_working_dir.name,
-                                        subgraph,
-                                    ),
-                                )
-                                for outfile_step_var_name, outfile in outfiles_dict_items_list
-                            ]
-                            + [
-                                (parameter_step_var_name, parameter.__hash__())
-                                for parameter_step_var_name, parameter in parameters_dict_items_list
-                            ]
-                        )
-                    )
-                )
 
                 # connect each infile node to every outfile node
                 for (infile_step_var_name, infile), (
@@ -575,9 +624,14 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                     infiles_dict_items_list, outfiles_dict_items_list
                 ):
                     subgraph.add_edge(
-                        infile.original_file_in_working_dir.name,
-                        outfile.original_file_in_working_dir.name,
+                        blaster_file_name_to_hash_dict[
+                            infile.original_file_in_working_dir.name
+                        ],
+                        blaster_file_name_to_hash_dict[
+                            outfile.original_file_in_working_dir.name
+                        ],
                         step_class=step.__class__,
+                        step_instance=step,
                         step_hash=step_hash,
                         parent_node_step_var_name=infile_step_var_name,
                         child_node_step_var_name=outfile_step_var_name,
@@ -591,32 +645,45 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                     parameters_dict_items_list, outfiles_dict_items_list
                 ):
                     subgraph.add_edge(
-                        parameter.name,
-                        outfile.original_file_in_working_dir.name,
+                        parameter.__hash__(),
+                        blaster_file_name_to_hash_dict[
+                            outfile.original_file_in_working_dir.name
+                        ],
                         step_class=step.__class__,
+                        step_instance=step,  # this will be replaced with step instance with unique dir path
                         step_hash=step_hash,
                         parent_node_step_var_name=parameter_step_var_name,
                         child_node_step_var_name=outfile_step_var_name,
                     )
 
-                # record the combination of dock files for this subgraph
-                kwargs = {}
-                for node in self._get_end_nodes(subgraph):
-                    dock_file = subgraph.nodes[node]["blaster_file"]
-                    arg_name = self.blaster_files.get_attribute_name_of_blaster_file_with_file_name(
+            # record the combination of dock files for this subgraph
+            dock_file_nodes_combinations.append(self._get_dock_file_nodes(subgraph))
+
+            # merge subgraph into full graph
+            graph = nx.compose(graph, subgraph)
+
+        #
+        self.dock_file_nodes_combinations = dock_file_nodes_combinations
+
+        #
+        dock_files_combinations = []
+        for dock_file_nodes_combination in self.dock_file_nodes_combinations:
+            kwargs = {}
+            for node in dock_file_nodes_combination:
+                dock_file = graph.nodes[node]["blaster_file"]
+                kwargs[
+                    self.blaster_files.get_attribute_name_of_blaster_file_with_file_name(
                         dock_file.name
                     )
-                    kwargs[arg_name] = dock_file
-                dock_files_combinations.append(DockFiles(**kwargs))
-
-                # merge subgraph into full graph
-                graph = nx.compose(graph, subgraph)
+                ] = dock_file
+            dock_files_combinations.append(DockFiles(**kwargs))
+        self.dock_files_combinations = dock_files_combinations
 
         # update self.graph blaster_files' file paths
         blaster_file_nodes = [
-            graph.nodes[node]
-            for node in graph.nodes
-            if graph.nodes[node].get("blaster_file")
+            node_name
+            for node_name, node_data in graph.nodes.items()
+            if graph.nodes[node_name].get("blaster_file")
         ]
         blaster_file_name_to_num_unique_instances_witnessed_so_far_counter = (
             collections.defaultdict(int)
@@ -636,6 +703,9 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         for u, v, data in graph.edges(data=True):
             step_hash_to_edges_dict[data["step_hash"]].append((u, v))
             step_hash_to_step_class_dict[data["step_hash"]] = data["step_class"]
+            step_hash_to_step_class_instance_dict[data["step_hash"]] = data[
+                "step_instance"
+            ]
 
         #
         step_class_name_to_num_unique_instances_witnessed_so_far_counter = (
@@ -643,7 +713,9 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         )
         step_hash_to_step_dir_path_dict = {}
         for step_hash, edges in step_hash_to_edges_dict.items():
-            step_dir_path = graph.get_edge_data(*edges[0])["step_dir"].path
+            step_dir_path = graph.get_edge_data(*edges[0])[
+                "step_instance"
+            ].step_dir.path
             step_class_name = graph.get_edge_data(*edges[0])["step_class"].__name__
             if (
                 step_class_name
@@ -711,9 +783,6 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
         )
 
-        #
-        self.dock_files_combinations = dock_files_combinations
-
     def run(
         self,
         scheduler,
@@ -737,14 +806,15 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         # run necessary steps to get all dock files
         logger.info("Generating dock files for all docking configurations")
-        for dock_file_node in self._get_end_nodes(self.graph):
-            self._run_unrun_steps_needed_to_create_this_blaster_file_node(
-                dock_file_node, self.graph
-            )
+        for dock_file_nodes_combination in self.dock_file_nodes_combinations:
+            for dock_file_node in dock_file_nodes_combination:
+                self._run_unrun_steps_needed_to_create_this_blaster_file_node(
+                    dock_file_node, self.graph
+                )
 
         #
         dock_files_modification_flat_param_dicts = (
-            get_univalued_flat_param_dicts_from_multivalued_param_dict(
+            get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
                 self.param_dict["dock_files_modification"]
             )
         )
@@ -865,7 +935,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                             dock_files_generation_flat_param_dict
                         )
                         dock_files_modification_flat_param_dicts_after_modifications.append(
-                            dock_files_modification_flat_param_dicts
+                            dock_files_modification_flat_param_dict
                         )
 
         else:
@@ -879,7 +949,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         #
         indock_flat_param_dicts = (
-            get_univalued_flat_param_dicts_from_multivalued_param_dict(
+            get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
                 self.param_dict["indock"]
             )
         )
@@ -927,9 +997,24 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             # get full flat parameter dict
             flat_param_dict = {}
             flat_param_dict["dock_executable_path"] = dock_executable_path
-            flat_param_dict.update(dock_files_generation_flat_param_dict)
-            flat_param_dict.update(dock_files_modification_flat_param_dict)
-            flat_param_dict.update(indock_flat_param_dict)
+            flat_param_dict.update(
+                {
+                    f"dock_files_generation.{key}": value
+                    for key, value in dock_files_generation_flat_param_dict.items()
+                }
+            )
+            flat_param_dict.update(
+                {
+                    f"dock_files_modification.{key}": value
+                    for key, value in dock_files_modification_flat_param_dict.items()
+                }
+            )
+            flat_param_dict.update(
+                {
+                    f"indock.{key}": value
+                    for key, value in indock_flat_param_dict.items()
+                }
+            )
 
             # make indock file for each combination of dock files
             indock_file_name = f"{INDOCK_FILE_NAME}_{i + 1}"
@@ -1194,7 +1279,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         # save optimization job results dataframe to csv
         optimization_results_csv_file_path = os.path.join(
-            self.job_dir.path, "dockopt_job_results.csv"
+            self.job_dir.path, RESULTS_CSV_FILE_NAME
         )
         logger.debug(
             f"Saving optimization job results to {optimization_results_csv_file_path}"
@@ -1236,60 +1321,49 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         df.to_csv()
 
     @staticmethod
-    def _get_blaster_file_node_with_same_name(name, g):
-        blaster_file_nodes = [
-            g.nodes[node] for node in g.nodes if g.nodes[node].get("blaster_file")
+    def _get_blaster_file_node_with_same_file_name(name, g):
+        blaster_file_node_names = [
+            node_name
+            for node_name, node_data in g.nodes.items()
+            if g.nodes[node_name].get("blaster_file")
         ]
-        if len(blaster_file_nodes) == 0:
+        if len(blaster_file_node_names) == 0:
             return None
-        blaster_file_nodes_with_same_name = [
-            blaster_file_node
-            for blaster_file_node in blaster_file_nodes
-            if name == blaster_file_node["blaster_file"].name
+        blaster_file_nodes_with_same_file_name = [
+            blaster_file_node_name
+            for blaster_file_node_name in blaster_file_node_names
+            if name == g.nodes[blaster_file_node_name]["blaster_file"].name
         ]
-        if len(blaster_file_nodes_with_same_name) == 0:
+        if len(blaster_file_nodes_with_same_file_name) == 0:
             return None
-        (blaster_file_node_with_same_name,) = blaster_file_nodes_with_same_name
+        (
+            blaster_file_node_with_same_file_name,
+        ) = blaster_file_nodes_with_same_file_name
 
-        return blaster_file_node_with_same_name
-
-    @staticmethod
-    def _get_hash_for_new_blaster_file_node(blaster_file, step, g):
-        blaster_file_node_with_same_name = (
-            DockingConfigurationNodeBranchingJob._get_blaster_file_node_with_same_name(
-                blaster_file.original_file_in_working_dir.name, g
-            )
-        )
-        if blaster_file_node_with_same_name is None:
-            return hash(blaster_file.original_file_in_working_dir.name)
-        else:
-            parent_nodes = [
-                DockingConfigurationNodeBranchingJob._get_blaster_file_node_with_same_name(
-                    infile.original_file_in_working_dir.name, g
-                )
-                for infile in step.infiles
-            ]
-            return hash(tuple(sorted([step.__class__.__name__] + parent_nodes)))
+        return blaster_file_node_with_same_file_name
 
     @staticmethod
     def _get_start_nodes(g):
         start_nodes = []
-        for node in g.nodes:
-            if g.in_degree(node) == 0:
-                start_nodes.append(node)
+        for node_name, node_data in g.nodes.items():
+            if g.in_degree(node_name) == 0:
+                start_nodes.append(node_name)
         return start_nodes
 
     @staticmethod
-    def _get_end_nodes(g):
+    def _get_dock_file_nodes(g):
+        dock_file_names = BlasterFileNames().dock_file_names
         end_nodes = []
-        for node in g.nodes:
-            if g.out_degree(node) == 0:
-                end_nodes.append(node)
+        for node_name, node_data in g.nodes.items():
+            if node_data.get("blaster_file") is not None:
+                if node_data["blaster_file"].name in dock_file_names:
+                    end_nodes.append(node_name)
         return end_nodes
 
     @staticmethod
     def _run_unrun_steps_needed_to_create_this_blaster_file_node(blaster_file_node, g):
         blaster_file = g.nodes[blaster_file_node].get("blaster_file")
+
         if blaster_file is not None:
             if not blaster_file.exists:
                 for parent_node in g.predecessors(blaster_file_node):
