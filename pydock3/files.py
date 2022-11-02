@@ -617,7 +617,7 @@ class OutdockFile(File):
             # find first ligand line ("Input ligand: [...]")
             first_db2_line_index = None
             for i, line in enumerate(lines):
-                if line.strip().endswith(".db2"):
+                if line.strip().endswith(".db2") or line.strip().endswith(".db2.gz"):
                     first_db2_line_index = i
                     break
 
@@ -634,7 +634,7 @@ class OutdockFile(File):
             lines = [lines[first_db2_line_index]] + lines[header_line_index+1:]
 
             #
-            db2_file_line_indices = [i for i, line in enumerate(lines) if line.endswith(".db2")]
+            db2_file_line_indices = [i for i, line in enumerate(lines) if line.endswith(".db2") or line.endswith(".db2.gz")]
             if len(db2_file_line_indices) % 2 != 0:
                 raise Exception(f"Cannot parse OutdockFile: {self.path}")
 
