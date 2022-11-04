@@ -761,15 +761,15 @@ class Dockopt(Script):
                 figsize=(12, 8),
                 ylim='own',
             )
-            plt.title("Ridgeline plot: energy terms (actives vs. decoys)", fontsize=20)
+            plt.title("ridgeline plot: energy terms (actives vs. decoys)")
             plt.tight_layout()
-            plt.savefig(os.path.join(retrodock_job_dir.path, "ridgeline.png"))
+            plt.savefig(os.path.join(retrodock_job_dir.path, "energy.png"))
             plt.close(fig)
 
-            # boxplot of charges
-            sns.boxplot(data=df, x='activity_class', y='charge', showfliers=False, boxprops={'facecolor': 'None'})
-            sns.stripplot(data=df, x='activity_class', y='charge', zorder=0.5)
-            plt.title('Box plot: charge (actives vs. decoys)', fontsize=20)
+            # split violin plot of charges
+            fig = plt.figure()
+            sns.violinplot(data=df, x='charge', y='Total', split=True, hue='activity_class')
+            plt.title('split violin plot: charge (actives vs. decoys)')
             plt.tight_layout()
             plt.savefig(os.path.join(retrodock_job_dir.path, "charge.png"))
             plt.close(fig)
