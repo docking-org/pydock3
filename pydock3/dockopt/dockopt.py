@@ -13,6 +13,9 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from dirhash import dirhash
+import matplotlib.pyplot as plt
+import seaborn as sns
+from joypy import joyplot
 
 from pydock3.util import Script, CleanExit, get_dataclass_as_dict
 from pydock3.config import Parameter
@@ -694,10 +697,25 @@ class Dockopt(Script):
             actives_outdock_df["is_active"] = [1 for _ in range(len(actives_outdock_df))]
             decoys_outdock_df["is_active"] = [0 for _ in range(len(decoys_outdock_df))]
 
+            #
+            actives_outdock_df["activity_class"] = ["active" for _ in range(len(actives_outdock_df))]
+            decoys_outdock_df["activity_class"] = ["decoy" for _ in range(len(decoys_outdock_df))]
+
             # build dataframe of docking results from outdock files
             df = pd.DataFrame()
             df = pd.concat([df, actives_outdock_df], ignore_index=True)
             df = pd.concat([df, decoys_outdock_df], ignore_index=True)
+
+            # cast numerical fields as float
+            def str_to_float(s):
+                try:
+                    result = float(s)
+                except ValueError:
+                    result = np.nan
+                return result
+
+            for col in ["Total", "elect", "vdW", "psol", "asol", "charge"]:
+                df[col] = df[col].apply(lambda s: str_to_float(s))
 
             # sort dataframe by total energy score
             df["Total"] = df["Total"].astype(float)
@@ -719,6 +737,42 @@ class Dockopt(Script):
             # write ROC plot image
             roc_plot_image_path = os.path.join(retrodock_job_dir.path, "roc.png")
             roc.plot(save_path=roc_plot_image_path)
+
+            # ridge plot for energy terms
+            pivot_rows = []
+            for i, row in df.iterrows():
+                for col in ["Total", "elect", "vdW", "psol", "asol"]:
+                    pivot_row = {"category": col}
+                    if row["is_active"] == 1:
+                        pivot_row["active"] = str_to_float(row[col])
+                        pivot_row["decoy"] = np.nan
+                    else:
+                        pivot_row["active"] = np.nan
+                        pivot_row["decoy"] = str_to_float(row[col])
+                    pivot_rows.append(pivot_row)
+            df_pivot = pd.DataFrame(pivot_rows)
+            fig, ax = joyplot(
+                data=df_pivot,
+                by='category',
+                column=['active', 'decoy'],
+                color=['#686de0', '#eb4d4b'],
+                legend=True,
+                alpha=0.85,
+                figsize=(12, 8),
+                ylim='own',
+            )
+            plt.title("Ridgeline plot: energy terms (actives vs. decoys)", fontsize=20)
+            plt.tight_layout()
+            plt.savefig(os.path.join(retrodock_job_dir.path, "ridgeline.png"))
+            plt.close(fig)
+
+            # boxplot of charges
+            sns.boxplot(data=df, x='activity_class', y='charge', showfliers=False, boxprops={'facecolor': 'None'})
+            sns.stripplot(data=df, x='activity_class', y='charge', zorder=0.5)
+            plt.title('Box plot: charge (actives vs. decoys)', fontsize=20)
+            plt.tight_layout()
+            plt.savefig(os.path.join(retrodock_job_dir.path, "charge.png"))
+            plt.close(fig)
 
             # save data_dict for this job
             data_dicts.append(data_dict)
