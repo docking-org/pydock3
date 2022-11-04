@@ -24,13 +24,31 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
     with PdfPages(pdf_path) as f:
         #
         fig = plt.figure(figsize=(11.0, 8.5))
-
         image_file_path = os.path.join(dockopt_job_dir_path, "best_retrodock_job", "roc.png")
         image = mpimg.imread(image_file_path)
         plt.axis('off')
         plt.suptitle("linear-log ROC plot of best job")
         plt.imshow(image)
+        f.savefig(fig, bbox_inches="tight")
+        plt.close(fig)
 
+        #
+        fig = plt.figure(figsize=(11.0, 8.5))
+        image_file_path = os.path.join(dockopt_job_dir_path, "best_retrodock_job", "energy.png")
+        image = mpimg.imread(image_file_path)
+        plt.axis('off')
+        plt.suptitle("energy terms ridgeline plot of best job")
+        plt.imshow(image)
+        f.savefig(fig, bbox_inches="tight")
+        plt.close(fig)
+
+        #
+        fig = plt.figure(figsize=(11.0, 8.5))
+        image_file_path = os.path.join(dockopt_job_dir_path, "best_retrodock_job", "charge.png")
+        image = mpimg.imread(image_file_path)
+        plt.axis('off')
+        plt.suptitle("charge violin plot of best job")
+        plt.imshow(image)
         f.savefig(fig, bbox_inches="tight")
         plt.close(fig)
 
