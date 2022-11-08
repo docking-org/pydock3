@@ -8,6 +8,7 @@ import logging
 import collections
 import time
 import random
+import hashlib
 
 import networkx as nx
 import numpy as np
@@ -538,9 +539,11 @@ class Dockopt(Script):
                         perturbed_file_path = os.path.join(working_dir.path, perturbed_file_name)
                         unperturbed_file_name_to_perturbed_file_names_dict[node_name].append(perturbed_file_name)
 
-                        # skip perturbation if perturbed file already exists
-                        if File.file_exists(perturbed_file_path):
-                            continue
+                        # set random seed based on resultant file name
+                        m = hashlib.md5()
+                        m.update(perturbed_file_name.encode('utf-8'))
+                        seed = int(m.hexdigest(), 16)
+                        random.seed(seed)
 
                         # perturb all spheres in file
                         new_spheres = []
