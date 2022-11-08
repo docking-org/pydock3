@@ -312,6 +312,54 @@ class FullTargetsDAG(object):
         return len(list(set([self.g.edges[edge]['step_identity'] for edge in edges_in_lineages]))) == len(list(set([self.g.edges[edge]['step_type'] for edge in edges_in_lineages])))
 
 
+def str_to_float(s, alternative_if_uncastable=np.nan):
+    """cast numerical fields as float"""
+
+    try:
+        result = float(s)
+    except ValueError:
+        result = alternative_if_uncastable
+    return result
+
+
+def get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(actives_outdock_file_path, decoys_outdock_file_path):
+    #
+    actives_outdock_file = OutdockFile(actives_outdock_file_path)
+    decoys_outdock_file = OutdockFile(decoys_outdock_file_path)
+
+    #
+    actives_outdock_df = actives_outdock_file.get_dataframe()
+    decoys_outdock_df = decoys_outdock_file.get_dataframe()
+
+    # set is_active column based on outdock file
+    actives_outdock_df["is_active"] = [1 for _ in range(len(actives_outdock_df))]
+    decoys_outdock_df["is_active"] = [0 for _ in range(len(decoys_outdock_df))]
+
+    # set activity_class column based on outdock file
+    actives_outdock_df["activity_class"] = ["active" for _ in range(len(actives_outdock_df))]
+    decoys_outdock_df["activity_class"] = ["decoy" for _ in range(len(decoys_outdock_df))]
+
+    # build dataframe of docking results from outdock files
+    df = pd.DataFrame()
+    df = pd.concat([df, actives_outdock_df], ignore_index=True)
+    df = pd.concat([df, decoys_outdock_df], ignore_index=True)
+
+    # replace relevant str columns with float equivalents & change column names
+    for old_col, new_col in [
+        ("Total", "total_energy"),
+        ("elect", "electrostatic_energy"),
+        ("vdW", "vdw_energy"),
+        ("psol", "polar_desolvation_energy"),
+        ("asol", "apolar_desolvation_energy"),
+        ("charge", "charge"),
+    ]:
+        df[new_col] = df[old_col].apply(lambda s: str_to_float(s))
+        if new_col != old_col:
+            df = df.drop(old_col, axis=1)
+
+    return df
+
+
 class Dockopt(Script):
 
     JOB_DIR_NAME = "dockopt_job"
@@ -676,11 +724,9 @@ class Dockopt(Script):
             decoys_outdock_file_path = os.path.join(retrodock_job.output_dir.path, "2", "OUTDOCK.0")
 
             # load outdock file and get dataframe
-            actives_outdock_file = OutdockFile(actives_outdock_file_path)
-            decoys_outdock_file = OutdockFile(decoys_outdock_file_path)
             try:
-                actives_outdock_df = actives_outdock_file.get_dataframe()
-                decoys_outdock_df = decoys_outdock_file.get_dataframe()
+                # get dataframe of actives job results and decoys job results combined
+                df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(actives_outdock_file_path, decoys_outdock_file_path)
             except Exception as e:  # if outdock file failed to be parsed then re-attempt job
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
                 if retrodock_job.num_attempts > retrodock_job_max_reattempts:
@@ -693,34 +739,9 @@ class Dockopt(Script):
             #
             logger.info(f"Docking job '{retrodock_job.name}' completed. Successfully loaded OUTDOCK file(s).")
 
-            # set is_active column based on outdock file
-            actives_outdock_df["is_active"] = [1 for _ in range(len(actives_outdock_df))]
-            decoys_outdock_df["is_active"] = [0 for _ in range(len(decoys_outdock_df))]
-
-            #
-            actives_outdock_df["activity_class"] = ["active" for _ in range(len(actives_outdock_df))]
-            decoys_outdock_df["activity_class"] = ["decoy" for _ in range(len(decoys_outdock_df))]
-
-            # build dataframe of docking results from outdock files
-            df = pd.DataFrame()
-            df = pd.concat([df, actives_outdock_df], ignore_index=True)
-            df = pd.concat([df, decoys_outdock_df], ignore_index=True)
-
-            # cast numerical fields as float
-            def str_to_float(s):
-                try:
-                    result = float(s)
-                except ValueError:
-                    result = np.nan
-                return result
-
-            for col in ["Total", "elect", "vdW", "psol", "asol", "charge"]:
-                df[col] = df[col].apply(lambda s: str_to_float(s))
-
             # sort dataframe by total energy score
-            df["Total"] = df["Total"].astype(float)
-            df = df.sort_values(by=["Total", "is_active"], na_position="last", ignore_index=True)  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
-            df = df.drop_duplicates(subset=["db2_file_path"], keep="first", ignore_index=True)
+            df = df.sort_values(by=["total_energy", "is_active"], na_position="last", ignore_index=True)  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
+            df = df.drop_duplicates(subset=["db2_file_path"], keep="first", ignore_index=True)  # keep only the best score per molecule
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
             data_dict = copy(parameter_dict)
@@ -729,50 +750,10 @@ class Dockopt(Script):
             # get ROC and calculate enrichment score of this job's docking set-up
             logger.debug("Calculating ROC and enrichment score...")
             booleans = df["is_active"]
-            indices = df['Total'].fillna(np.inf)  # unscored molecules are assumed to have worst possible score (pessimistic approach)
+            indices = df['total_energy'].fillna(np.inf)  # unscored molecules are assumed to have worst possible score (pessimistic approach)
             roc = ROC(booleans, indices)
             data_dict["enrichment_score"] = roc.enrichment_score
             logger.debug("done.")
-            
-            # write ROC plot image
-            roc_plot_image_path = os.path.join(retrodock_job_dir.path, "roc.png")
-            roc.plot(save_path=roc_plot_image_path)
-
-            # ridge plot for energy terms
-            pivot_rows = []
-            for i, row in df.iterrows():
-                for col in ["Total", "elect", "vdW", "psol", "asol"]:
-                    pivot_row = {"category": col}
-                    if row["is_active"] == 1:
-                        pivot_row["active"] = str_to_float(row[col])
-                        pivot_row["decoy"] = np.nan
-                    else:
-                        pivot_row["active"] = np.nan
-                        pivot_row["decoy"] = str_to_float(row[col])
-                    pivot_rows.append(pivot_row)
-            df_pivot = pd.DataFrame(pivot_rows)
-            fig, ax = joyplot(
-                data=df_pivot,
-                by='category',
-                column=['active', 'decoy'],
-                color=['#686de0', '#eb4d4b'],
-                legend=True,
-                alpha=0.85,
-                figsize=(12, 8),
-                ylim='own',
-            )
-            plt.title("ridgeline plot: energy terms (actives vs. decoys)")
-            plt.tight_layout()
-            plt.savefig(os.path.join(retrodock_job_dir.path, "energy.png"))
-            plt.close(fig)
-
-            # split violin plot of charges
-            fig = plt.figure()
-            sns.violinplot(data=df, x='charge', y='Total', split=True, hue='activity_class')
-            plt.title('split violin plot: charge (actives vs. decoys)')
-            plt.tight_layout()
-            plt.savefig(os.path.join(retrodock_job_dir.path, "charge.png"))
-            plt.close(fig)
 
             # save data_dict for this job
             data_dicts.append(data_dict)
@@ -805,6 +786,64 @@ class Dockopt(Script):
         best_retrodock_job_dockfiles_dir = Dir(os.path.join(best_retrodock_job_dir.path, "dockfiles"), create=True)
         for file_name in retrodock_job_num_to_docking_configuration_file_names_dict[best_retrodock_job_num]:
             best_retrodock_job_dockfiles_dir.copy_in_file(os.path.join(working_dir.path, file_name))
+
+        #
+        df_best_job = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+            actives_outdock_file_path=os.path.join(retrodock_jobs_dir.path, best_retrodock_job_num, "output", "1", "OUTDOCK.0"),
+            decoys_outdock_file_path=os.path.join(retrodock_jobs_dir.path, best_retrodock_job_num, "output", "2", "OUTDOCK.0"),
+        )
+
+        # sort dataframe by total energy score
+        df_best_job = df_best_job.sort_values(by=["total_energy", "is_active"], na_position="last",
+                            ignore_index=True)  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
+        df_best_job = df_best_job.drop_duplicates(subset=["db2_file_path"], keep="first",
+                                ignore_index=True)  # keep only the best score per molecule
+
+        # get ROC and calculate enrichment score of this job's docking set-up
+        booleans = df_best_job["is_active"]
+        indices = df_best_job['total_energy'].fillna(np.inf)  # unscored molecules are assumed to have worst possible score (pessimistic approach)
+        roc = ROC(booleans, indices)
+
+        # write ROC plot image
+        roc_plot_image_path = os.path.join(best_retrodock_job_dir.path, "roc.png")
+        roc.plot(save_path=roc_plot_image_path)
+
+        # ridge plot for energy terms
+        pivot_rows = []
+        for i, row in df_best_job.iterrows():
+            for col in ["total_energy", "electrostatic_energy", "vdw_energy", "polar_desolvation_energy",
+                        "apolar_desolvation_energy"]:
+                pivot_row = {"energy_term": col}
+                if row["is_active"] == 1:
+                    pivot_row["active"] = str_to_float(row[col])
+                    pivot_row["decoy"] = np.nan
+                else:
+                    pivot_row["active"] = np.nan
+                    pivot_row["decoy"] = str_to_float(row[col])
+                pivot_rows.append(pivot_row)
+        df_best_job_pivot = pd.DataFrame(pivot_rows)
+        fig, ax = joyplot(
+            data=df_best_job_pivot,
+            by='energy_term',
+            column=['active', 'decoy'],
+            color=['#686de0', '#eb4d4b'],
+            legend=True,
+            alpha=0.85,
+            figsize=(12, 8),
+            ylim='own',
+        )
+        plt.title("ridgeline plot: energy terms (actives vs. decoys)")
+        plt.tight_layout()
+        plt.savefig(os.path.join(best_retrodock_job_dir.path, "energy.png"))
+        plt.close(fig)
+
+        # split violin plot of charges
+        fig = plt.figure()
+        sns.violinplot(data=df_best_job, x='charge', y='total_energy', split=True, hue='activity_class')
+        plt.title('split violin plot: charge (actives vs. decoys)')
+        plt.tight_layout()
+        plt.savefig(os.path.join(best_retrodock_job_dir.path, "charge.png"))
+        plt.close(fig)
 
         # generate report
         generate_dockopt_job_report(
