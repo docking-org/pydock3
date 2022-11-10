@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # Ryan G. Coleman, Brian K. Shoichet Lab
 # Trent E. Balius modified Sept 2013.
 

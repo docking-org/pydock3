@@ -1,4 +1,3 @@
-#!/bin/env python
 """Generate delphi sphere pool, near a given distance from surface, using rec.ms.
 
 Michael Mysinger 201202 Created
