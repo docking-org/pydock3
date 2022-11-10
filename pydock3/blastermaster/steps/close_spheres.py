@@ -49,5 +49,5 @@ class CloseSpheresGenerationStep(BlasterStep):
     @BlasterStep.handle_run_func
     def run(self):
         #
-        run_str = f"python {self.program_file.path} {self.infiles.thin_spheres_infile.name} {self.infiles.ligand_infile.name} {self.outfiles.close_spheres_outfile.name} {self.parameters.distance_to_ligand_parameter.value} {self.parameters.distance_to_surface_parameter.value + self.parameters.penetration_parameter.value}"
+        run_str = f"python3 {self.program_file.path} {self.infiles.thin_spheres_infile.name} {self.infiles.ligand_infile.name} {self.outfiles.close_spheres_outfile.name} {self.parameters.distance_to_ligand_parameter.value} {self.parameters.distance_to_surface_parameter.value + self.parameters.penetration_parameter.value}"
         self.run_command(run_str)
