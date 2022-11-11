@@ -25,12 +25,6 @@ class ProgramFilePaths:
     DMS_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "dms/bin/dms")
     FILT_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "filt/bin/filt")
     SPHGEN_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "sphgen/bin/sphgen")
-    THIN_SPHERES_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "thinspheres/thin_spheres.py"
-    )
-    CLOSE_SPH_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "thinspheres/close_sph.py"
-    )
     PDBTOSPH_PROGRAM_FILE_PATH = os.path.join(
         PROGRAMS_DIR_PATH, "pdbtosph/bin/pdbtosph"
     )
