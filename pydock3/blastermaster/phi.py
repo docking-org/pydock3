@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # ryan g. coleman, ryangc@mail.med.upenn.edu
 # kim sharp lab
 # phi.py enables read/write of binary phi-maps from delphi
