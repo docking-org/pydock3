@@ -46,12 +46,12 @@ class CloseSpheresGenerationStep(BlasterStep):
 
     @BlasterStep.handle_run_func
     def run(self):
-        spheres_list = sph_lib.read_sph(self.infiles.thin_spheres_infile.name, "A", "A")
-        pdb_list = pdb_lib.read_pdb(self.infiles.ligand_infile.name)
+        spheres_list = sph_lib.read_sph(self.infiles.thin_spheres_infile.path, "A", "A")
+        pdb_list = pdb_lib.read_pdb(self.infiles.ligand_infile.path)
         spheres_list = distance_sph_pdb(spheres_list, pdb_list, self.parameters.distance_to_ligand_parameter.value)
         radius = self.parameters.distance_to_surface_parameter.value + self.parameters.penetration_parameter.value
         spheres_list = trim_sph(spheres_list, radius)
-        sph_lib.write_sph(self.outfiles.close_spheres_outfile.name, spheres_list)
+        sph_lib.write_sph(self.outfiles.close_spheres_outfile.path, spheres_list)
 
 
 def trim_sph(sph_list, sph_rad):

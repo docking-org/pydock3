@@ -42,8 +42,8 @@ class ThinSpheresGenerationStep(BlasterStep):
 
     @BlasterStep.handle_run_func
     def run(self):
-        with open(self.infiles.molecular_surface_infile.name, "r") as f_in:
-            with open(self.outfiles.thin_spheres_outfile.name, "w") as f_out:
+        with open(self.infiles.molecular_surface_infile.path, "r") as f_in:
+            with open(self.outfiles.thin_spheres_outfile.path, "w") as f_out:
                 thin_spheres(f_in, f_out, distance=self.parameters.distance_to_surface_parameter.value, size=self.parameters.distance_to_surface_parameter.value + self.parameters.penetration_parameter.value)
 
 
