@@ -14,12 +14,12 @@ logger.setLevel(logging.DEBUG)
 
 
 SCRIPT_CLASSES = [  # script classes are those that inherit from the Script class defined in this module
-    Blastermaster,
+    #Blastermaster,
     Dockopt,
-    TopPoses,
+    #TopPoses,
 ]
 NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS = [  # non-script classes can also be used as scripts through fire; such classes whose functions may be desirable to use as scripts should be included here
-    SDIFile,
+    #SDIFile,
 ]
 
 SCRIPT_CLASSES_DICT = {
