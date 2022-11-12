@@ -373,7 +373,7 @@ class Dockopt(Script):
     DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(self):
-        pass
+        super().__init__()
 
     @staticmethod
     def handle_run_func(run_func):

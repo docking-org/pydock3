@@ -397,7 +397,7 @@ class Blastermaster(Script):
     DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(self):
-        pass
+        super().__init__()
                 
     def init(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
         # create job dir
