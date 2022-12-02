@@ -2,10 +2,12 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
+from collections import OrderedDict
 
 from pydock3.files import Dir, File, IndockFile
 from pydock3.blastermaster.util import DockFiles
 from pydock3.job_schedulers import JobScheduler
+from pydock3.util import get_dataclass_as_dict
 
 from pydock3.docking import __file__ as DOCKING_INIT_FILE_PATH
 DOCK3_EXECUTABLE_PATH = os.path.join(os.path.dirname(DOCKING_INIT_FILE_PATH), 'dock3', 'dock64')
@@ -25,27 +27,44 @@ class DockingJob(ABC):
         raise NotImplementedError
 
 
-@dataclass
 class RetrodockJob(ABC):
-    name: str
-    input_sdi_file: File
-    dock_files: DockFiles
-    indock_file: IndockFile
-    output_dir: Dir
-    job_scheduler: JobScheduler
-    temp_storage_path: str
-    dock_executable_path: str = DOCK3_EXECUTABLE_PATH
-    max_reattempts: int = 0
-    num_attempts: int = 0
-
     N_TASKS = 2
     ACTIVES_TASK_ID = '1'
     DECOYS_TASK_ID = '2'
     OUTDOCK_FILE_NAME = "OUTDOCK.0"
     JOBLIST_FILE_NAME = "joblist"
 
-    def __post_init__(self):
+    def __init__(
+            self,
+            name: str,
+            job_dir_path: str,
+            input_sdi_file: File,
+            dock_files: DockFiles,
+            indock_file: IndockFile,
+            job_scheduler: JobScheduler,
+            temp_storage_path: str,
+            dock_executable_path: str = DOCK3_EXECUTABLE_PATH,
+            max_reattempts: int = 0,
+            num_attempts: int = 0,
+    ):
+        self.name = name
+        self.job_dir = Dir(path=job_dir_path, create=True)
+        self.output_dir = Dir(path=os.path.join(self.job_dir.path, f"output"), create=True)
+        self.input_sdi_file = input_sdi_file
+        self.dock_files = dock_files
+        self.indock_file = indock_file
+        self.job_scheduler = job_scheduler
+        self.temp_storage_path = temp_storage_path
+        self.dock_executable_path = dock_executable_path
+        self.max_reattempts = max_reattempts
+        self.num_attempts = num_attempts
+
         self._is_complete = False
+
+        # write docking configuration to text file
+        with open(os.path.join(self.job_dir.path, "docking_configuration"), "w") as f:
+            for key, value in self.docking_configuration.items():
+                f.write(f"{key} {value}\n")
 
     def run(self, job_timeout_minutes=None, skip_if_complete=True):
         if skip_if_complete:
@@ -100,3 +119,13 @@ class RetrodockJob(ABC):
     @property
     def is_complete(self):
         return all([File.file_exists(os.path.join(self.output_dir.path, task_id, self.OUTDOCK_FILE_NAME)) for task_id in [self.ACTIVES_TASK_ID, self.DECOYS_TASK_ID]])
+
+    @property
+    def docking_configuration(self):
+        docking_configuration = OrderedDict()
+        for dock_file_type, dock_file in sorted(get_dataclass_as_dict(self.dock_files).items()):
+            docking_configuration[dock_file_type] = dock_file.name
+        docking_configuration["indock_file"] = self.indock_file.name
+        docking_configuration["dock_executable_path"] = self.dock_executable_path
+
+        return docking_configuration

@@ -645,7 +645,6 @@ class Dockopt(Script):
 
         #
         retrodock_jobs = []
-        retrodock_job_dirs = []
         retrodock_job_num_to_docking_configuration_file_names_dict = {}
         for i, (dock_executable_path, dock_files, indock_file) in enumerate(docking_configurations):
             #
@@ -654,23 +653,20 @@ class Dockopt(Script):
             retrodock_job_num_to_docking_configuration_file_names_dict[retro_dock_job_num] = docking_configuration_file_names
 
             #
-            retrodock_job_dir = Dir(path=os.path.join(retrodock_jobs_dir.path, retro_dock_job_num), create=True)
-            retrodock_job_output_dir = Dir(path=os.path.join(retrodock_job_dir.path, f"output"), create=True)
-
-            #
+            retrodock_job_dir_path = os.path.join(retrodock_jobs_dir.path, retro_dock_job_num)
+            retrodock_job_dir_name = Dir.extract_dir_name_from_dir_path(retrodock_job_dir_path)
             retrodock_job = RetrodockJob(
-                name=f"dockopt_job_{dockopt_job_hash}_{retrodock_job_dir.name}",
+                name=f"dockopt_job_{dockopt_job_hash}_{retrodock_job_dir_name}",
+                job_dir_path=retrodock_job_dir_path,
                 input_sdi_file=retrodock_input_sdi_file,
                 dock_files=dock_files,
                 indock_file=indock_file,
-                output_dir=retrodock_job_output_dir,
                 job_scheduler=scheduler,
                 dock_executable_path=dock_executable_path,
                 temp_storage_path=TMPDIR,
                 max_reattempts=retrodock_job_max_reattempts,
             )
             retrodock_jobs.append(retrodock_job)
-            retrodock_job_dirs.append(retrodock_job_dir)
         logger.debug("done")
 
         #
@@ -693,16 +689,16 @@ class Dockopt(Script):
             submit_retrodock_job(retrodock_job, skip_if_complete=True)
         
         # make a queue of tuples containing job-relevant data for processing
-        RetrodockJobInfoTuple = collections.namedtuple("RetrodockJobInfoTuple", "job job_dir parameter_dict")
-        retrodock_jobs_processing_queue = [RetrodockJobInfoTuple(retrodock_jobs[i], retrodock_job_dirs[i], parameter_dicts[i]) for i in range(len(retrodock_jobs))]
+        RetrodockJobInfoTuple = collections.namedtuple("RetrodockJobInfoTuple", "job parameter_dict")
+        retrodock_jobs_processing_queue = [RetrodockJobInfoTuple(retrodock_jobs[i], parameter_dicts[i]) for i in range(len(retrodock_jobs))]
 
         # process results of docking jobs
-        logger.info(f"Awaiting / processing retrodock job results ({len(retrodock_job_dirs)} jobs in total)")
+        logger.info(f"Awaiting / processing retrodock job results ({len(retrodock_jobs)} jobs in total)")
         data_dicts = []
         while len(retrodock_jobs_processing_queue) > 0:
             #
             retrodock_job_info_tuple = retrodock_jobs_processing_queue.pop(0)
-            retrodock_job, retrodock_job_dir, parameter_dict = retrodock_job_info_tuple
+            retrodock_job, parameter_dict = retrodock_job_info_tuple
 
             #
             if retrodock_job.is_running:
@@ -740,23 +736,25 @@ class Dockopt(Script):
                 continue  # move on to next job in queue while docking job runs
 
             #
-            logger.info(f"Docking job '{retrodock_job.name}' completed. Successfully loaded OUTDOCK file(s).")
+            logger.info(f"Docking job '{retrodock_job.name}' completed. Successfully loaded OUTDOCK files.")
 
             # sort dataframe by total energy score
             df = df.sort_values(by=["total_energy", "is_active"], na_position="last", ignore_index=True)  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
             df = df.drop_duplicates(subset=["db2_file_path"], keep="first", ignore_index=True)  # keep only the best score per molecule
-
-            # make data dict for this job (will be used to make dataframe for results of all jobs)
-            data_dict = copy(parameter_dict)
-            data_dict['retrodock_job_num'] = retrodock_job_dir.name
 
             # get ROC and calculate enrichment score of this job's docking set-up
             logger.debug("Calculating ROC and enrichment score...")
             booleans = df["is_active"]
             indices = df['total_energy'].fillna(np.inf)  # unscored molecules are assumed to have worst possible score (pessimistic approach)
             roc = ROC(booleans, indices)
-            data_dict["enrichment_score"] = roc.enrichment_score
             logger.debug("done.")
+
+            # make data dict for this job (will be used to make dataframe for results of all jobs)
+            data_dict = {}
+            data_dict = {**data_dict, **{f"dockopt_config.{key}": value for key, value in parameter_dict.items()}}
+            data_dict = {**data_dict, **{f"docking_configuration.{key}": value for key, value in retrodock_job.docking_configuration.items()}}
+            data_dict['retrodock_job_num'] = retrodock_job.job_dir.name
+            data_dict["enrichment_score"] = roc.enrichment_score
 
             # save data_dict for this job
             data_dicts.append(data_dict)

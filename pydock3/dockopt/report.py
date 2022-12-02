@@ -13,8 +13,6 @@ plt.rcParams.update({'font.size': 14})
 
 ENRICHMENT_METRICS = ["enrichment_score"]
 
-POSSIBLE_NON_PARAMETER_COLUMNS = ENRICHMENT_METRICS + ["retrodock_job_num"]
-
 
 def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_report.pdf", opt_results_csv_file_name="dockopt_job_results.csv", enrichment_metric="enrichment_score"):
     opt_results_csv_file_path = os.path.join(dockopt_job_dir_path, opt_results_csv_file_name)
@@ -53,8 +51,8 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
         plt.close(fig)
 
         #
-        multivalued_config_param_columns = [column for column in df.columns if column not in POSSIBLE_NON_PARAMETER_COLUMNS and df[column].nunique() > 1]
-        for column in multivalued_config_param_columns:
+        multivalued_dockopt_config_param_columns = [column for column in df.columns if column.startswith("dockopt_config.") and df[column].nunique() > 1]
+        for column in multivalued_dockopt_config_param_columns:
             fig = plt.figure(figsize=(8, 6))
 
             if len(df) == len(df.drop_duplicates(subset=[column])):
@@ -70,7 +68,7 @@ def generate_dockopt_job_report(dockopt_job_dir_path=".", pdf_path="dockopt_job_
 
         #
         df = df.sort_values(by=enrichment_metric, ascending=False, ignore_index=True)
-        for column_1, column_2 in itertools.combinations(multivalued_config_param_columns, 2):
+        for column_1, column_2 in itertools.combinations(multivalued_dockopt_config_param_columns, 2):
             #
             fig, ax = plt.subplots()
             fig.set_size_inches(8.0, 6.0)
