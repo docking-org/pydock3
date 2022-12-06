@@ -84,7 +84,7 @@ class Phi(object):
                         _ = struct.unpack("8s", f.read(8))
                     # next line raises error if grid too big
                     # GxGxG -> packed into an array xyz order
-                    temp_array.fromfile(f, grid_size ** 3)
+                    temp_array.fromfile(f, grid_size**3)
                     temp_array.byteswap()
 
                     self.grid_dimension = grid_size
@@ -210,7 +210,7 @@ class Phi(object):
     def get_value(self, x_ind, y_ind, z_ind):
         """for a given set of indices, return the value in the array"""
         index = int(
-            (z_ind * (self.grid_dimension ** 2.0))
+            (z_ind * (self.grid_dimension**2.0))
             + (y_ind * self.grid_dimension)
             + x_ind
         )

@@ -35,8 +35,15 @@ class MolecularSurfaceGenerationStep(BlasterStep):
         self.process_infiles(
             (charged_receptor_infile, "charged_receptor_infile"),
             (binding_site_residues_infile, "binding_site_residues_infile"),
-            (radii_infile, "radii_infile"),  # dms reads the elements and radii from a file in the current directory called 'radii'.
-            new_file_names_tuple=(charged_receptor_infile.name, binding_site_residues_infile.name, self.MandatoryFileNames.RADII_FILE_NAME),
+            (
+                radii_infile,
+                "radii_infile",
+            ),  # dms reads the elements and radii from a file in the current directory called 'radii'.
+            new_file_names_tuple=(
+                charged_receptor_infile.name,
+                binding_site_residues_infile.name,
+                self.MandatoryFileNames.RADII_FILE_NAME,
+            ),
         )
 
         #

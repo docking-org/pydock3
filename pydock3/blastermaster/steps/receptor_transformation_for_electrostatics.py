@@ -31,7 +31,10 @@ class ReceptorTransformationForElectrostatics(BlasterStep):
 
         #
         self.process_outfiles(
-            (receptor_low_dielectric_pdb_outfile, "receptor_low_dielectric_pdb_outfile"),
+            (
+                receptor_low_dielectric_pdb_outfile,
+                "receptor_low_dielectric_pdb_outfile",
+            ),
         )
 
         #

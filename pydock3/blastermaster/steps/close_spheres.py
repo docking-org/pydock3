@@ -48,8 +48,13 @@ class CloseSpheresGenerationStep(BlasterStep):
     def run(self):
         spheres_list = sph_lib.read_sph(self.infiles.thin_spheres_infile.path, "A", "A")
         pdb_list = pdb_lib.read_pdb(self.infiles.ligand_infile.path)
-        spheres_list = distance_sph_pdb(spheres_list, pdb_list, self.parameters.distance_to_ligand_parameter.value)
-        radius = self.parameters.distance_to_surface_parameter.value + self.parameters.penetration_parameter.value
+        spheres_list = distance_sph_pdb(
+            spheres_list, pdb_list, self.parameters.distance_to_ligand_parameter.value
+        )
+        radius = (
+            self.parameters.distance_to_surface_parameter.value
+            + self.parameters.penetration_parameter.value
+        )
         spheres_list = trim_sph(spheres_list, radius)
         sph_lib.write_sph(self.outfiles.close_spheres_outfile.path, spheres_list)
 
@@ -59,8 +64,12 @@ def trim_sph(sph_list, sph_rad):
         if sph_list[i][1]:
             for j in range(i + 1, len(sph_list)):
                 if sph_list[j][1]:
-                    dist = (sph_list[i][0].X - sph_list[j][0].X) ** 2 + (sph_list[i][0].Y - sph_list[j][0].Y) ** 2 + (sph_list[i][0].Z - sph_list[j][0].Z) ** 2
-                    if dist <= (sph_rad ** 2.0) / 2.0:
+                    dist = (
+                        (sph_list[i][0].X - sph_list[j][0].X) ** 2
+                        + (sph_list[i][0].Y - sph_list[j][0].Y) ** 2
+                        + (sph_list[i][0].Z - sph_list[j][0].Z) ** 2
+                    )
+                    if dist <= (sph_rad**2.0) / 2.0:
                         sph_list[j][1] = False
 
     final_sph_list = []

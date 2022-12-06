@@ -28,7 +28,9 @@ def get_dataclass_as_dict(data_cls):
 
 
 def system_call(command_str, cwd=os.getcwd(), timeout_seconds=None, env_vars_dict=None):
-    logger.debug(f"Running system call.\nCurrent working directory: {cwd}\n Command:\n{command_str}")
+    logger.debug(
+        f"Running system call.\nCurrent working directory: {cwd}\n Command:\n{command_str}"
+    )
     return subprocess.run(
         command_str,
         cwd=cwd,
@@ -44,6 +46,7 @@ def system_call(command_str, cwd=os.getcwd(), timeout_seconds=None, env_vars_dic
 
 class Script(object):
     """Base class for all classes intended to serve as scripts in the package."""
+
     def __init__(self):
         pass
 

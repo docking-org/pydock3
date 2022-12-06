@@ -14,12 +14,12 @@ logger.setLevel(logging.DEBUG)
 
 
 SCRIPT_CLASSES = [  # script classes are those that inherit from the Script class defined in this module
-    #Blastermaster,
+    # Blastermaster,
     Dockopt,
-    #TopPoses,
+    # TopPoses,
 ]
 NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS = [  # non-script classes can also be used as scripts through fire; such classes whose functions may be desirable to use as scripts should be included here
-    #SDIFile,
+    # SDIFile,
 ]
 
 SCRIPT_CLASSES_DICT = {
@@ -32,7 +32,9 @@ def get_script_class(script_class_name, *args, **kwargs):
     logger = get_logger_for_script("pydock3.log", debug=False)
 
     if script_class_name not in SCRIPT_CLASSES_DICT:
-        logger.error(f"script_class_name must be one of:\n{sorted(list(SCRIPT_CLASSES_DICT.keys()))}")
+        logger.error(
+            f"script_class_name must be one of:\n{sorted(list(SCRIPT_CLASSES_DICT.keys()))}"
+        )
         return
 
     return SCRIPT_CLASSES_DICT[script_class_name](*args, **kwargs)
@@ -42,5 +44,5 @@ def main():
     fire.Fire(get_script_class)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

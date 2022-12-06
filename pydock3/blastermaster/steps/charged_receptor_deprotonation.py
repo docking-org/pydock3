@@ -35,7 +35,10 @@ class ChargedReceptorDeprotonationStep(BlasterStep):
 
         #
         self.process_outfiles(
-            (charged_receptor_deprotonated_outfile, "charged_receptor_deprotonated_outfile"),
+            (
+                charged_receptor_deprotonated_outfile,
+                "charged_receptor_deprotonated_outfile",
+            ),
         )
 
         #

@@ -15,7 +15,9 @@ logger.setLevel(logging.DEBUG)
 class BindingSiteSpheresGenerationStep(BlasterStep):
 
     INSPH_FILE_NAME = "INSPH"  # Input file needs to have this name for sphgen to run
-    LINES_2_THROUGH_6 = "R\nX\n0.\n5.0\n1.4"  # line1 is input file (rec.ms), line7 is output file (sph)
+    LINES_2_THROUGH_6 = (
+        "R\nX\n0.\n5.0\n1.4"  # line1 is input file (rec.ms), line7 is output file (sph)
+    )
 
     def __init__(
         self,
@@ -46,7 +48,9 @@ class BindingSiteSpheresGenerationStep(BlasterStep):
         """run the sphgen program to produce initial set of spheres"""
 
         # make input file
-        sphgen_input_file = File(path=os.path.join(self.step_dir.path, self.INSPH_FILE_NAME))
+        sphgen_input_file = File(
+            path=os.path.join(self.step_dir.path, self.INSPH_FILE_NAME)
+        )
         with open(sphgen_input_file.path, "w") as f:
             f.write(f"{self.infiles.molecular_surface_infile.name}\n")  # input file
             f.write(f"{self.LINES_2_THROUGH_6}\n")  # see above

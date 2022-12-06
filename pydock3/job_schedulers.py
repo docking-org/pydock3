@@ -17,7 +17,15 @@ class JobScheduler(ABC):
         self.name = name
 
     @abstractmethod
-    def run(self, job_name, script_path, env_vars_dict, output_dir_path, n_tasks, job_timeout_minutes=None):
+    def run(
+        self,
+        job_name,
+        script_path,
+        env_vars_dict,
+        output_dir_path,
+        n_tasks,
+        job_timeout_minutes=None,
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -31,7 +39,15 @@ class NoJobScheduler(JobScheduler):
     def __init__(self, name):
         super().__init__(name)
 
-    def run(self, job_name, script_path, env_vars_dict, output_dir_path, n_tasks, job_timeout_minutes=None):
+    def run(
+        self,
+        job_name,
+        script_path,
+        env_vars_dict,
+        output_dir_path,
+        n_tasks,
+        job_timeout_minutes=None,
+    ):
         raise NotImplementedError
 
     def is_running_job(self, job_name):
@@ -58,14 +74,24 @@ class SlurmJobScheduler(JobScheduler):
         if self.SLURM_SETTINGS:
             system_call(f"source {self.SLURM_SETTINGS}")
 
-    def run(self, job_name, script_path, env_vars_dict, output_dir_path, n_tasks, job_timeout_minutes=None):
+    def run(
+        self,
+        job_name,
+        script_path,
+        env_vars_dict,
+        output_dir_path,
+        n_tasks,
+        job_timeout_minutes=None,
+    ):
         command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {output_dir_path}/{job_name}_%A_%a.out -e {output_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array=1-{n_tasks} {script_path}"
         if job_timeout_minutes is None:
             command_str += " --time=0"
         else:
             command_str += f" --time={job_timeout_minutes}"
 
-        return system_call(command_str, env_vars_dict=env_vars_dict)  # need to pass env_vars_dict here so that '--export=ALL' in command can pass along all the env vars
+        return system_call(
+            command_str, env_vars_dict=env_vars_dict
+        )  # need to pass env_vars_dict here so that '--export=ALL' in command can pass along all the env vars
 
     def is_running_job(self, job_name):
         command_str = f"{self.SQUEUE_EXEC} --format='%.18i %.{len(job_name)}j' | grep '{job_name}'"
@@ -74,7 +100,7 @@ class SlurmJobScheduler(JobScheduler):
             return True
         else:
             return False
-        
+
 
 class SGEJobScheduler(JobScheduler):
     REQUIRED_ENV_VAR_NAMES = [
@@ -96,7 +122,15 @@ class SGEJobScheduler(JobScheduler):
         if self.SGE_SETTINGS:
             system_call(f"source {self.SGE_SETTINGS}")
 
-    def run(self, job_name, script_path, env_vars_dict, output_dir_path, n_tasks, job_timeout_minutes=None):
+    def run(
+        self,
+        job_name,
+        script_path,
+        env_vars_dict,
+        output_dir_path,
+        n_tasks,
+        job_timeout_minutes=None,
+    ):
         #
         if not job_name[0].isalpha():
             raise Exception(f"{self.name} job names must start with a letter.")
@@ -105,9 +139,13 @@ class SGEJobScheduler(JobScheduler):
         command_str = f"source {self.SGE_SETTINGS}; {self.QSUB_EXEC} -V -N {job_name} -o {output_dir_path} -e {output_dir_path} -cwd -S /bin/bash -q !gpu.q -t 1-{n_tasks} {script_path}"
         if job_timeout_minutes is not None:
             job_timeout_seconds = 60 * job_timeout_minutes
-            command_str += f" -l s_rt={job_timeout_seconds} -l h_rt={job_timeout_seconds} "
+            command_str += (
+                f" -l s_rt={job_timeout_seconds} -l h_rt={job_timeout_seconds} "
+            )
 
-        return system_call(command_str, env_vars_dict=env_vars_dict)  # need to pass env_vars_dict here so that '-V' in command can pass along all the env vars
+        return system_call(
+            command_str, env_vars_dict=env_vars_dict
+        )  # need to pass env_vars_dict here so that '-V' in command can pass along all the env vars
 
     def is_running_job(self, job_name):
         command_str = f"{self.QSTAT_EXEC} -r | grep '{job_name}'"

@@ -36,7 +36,6 @@ class Parameter(object):
 
 
 class ParametersConfiguration:
-
     def __init__(self, config_file_path, schema_file_path):
         #
         File.validate_file_exists(config_file_path)
@@ -50,13 +49,17 @@ class ParametersConfiguration:
         data = yamale.make_data(self.config_file_path)
         try:
             yamale.validate(self.schema, data)
-            logger.debug('Config validation success!')
+            logger.debug("Config validation success!")
         except ValueError as e:
-            raise Exception('Config validation failed!\n%s' % str(e))
+            raise Exception("Config validation failed!\n%s" % str(e))
 
         #
-        param_dict, = pd.json_normalize(data[0][0]).to_dict('records')  # TODO: add validation
-        self.param_dict = {key: Parameter(name=key, value=value) for key, value in param_dict.items()}
+        (param_dict,) = pd.json_normalize(data[0][0]).to_dict(
+            "records"
+        )  # TODO: add validation
+        self.param_dict = {
+            key: Parameter(name=key, value=value) for key, value in param_dict.items()
+        }
 
         #
         logger.debug(f"Parameters:\n{self.param_dict}")
@@ -71,6 +74,6 @@ class ParametersConfiguration:
                 logger.info(f"A config file already exists: {save_path}")
         else:
             logger.info(f"Writing config file: {save_path}")
-        with open(src_file_path, 'r') as infile:
+        with open(src_file_path, "r") as infile:
             with open(save_path, "w") as outfile:
                 yaml.dump(yaml.safe_load(infile), outfile)

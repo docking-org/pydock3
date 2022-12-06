@@ -34,13 +34,19 @@ class BindingSiteResiduesSelectionStep(BlasterStep):
             (receptor_infile, "receptor_infile"),
             (ligand_infile, "ligand_infile"),
             (filt_parameters_infile, "filt_parameters_infile"),
-            new_file_names_tuple=(self.MandatoryFileNames.RECEPTOR_FILE_NAME, self.MandatoryFileNames.LIGAND_FILE_NAME, filt_parameters_infile.name),
+            new_file_names_tuple=(
+                self.MandatoryFileNames.RECEPTOR_FILE_NAME,
+                self.MandatoryFileNames.LIGAND_FILE_NAME,
+                filt_parameters_infile.name,
+            ),
         )
 
         #
         self.process_outfiles(
             (binding_site_residues_outfile, "binding_site_residues_outfile"),
-            new_file_names_tuple=(self.MandatoryFileNames.BINDING_SITE_RESIDUES_FILE_NAME,),
+            new_file_names_tuple=(
+                self.MandatoryFileNames.BINDING_SITE_RESIDUES_FILE_NAME,
+            ),
         )
 
         #
@@ -52,5 +58,7 @@ class BindingSiteResiduesSelectionStep(BlasterStep):
         The program filt.exe presumably outputs a file called rec.site in the current directory.
         """
         #
-        run_str = f"{self.program_file.path} < {self.infiles.filt_parameters_infile.name}"
+        run_str = (
+            f"{self.program_file.path} < {self.infiles.filt_parameters_infile.name}"
+        )
         self.run_command(run_str)

@@ -29,7 +29,10 @@ class ReceptorTransformationForLigandDesolvationNoThinSpheres(BlasterStep):
 
         #
         self.process_outfiles(
-            (charged_receptor_desolv_pdb_outfile, "charged_receptor_desolv_pdb_outfile"),
+            (
+                charged_receptor_desolv_pdb_outfile,
+                "charged_receptor_desolv_pdb_outfile",
+            ),
         )
 
         #
@@ -38,7 +41,9 @@ class ReceptorTransformationForLigandDesolvationNoThinSpheres(BlasterStep):
     @BlasterStep.handle_run_func
     def run(self):
         #
-        self.outfiles.charged_receptor_desolv_pdb_outfile.copy_from(self.infiles.charged_receptor_pdb_infile.path)
+        self.outfiles.charged_receptor_desolv_pdb_outfile.copy_from(
+            self.infiles.charged_receptor_pdb_infile.path
+        )
 
 
 class ReceptorTransformationForLigandDesolvationYesThinSpheres(BlasterStep):
@@ -62,7 +67,10 @@ class ReceptorTransformationForLigandDesolvationYesThinSpheres(BlasterStep):
 
         #
         self.process_outfiles(
-            (charged_receptor_desolv_pdb_outfile, "charged_receptor_desolv_pdb_outfile"),
+            (
+                charged_receptor_desolv_pdb_outfile,
+                "charged_receptor_desolv_pdb_outfile",
+            ),
         )
 
         #
@@ -71,7 +79,9 @@ class ReceptorTransformationForLigandDesolvationYesThinSpheres(BlasterStep):
     @BlasterStep.handle_run_func
     def run(self):
         #
-        self.outfiles.charged_receptor_desolv_pdb_outfile.copy_from(self.infiles.charged_receptor_pdb_infile.path)
+        self.outfiles.charged_receptor_desolv_pdb_outfile.copy_from(
+            self.infiles.charged_receptor_pdb_infile.path
+        )
 
         #
         run_str = f"cat {self.infiles.close_spheres_desolv_pdb_infile.path} | sed -e 's/ C   SPH/ X   SPH/g' >> {self.outfiles.charged_receptor_desolv_pdb_outfile.path}"

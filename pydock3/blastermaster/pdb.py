@@ -40,78 +40,234 @@ BFAC_PLACE = 1  # bfactor
 # list of polar hydrogens to keep.
 RESIDUE_CODE_TO_POLAR_HYDROGENS_TUPLE_DICT = {
     # H   ALA
-    "ALA": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "ALA": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   ARG
     # HE  ARG
     # HH11 ARG
     # HH12 ARG
     # HH21 ARG
     # HH22 ARG
-    "ARG": ("H  ", "H1 ", "H2 ", "H3 ", "HE ", "HH11", "HH12", "HH21", "HH22",),
+    "ARG": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HE ",
+        "HH11",
+        "HH12",
+        "HH21",
+        "HH22",
+    ),
     # H   ASN
     # HD21 ASN
     # HD22 ASN
-    "ASN": ("H  ", "H1 ", "H2 ", "H3 ", "HD21", "HD22",),
+    "ASN": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HD21",
+        "HD22",
+    ),
     # H   ASP
-    "ASP": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "ASP": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   CYS
     # HG  CYS
-    "CYS": ("H  ", "H1 ", "H2 ", "H3 ", "HG ",),
+    "CYS": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HG ",
+    ),
     # H   CYX
-    "CYX": ("H  ", "H1 ", "H2 ", "H3 ",),
-    "CYM": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "CYX": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
+    "CYM": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   GLN
     # HE21 GLN
     # HE22 GLN
-    "GLN": ("H  ", "H1 ", "H2 ", "H3 ", "HE21", "HE22",),
+    "GLN": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HE21",
+        "HE22",
+    ),
     # H   GLU
-    "GLU": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "GLU": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   GLY
-    "GLY": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "GLY": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   HIS
     # HD1 HIS (change to HID if only)
     # HE2 HIS (change to HIE if only) (if both change to HIP)
-    "HIS": ("H  ", "H1 ", "H2 ", "H3 ", "HD1", "HE2",),
-    "HIP": ("H  ", "H1 ", "H2 ", "H3 ", "HD1", "HE2",),
-    "HIE": ("H  ", "H1 ", "H2 ", "H3 ", "HE2",),
-    "HID": ("H  ", "H1 ", "H2 ", "H3 ", "HD1",),
+    "HIS": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HD1",
+        "HE2",
+    ),
+    "HIP": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HD1",
+        "HE2",
+    ),
+    "HIE": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HE2",
+    ),
+    "HID": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HD1",
+    ),
     # H   ILE
-    "ILE": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "ILE": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   LEU
-    "LEU": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "LEU": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   LYS
     # HZ1 LYS
     # HZ2 LYS
     # HZ3 LYS
-    "LYS": ("H  ", "H1 ", "H2 ", "H3 ", "HZ1", "HZ2", "HZ3",),
+    "LYS": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HZ1",
+        "HZ2",
+        "HZ3",
+    ),
     # H   MET
-    "MET": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "MET": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   PHE
-    "PHE": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "PHE": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # nothing for proline
-    "PRO": ("H1 ", "H2 ", "H3 ",),
+    "PRO": (
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # H   SER
     # HG  SER
-    "SER": ("H  ", "H1 ", "H2 ", "H3 ", "HG ",),
+    "SER": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HG ",
+    ),
     # H   THR
     # HG1 THR
-    "THR": ("H  ", "H1 ", "H2 ", "H3 ", "HG1",),
+    "THR": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HG1",
+    ),
     # H   TRP
     # HE1 TRP
-    "TRP": ("H  ", "H1 ", "H2 ", "H3 ", "HE1",),
+    "TRP": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HE1",
+    ),
     # H   TYR
     # HH  TYR
-    "TYR": ("H  ", "H1 ", "H2 ", "H3 ", "HH ",),
+    "TYR": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+        "HH ",
+    ),
     # H   VAL
-    "VAL": ("H  ", "H1 ", "H2 ", "H3 ",),
+    "VAL": (
+        "H  ",
+        "H1 ",
+        "H2 ",
+        "H3 ",
+    ),
     # add HEM now, maybe not want to special case them all eventually
     "HEM": (),
-    "HOH": ("H01", "H02",),
-    "WAT": ("HW1", "HW2",),
+    "HOH": (
+        "H01",
+        "H02",
+    ),
+    "WAT": (
+        "HW1",
+        "HW2",
+    ),
     "ACE": (),
     "NMA": ("H",),
     "NME": ("H",),
-    "SEL": ("H", "HG",),
+    "SEL": (
+        "H",
+        "HG",
+    ),
 }
 
 
@@ -327,7 +483,9 @@ class PDBData(object):
                 if residue_name not in list(
                     RESIDUE_CODE_TO_POLAR_HYDROGENS_TUPLE_DICT.keys()
                 ):
-                    logger.exception(f"ERROR: residue name unknown: {residue_name} {self.raw_data[i]}")
+                    logger.exception(
+                        f"ERROR: residue name unknown: {residue_name} {self.raw_data[i]}"
+                    )
                     raise
                 else:
                     allowed_hydrogens = RESIDUE_CODE_TO_POLAR_HYDROGENS_TUPLE_DICT[
@@ -339,11 +497,15 @@ class PDBData(object):
             self.remove_line(index)
         # no return necessary, as self has been modified
 
-    def remove_protons_for_covalent_docking(self, residue_num, residue_name, residue_atom_names):
+    def remove_protons_for_covalent_docking(
+        self, residue_num, residue_name, residue_atom_names
+    ):
         """given a pdb number of the covalent residue, removes its proton(s) to allow for the
         covalent bond"""
         for residue_atom_name in residue_atom_names.split(","):
-            residue_atom_index = self.get_index_by_residue_atom(residue_num, residue_name, residue_atom_name)
+            residue_atom_index = self.get_index_by_residue_atom(
+                residue_num, residue_name, residue_atom_name
+            )
             self.remove_line(residue_atom_index)
 
     def update_one_residue_name(self, raw_data_index, new_name):
@@ -732,4 +894,3 @@ def move_columns(
     with open(output_pdb_file_path, "w") as f_out:
         for line in lines_to_write:
             f_out.write(line)
-
