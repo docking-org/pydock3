@@ -15,14 +15,17 @@ class Point:
 
 
 class ROC(object):
-    def __init__(self, booleans, indices, alpha=None):
+    def __init__(self, booleans, alpha=None):
         #
         self.booleans = [bool(b) for b in booleans]
-        self.indices = indices
 
         #
         self.num_actives = len([b for b in self.booleans if b])
         self.num_decoys = len([b for b in self.booleans if not b])
+
+        # validate num actives and num decoys
+        if self.num_actives == 0 or self.num_decoys == 0:
+            raise ValueError(f"Number of actives and number of decoys both must be greater than zero!\n\tnum_actives={self.num_actives}\n\tnum_decoys={self.num_decoys}")
 
         # validate and set alpha
         if alpha is None:
@@ -40,10 +43,6 @@ class ROC(object):
         for b in self.booleans:
             if b:
                 if num_decoys_witnessed_so_far == self.num_decoys:
-                    x_coord = float(num_decoys_witnessed_so_far / self.num_decoys)
-                    y_coord = float(num_actives_witnessed_so_far / self.num_actives)
-                    x_coords.append(x_coord)
-                    y_coords.append(y_coord)
                     break  # last decoy has been seen, end of ROC, disregard remaining actives
                 num_actives_witnessed_so_far += 1
                 last_bool_was_decoy = False
@@ -55,7 +54,7 @@ class ROC(object):
                     y_coords.append(y_coord)
                 num_decoys_witnessed_so_far += 1
                 last_bool_was_decoy = True
-        self.x_coords = x_coords
+        self.x_coords = x_coords  # num points = num_decoys, each ith point represents interval [i/n, (i+1)/n]
         self.y_coords = y_coords
         self.points = [
             Point(x_coord, y_coord)
@@ -63,8 +62,8 @@ class ROC(object):
         ]
 
         #
-        x_coords_for_interpolation = [0.0] + self.x_coords
-        y_coords_for_interpolation = [0.0] + self.y_coords
+        x_coords_for_interpolation = self.x_coords + [1.0]  # add point at x=1.0 to complete the last interval [(n-1)/n, 1.0]
+        y_coords_for_interpolation = self.y_coords + [self.y_coords[-1]]
         self.f = lambda w: float(
             interpolate.interp1d(
                 x_coords_for_interpolation, y_coords_for_interpolation, kind="previous"
@@ -81,27 +80,30 @@ class ROC(object):
         ) / (-np.log(self.alpha) - (1 - self.alpha))
 
     def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
+        # remove point at x=0.0 and add point at x=1.0
+        x_values = self.x_coords[1:] + [1.0]
+        y_values = self.y_coords[1:] + [self.y_coords[-1]]
+
         #
         weights = []
         y_values_of_intervals = []
-        last_x_value = self.alpha
-        last_y_value = self.f(last_x_value)
+        previous_x_value = self.alpha
+        previous_y_value = self.f(self.alpha)  # initialize according to point at x=alpha
         for i, (current_x_value, current_y_value) in enumerate(
-            zip(self.x_coords, self.y_coords)
+            zip(x_values, y_values)
         ):
-            if current_x_value <= self.alpha:
-                continue
-
-            current_y_value = self.f(current_x_value)
-            if current_y_value == last_y_value and (i + 1) != len(
-                self.y_coords
+            if current_y_value == previous_y_value and (i + 1) != len(
+                y_values
             ):  # add for last y no matter what
                 continue
 
-            y_values_of_intervals.append(last_y_value)
-            weights.append(np.log(float(current_x_value / last_x_value)))
-            last_x_value = current_x_value
-            last_y_value = current_y_value
+            #
+            y_values_of_intervals.append(previous_y_value)
+            weights.append(np.log(float(current_x_value / previous_x_value)))
+
+            #
+            previous_x_value = current_x_value
+            previous_y_value = current_y_value
 
         return np.dot(weights, y_values_of_intervals)
 
@@ -120,8 +122,8 @@ class ROC(object):
         )
 
         # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
-        x_coords_for_plot = [self.alpha] + self.x_coords
-        y_coords_for_plot = [self.f(self.alpha)] + self.y_coords
+        x_coords_for_plot = self.x_coords + [1.0]  # add point at x=1.0 to complete the last interval [(n-1)/n, 1.0]
+        y_coords_for_plot = self.y_coords + [self.y_coords[-1]]
         ax.step(
             x_coords_for_plot,
             y_coords_for_plot,
@@ -136,14 +138,14 @@ class ROC(object):
             [],
             [],
             " ",
-            label=f"x-axis cutoff: {np.format_float_scientific(self.alpha, precision=3)}",
+            label=f"x-axis interval: [{np.format_float_scientific(self.alpha, precision=3)}, 1.0]",
         )
         plt.plot(
             [], [], " ", label=f"enrichment score: {round(self.enrichment_score, 3)}"
         )
 
         # set legend
-        ax.legend()
+        ax.legend(framealpha=0.75)
 
         # set axis labels
         ax.set_xlabel("false positive rate (i.e., top fraction of decoys accepted)")
