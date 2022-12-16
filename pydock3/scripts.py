@@ -4,6 +4,7 @@ import fire
 
 from pydock3.util import get_logger_for_script
 from pydock3.blastermaster.blastermaster import Blastermaster
+from pydock3.retrodock.retrodock import Retrodock
 from pydock3.dockopt.dockopt import Dockopt
 from pydock3.top_poses import TopPoses
 from pydock3.files import SDIFile
@@ -15,6 +16,7 @@ logger.setLevel(logging.DEBUG)
 
 SCRIPT_CLASSES = [  # script classes are those that inherit from the Script class defined in this module
     Blastermaster,
+    Retrodock,
     Dockopt,
     # TopPoses,
 ]
