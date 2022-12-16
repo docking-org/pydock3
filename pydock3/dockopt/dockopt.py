@@ -37,16 +37,18 @@ from pydock3.blastermaster.util import (
 )
 from pydock3.dockopt.roc import ROC
 from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
-from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
+from pydock3.job_schedulers import SGEJobScheduler, SlurmJobScheduler
 from pydock3.dockopt.report import generate_dockopt_job_report
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float
 
 
 #
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
 
 #
 SCHEDULER_NAME_TO_CLASS_DICT = {
@@ -431,60 +433,6 @@ class FullTargetsDAG(object):
         ) == len(
             list(set([self.g.edges[edge]["step_type"] for edge in edges_in_lineages]))
         )
-
-
-def str_to_float(s, alternative_if_uncastable=np.nan):
-    """cast numerical fields as float"""
-
-    try:
-        result = float(s)
-    except ValueError:
-        result = alternative_if_uncastable
-    return result
-
-
-def get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-    actives_outdock_file_path, decoys_outdock_file_path
-):
-    #
-    actives_outdock_file = OutdockFile(actives_outdock_file_path)
-    decoys_outdock_file = OutdockFile(decoys_outdock_file_path)
-
-    #
-    actives_outdock_df = actives_outdock_file.get_dataframe()
-    decoys_outdock_df = decoys_outdock_file.get_dataframe()
-
-    # set is_active column based on outdock file
-    actives_outdock_df["is_active"] = [1 for _ in range(len(actives_outdock_df))]
-    decoys_outdock_df["is_active"] = [0 for _ in range(len(decoys_outdock_df))]
-
-    # set activity_class column based on outdock file
-    actives_outdock_df["activity_class"] = [
-        "active" for _ in range(len(actives_outdock_df))
-    ]
-    decoys_outdock_df["activity_class"] = [
-        "decoy" for _ in range(len(decoys_outdock_df))
-    ]
-
-    # build dataframe of docking results from outdock files
-    df = pd.DataFrame()
-    df = pd.concat([df, actives_outdock_df], ignore_index=True)
-    df = pd.concat([df, decoys_outdock_df], ignore_index=True)
-
-    # replace relevant str columns with float equivalents & change column names
-    for old_col, new_col in [
-        ("Total", "total_energy"),
-        ("elect", "electrostatic_energy"),
-        ("vdW", "vdw_energy"),
-        ("psol", "polar_desolvation_energy"),
-        ("asol", "apolar_desolvation_energy"),
-        ("charge", "charge"),
-    ]:
-        df[new_col] = df[old_col].apply(lambda s: str_to_float(s))
-        if new_col != old_col:
-            df = df.drop(old_col, axis=1)
-
-    return df
 
 
 class Dockopt(Script):
@@ -958,29 +906,13 @@ class Dockopt(Script):
             retrodock_job_dirs.append(retrodock_job_dir)
         logger.debug("done")
 
-        #
-        def submit_retrodock_job(retrodock_job, skip_if_complete):
-            logger.info(f"Submitting docking job for {retrodock_job.name}...")
-            proc = retrodock_job.run(
-                job_timeout_minutes=retrodock_job_timeout_minutes,
-                skip_if_complete=skip_if_complete,
-            )
-            if proc is None:
-                logger.info(
-                    f"Skipping docking job submission for {retrodock_job.name} since all its OUTDOCK files already exist.\n"
-                )
-            else:
-                logger.debug(
-                    f"Retrodock job submission system call returned: {proc}\n\nstdout:{proc.stdout}\n\nstderr:{proc.stderr}\n"
-                )
-                if proc.stderr:
-                    logger.info(f"Job submission failed due to error: {proc.stderr}\n")
-                else:
-                    logger.info("done.\n")
-
         # submit docking jobs
         for retrodock_job in retrodock_jobs:
-            submit_retrodock_job(retrodock_job, skip_if_complete=True)
+            sub_result, proc = retrodock_job.submit(
+                job_timeout_minutes=retrodock_job_timeout_minutes,
+                skip_if_complete=True,
+            )
+            log_job_submission_result(retrodock_job, sub_result, proc)
 
         # make a queue of tuples containing job-relevant data for processing
         RetrodockJobInfoTuple = collections.namedtuple(
@@ -1029,8 +961,9 @@ class Dockopt(Script):
                                 f"Max job reattempts exhausted for job: {retrodock_job.name}"
                             )
                             continue  # move on to next job in queue without re-attempting failed job
-                        submit_retrodock_job(
-                            retrodock_job, skip_if_complete=False
+                        retrodock_job.submit(
+                            job_timeout_minutes=retrodock_job_timeout_minutes,
+                            skip_if_complete=False,
                         )  # re-attempt job
                         retrodock_jobs_processing_queue.append(
                             retrodock_job_info_tuple
@@ -1060,8 +993,9 @@ class Dockopt(Script):
                         f"Max job reattempts exhausted for job: {retrodock_job.name}"
                     )
                     continue  # move on to next job in queue without re-attempting failed job
-                submit_retrodock_job(
-                    retrodock_job, skip_if_complete=False
+                retrodock_job.submit(
+                    job_timeout_minutes=retrodock_job_timeout_minutes,
+                    skip_if_complete=False,
                 )  # re-attempt job
                 retrodock_jobs_processing_queue.append(
                     retrodock_job_info_tuple
