@@ -1022,10 +1022,7 @@ class Dockopt(Script):
             # get ROC and calculate enrichment score of this job's docking set-up
             logger.debug("Calculating ROC and enrichment score...")
             booleans = df["is_active"]
-            indices = df["total_energy"].fillna(
-                np.inf
-            )  # unscored molecules are assumed to have worst possible score (pessimistic approach)
-            roc = ROC(booleans, indices)
+            roc = ROC(booleans)
             data_dict["enrichment_score"] = roc.enrichment_score
             logger.debug("done.")
 
@@ -1112,10 +1109,7 @@ class Dockopt(Script):
 
         # get ROC and calculate enrichment score of this job's docking set-up
         booleans = df_best_job["is_active"]
-        indices = df_best_job["total_energy"].fillna(
-            np.inf
-        )  # unscored molecules are assumed to have worst possible score (pessimistic approach)
-        roc = ROC(booleans, indices)
+        roc = ROC(booleans)
 
         # write ROC plot image
         roc_plot_image_path = os.path.join(best_retrodock_job_dir.path, "roc.png")

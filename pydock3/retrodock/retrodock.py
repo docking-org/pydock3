@@ -276,10 +276,7 @@ class Retrodock(Script):
         # get ROC and calculate enrichment score of this job's docking set-up
         logger.debug("Calculating ROC and enrichment score...")
         booleans = df["is_active"]
-        indices = df["total_energy"].fillna(
-            np.inf
-        )  # unscored molecules are assumed to have worst possible score (pessimistic approach)
-        roc = ROC(booleans, indices)
+        roc = ROC(booleans)
         with open("enrichment_score", "w") as f:
             f.write(f"{roc.enrichment_score}")
         logger.debug("done.")
