@@ -119,7 +119,10 @@ class RetrodockJob(ABC):
         )
         self.num_attempts += 1
 
-        return JobSubmissionResult, proc
+        if proc.stderr:
+            return JobSubmissionResult.FAILED, proc
+        else:
+            return JobSubmissionResult.SUCCESS, proc
 
     @property
     def is_running(self):

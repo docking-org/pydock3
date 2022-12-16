@@ -43,8 +43,10 @@ def log_job_submission_result(job, submission_result, proc):
     if submission_result is JobSubmissionResult.SUCCESS:
         logger.info(f"Retrodock job '{job.name}' successfully submitted.\n")
     elif submission_result is JobSubmissionResult.FAILED:
-        logger.info(f"Retrodock job submission failed for '{job.name}' due to error: {proc.stderr}\n")
-    if submission_result is JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE:
+        logger.info(
+            f"Retrodock job submission failed for '{job.name}' due to error: {proc.stderr}\n"
+        )
+    elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE:
         logger.info(
             f"Retrodock job submission skipped for '{job.name}' since all its OUTDOCK files already exist.\n"
         )
@@ -129,24 +131,22 @@ class Retrodock(Script):
         decoys_dir = Dir(path=job_dir_path, create=True, reset=False)
 
     def run(
-            self,
-            scheduler,
-            dock_executable_path=DOCK3_EXECUTABLE_PATH,
-            job_dir_path=".",
-            dock_files_dir_path=None,
-            indock_file_path=None,
-            actives_tgz_file_path=None,
-            decoys_tgz_file_path=None,
-            retrodock_job_max_reattempts=0,
-            retrodock_job_timeout_minutes=None,
-            max_scheduler_jobs_running_at_a_time=None,  # TODO
-            export_decoy_poses=False,  # TODO
+        self,
+        scheduler,
+        dock_executable_path=DOCK3_EXECUTABLE_PATH,
+        job_dir_path=".",
+        dock_files_dir_path=None,
+        indock_file_path=None,
+        actives_tgz_file_path=None,
+        decoys_tgz_file_path=None,
+        retrodock_job_max_reattempts=0,
+        retrodock_job_timeout_minutes=None,
+        max_scheduler_jobs_running_at_a_time=None,  # TODO
+        export_decoy_poses=False,  # TODO
     ):
         # validate args
         if dock_files_dir_path is None:
-            dock_files_dir_path = os.path.join(
-                job_dir_path, self.DOCK_FILES_DIR_NAME
-            )
+            dock_files_dir_path = os.path.join(job_dir_path, self.DOCK_FILES_DIR_NAME)
         if indock_file_path is None:
             indock_file_path = os.path.join(
                 dock_files_dir_path, self.INDOCK_FILE_NAME
@@ -213,7 +213,8 @@ class Retrodock(Script):
         logger.info("done")
 
         #
-        dock_files = BlasterFiles(dock_files_dir_path).dock_files
+        dock_files_dir = Dir(dock_files_dir_path)
+        dock_files = BlasterFiles(dock_files_dir).dock_files
         indock_file = IndockFile(indock_file_path)
 
         #
@@ -255,10 +256,8 @@ class Retrodock(Script):
         )
 
         # get dataframe of actives job results and decoys job results combined
-        df = (
-            get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-                actives_outdock_file_path, decoys_outdock_file_path
-            )
+        df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+            actives_outdock_file_path, decoys_outdock_file_path
         )
 
         #
@@ -281,7 +280,7 @@ class Retrodock(Script):
             np.inf
         )  # unscored molecules are assumed to have worst possible score (pessimistic approach)
         roc = ROC(booleans, indices)
-        with open("enrichment_score", 'w') as f:
+        with open("enrichment_score", "w") as f:
             f.write(f"{roc.enrichment_score}")
         logger.debug("done.")
 
