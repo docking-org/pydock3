@@ -270,6 +270,11 @@ class BlasterFiles(object):
                 working_dir.path, blaster_file_names.vdw_protein_table_file_name
             )
         )
+        self.residue_code_to_polar_h_yaml_file = BlasterFile(
+            path=os.path.join(
+                working_dir.path, blaster_file_names.residue_code_to_polar_h_yaml_file_name
+            )
+        )
         self.receptor_file = BlasterFile(
             path=os.path.join(working_dir.path, blaster_file_names.receptor_file_name)
         )
