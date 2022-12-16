@@ -37,238 +37,6 @@ ATOM_TO_RADIUS_DICT = {  # TODO: 'atom' should be substituted with a more accura
 
 OCC_PLACE = 0  # the occupancy is first, then the bfactor
 BFAC_PLACE = 1  # bfactor
-# list of polar hydrogens to keep.
-RESIDUE_CODE_TO_POLAR_HYDROGENS_TUPLE_DICT = {
-    # H   ALA
-    "ALA": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   ARG
-    # HE  ARG
-    # HH11 ARG
-    # HH12 ARG
-    # HH21 ARG
-    # HH22 ARG
-    "ARG": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HE ",
-        "HH11",
-        "HH12",
-        "HH21",
-        "HH22",
-    ),
-    # H   ASN
-    # HD21 ASN
-    # HD22 ASN
-    "ASN": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HD21",
-        "HD22",
-    ),
-    # H   ASP
-    "ASP": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   CYS
-    # HG  CYS
-    "CYS": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HG ",
-    ),
-    # H   CYX
-    "CYX": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    "CYM": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   GLN
-    # HE21 GLN
-    # HE22 GLN
-    "GLN": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HE21",
-        "HE22",
-    ),
-    # H   GLU
-    "GLU": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   GLY
-    "GLY": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   HIS
-    # HD1 HIS (change to HID if only)
-    # HE2 HIS (change to HIE if only) (if both change to HIP)
-    "HIS": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HD1",
-        "HE2",
-    ),
-    "HIP": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HD1",
-        "HE2",
-    ),
-    "HIE": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HE2",
-    ),
-    "HID": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HD1",
-    ),
-    # H   ILE
-    "ILE": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   LEU
-    "LEU": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   LYS
-    # HZ1 LYS
-    # HZ2 LYS
-    # HZ3 LYS
-    "LYS": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HZ1",
-        "HZ2",
-        "HZ3",
-    ),
-    # H   MET
-    "MET": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   PHE
-    "PHE": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # nothing for proline
-    "PRO": (
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # H   SER
-    # HG  SER
-    "SER": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HG ",
-    ),
-    # H   THR
-    # HG1 THR
-    "THR": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HG1",
-    ),
-    # H   TRP
-    # HE1 TRP
-    "TRP": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HE1",
-    ),
-    # H   TYR
-    # HH  TYR
-    "TYR": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-        "HH ",
-    ),
-    # H   VAL
-    "VAL": (
-        "H  ",
-        "H1 ",
-        "H2 ",
-        "H3 ",
-    ),
-    # add HEM now, maybe not want to special case them all eventually
-    "HEM": (),
-    "HOH": (
-        "H01",
-        "H02",
-    ),
-    "WAT": (
-        "HW1",
-        "HW2",
-    ),
-    "ACE": (),
-    "NMA": ("H",),
-    "NME": ("H",),
-    "SEL": (
-        "H",
-        "HG",
-    ),
-}
 
 
 class PDBColumns:
@@ -473,25 +241,23 @@ class PDBData(object):
         for index in marked_for_removal:
             self.remove_line(index)
 
-    def remove_apolar_hydrogen(self):
-        """for removing all nonpolar hydrogens in a protein. uses RESIDUE_CODE_TO_POLAR_HYDROGENS_TUPLE_DICT as the
+    def remove_apolar_hydrogen(self, residue_code_to_polar_hydrogens_dict):
+        """for removing all nonpolar hydrogens in a protein. uses residue_code_to_polar_hydrogens_dict as the
         dict of residue->atom names to decide which hydrogens to keep"""
         marked_for_removal = []
         for i, atom in enumerate(self.atoms):
             if atom[0] == "H":  # hydrogen atom
                 residue_name = self.residue_names[i]
-                if residue_name not in list(
-                    RESIDUE_CODE_TO_POLAR_HYDROGENS_TUPLE_DICT.keys()
-                ):
+                if residue_name not in residue_code_to_polar_hydrogens_dict:
                     logger.exception(
                         f"ERROR: residue name unknown: {residue_name} {self.raw_data[i]}"
                     )
                     raise
                 else:
-                    allowed_hydrogens = RESIDUE_CODE_TO_POLAR_HYDROGENS_TUPLE_DICT[
+                    allowed_hydrogens = residue_code_to_polar_hydrogens_dict[
                         residue_name
                     ]
-                    if atom not in allowed_hydrogens:
+                    if atom.strip() not in allowed_hydrogens:
                         marked_for_removal.append(self.atom_to_raw[i])
         for index in marked_for_removal:
             self.remove_line(index)

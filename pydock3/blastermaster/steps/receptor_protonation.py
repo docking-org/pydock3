@@ -3,6 +3,8 @@
 
 import logging
 
+import yaml
+
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
 from pydock3.files import ProgramFile, File
 from pydock3.blastermaster import pdb
@@ -19,6 +21,7 @@ class ReceptorProtonationStep(BlasterStep):
         step_dir,
         receptor_infile,
         add_h_dict_infile,
+        residue_code_polar_h_yaml_infile,
         charged_receptor_outfile,
         reduce_options_parameter,
     ):
@@ -31,6 +34,7 @@ class ReceptorProtonationStep(BlasterStep):
         self.process_infiles(
             (receptor_infile, "receptor_infile"),
             (add_h_dict_infile, "add_h_dict_infile"),
+            (residue_code_polar_h_yaml_infile, "residue_code_polar_h_yaml_infile"),
         )
 
         #
@@ -64,7 +68,9 @@ class ReceptorProtonationStep(BlasterStep):
 
         # remove nonpolar hydrogens
         pdb_d = pdb.PDBData(charged_receptor_full_h_file_path, ignore_waters=False)
-        pdb_d.remove_apolar_hydrogen()
+        with open(self.infiles.residue_code_polar_h_yaml_infile) as f:
+            residue_code_to_polar_hydrogens_dict = yaml.safe_load(f)
+            pdb_d.remove_apolar_hydrogen(residue_code_to_polar_hydrogens_dict)
 
         #
         charged_receptor_polar_h_file_path = (

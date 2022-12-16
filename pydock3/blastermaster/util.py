@@ -159,6 +159,7 @@ class BlasterFileNames(object):
     electrostatics_delphi_file_name: str = "delphi.def"
     vdw_parameters_file_name: str = "vdw.parms.amb.mindock"
     vdw_protein_table_file_name: str = "prot.table.ambcrg.ambH"
+    residue_code_to_polar_h_yaml_file_name: str = "residue_code_polar_h.yaml"
 
     #
     receptor_file_name: str = "rec.pdb"
