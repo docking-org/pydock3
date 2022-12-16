@@ -68,7 +68,7 @@ class ReceptorProtonationStep(BlasterStep):
 
         # remove nonpolar hydrogens
         pdb_d = pdb.PDBData(charged_receptor_full_h_file_path, ignore_waters=False)
-        with open(self.infiles.residue_code_polar_h_yaml_infile) as f:
+        with open(self.infiles.residue_code_polar_h_yaml_infile.path, 'r') as f:
             residue_code_to_polar_hydrogens_dict = yaml.safe_load(f)
             pdb_d.remove_apolar_hydrogen(residue_code_to_polar_hydrogens_dict)
 
