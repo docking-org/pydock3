@@ -51,12 +51,7 @@ from pydock3.blastermaster.util import (
 )
 from pydock3.dockopt.roc import ROC
 from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
-<<<<<<< HEAD
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
-=======
-from pydock3.job_schedulers import SGEJobScheduler, SlurmJobScheduler
-from pydock3.dockopt.report import generate_dockopt_job_report
->>>>>>> develop
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
