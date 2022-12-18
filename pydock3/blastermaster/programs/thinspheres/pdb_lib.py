@@ -1,6 +1,3 @@
-#! /usr/bin/python
-import sys, math
-
 ###
 # This programs was writen by Trent E. Balius, the Shoichet Group, UCSF, 2012
 # edited in 2015.

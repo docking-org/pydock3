@@ -2,6 +2,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields
+from enum import Enum
 
 from pydock3.files import Dir, File, IndockFile
 from pydock3.blastermaster.util import DockFiles
@@ -22,20 +23,28 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+#
+class JobSubmissionResult(Enum):
+    SUCCESS = 1
+    FAILED = 2
+    SKIPPED_BECAUSE_ALREADY_COMPLETE = 3
+    SKIPPED_BECAUSE_STILL_RUNNING = 4
+
+
 @dataclass
 class DockingJob(ABC):
     @abstractmethod
-    def run(self):
+    def submit(self):
         raise NotImplementedError
 
 
 @dataclass
 class RetrodockJob(ABC):
     name: str
+    job_dir: Dir
     input_sdi_file: File
     dock_files: DockFiles
     indock_file: IndockFile
-    output_dir: Dir
     job_scheduler: JobScheduler
     temp_storage_path: str
     dock_executable_path: str = DOCK3_EXECUTABLE_PATH
@@ -49,12 +58,28 @@ class RetrodockJob(ABC):
     JOBLIST_FILE_NAME = "joblist"
 
     def __post_init__(self):
+        self.output_dir = Dir(
+            path=os.path.join(self.job_dir.path, f"output"), create=True
+        )
+        self.actives_outdock_file = File(os.path.join(self.output_dir.path, self.ACTIVES_TASK_ID, self.OUTDOCK_FILE_NAME))
+        self.decoys_outdock_file = File(os.path.join(self.output_dir.path, self.DECOYS_TASK_ID, self.OUTDOCK_FILE_NAME))
+
         self._is_complete = False
 
-    def run(self, job_timeout_minutes=None, skip_if_complete=True):
+    def submit(self, job_timeout_minutes=None, skip_if_complete=True):
+        """
+        if job submission is skipped, returns (JobSubmissionResult, None)
+        if job submission is not skipped, returns (JobSubmissionResult, subprocess.CompletedProcess)
+        """
+
+        #
+        if self.is_running:
+            return JobSubmissionResult.SKIPPED_BECAUSE_STILL_RUNNING, None
+
+        #
         if skip_if_complete:
             if self.is_complete:
-                return
+                return JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE, None
 
         # reset output dir
         self.output_dir.delete()
@@ -89,8 +114,8 @@ class RetrodockJob(ABC):
             "ONLY_EXPORT_MOL2_FOR_TASK_1": "true",
         }
 
-        # run job
-        proc = self.job_scheduler.run(
+        # submit job
+        proc = self.job_scheduler.submit(
             job_name=self.name,
             script_path=DOCK_RUN_SCRIPT_PATH,
             env_vars_dict=env_vars_dict,
@@ -100,7 +125,10 @@ class RetrodockJob(ABC):
         )
         self.num_attempts += 1
 
-        return proc
+        if proc.stderr:
+            return JobSubmissionResult.FAILED, proc
+        else:
+            return JobSubmissionResult.SUCCESS, proc
 
     @property
     def is_running(self):

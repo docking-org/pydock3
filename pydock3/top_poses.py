@@ -193,7 +193,10 @@ def energy_is_greater_than_other_energy(m_1, m_2):
 
 class TopPoses(Script):
     def __init__(self, dock_results_dir_path):
+        #
         super().__init__()
+
+        #
         self.dock_results_dir_path = dock_results_dir_path
 
     def run(self, output_file_path="top_poses.mol2.gz", max_heap_size=10000):

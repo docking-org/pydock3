@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 
 from pydock3.util import system_call
 
-
 #
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -17,41 +16,23 @@ class JobScheduler(ABC):
         self.name = name
 
     @abstractmethod
-    def run(
-        self,
-        job_name,
-        script_path,
-        env_vars_dict,
-        output_dir_path,
-        n_tasks,
-        job_timeout_minutes=None,
+    def submit(
+            self,
+            job_name,
+            script_path,
+            env_vars_dict,
+            output_dir_path,
+            n_tasks,
+            job_timeout_minutes=None,
     ):
+        """returns: subprocess.CompletedProcess"""
+
         raise NotImplementedError
 
     @abstractmethod
     def is_running_job(self, job_name):
         raise NotImplementedError
 
-
-class NoJobScheduler(JobScheduler):
-    REQUIRED_ENV_VAR_NAMES = []
-
-    def __init__(self, name):
-        super().__init__(name)
-
-    def run(
-        self,
-        job_name,
-        script_path,
-        env_vars_dict,
-        output_dir_path,
-        n_tasks,
-        job_timeout_minutes=None,
-    ):
-        raise NotImplementedError
-
-    def is_running_job(self, job_name):
-        raise NotImplementedError
 
 
 class SlurmJobScheduler(JobScheduler):
@@ -74,14 +55,14 @@ class SlurmJobScheduler(JobScheduler):
         if self.SLURM_SETTINGS:
             system_call(f"source {self.SLURM_SETTINGS}")
 
-    def run(
-        self,
-        job_name,
-        script_path,
-        env_vars_dict,
-        output_dir_path,
-        n_tasks,
-        job_timeout_minutes=None,
+    def submit(
+            self,
+            job_name,
+            script_path,
+            env_vars_dict,
+            output_dir_path,
+            n_tasks,
+            job_timeout_minutes=None,
     ):
         command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {output_dir_path}/{job_name}_%A_%a.out -e {output_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array=1-{n_tasks} {script_path}"
         if job_timeout_minutes is None:
@@ -122,14 +103,14 @@ class SGEJobScheduler(JobScheduler):
         if self.SGE_SETTINGS:
             system_call(f"source {self.SGE_SETTINGS}")
 
-    def run(
-        self,
-        job_name,
-        script_path,
-        env_vars_dict,
-        output_dir_path,
-        n_tasks,
-        job_timeout_minutes=None,
+    def submit(
+            self,
+            job_name,
+            script_path,
+            env_vars_dict,
+            output_dir_path,
+            n_tasks,
+            job_timeout_minutes=None,
     ):
         #
         if not job_name[0].isalpha():

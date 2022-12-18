@@ -25,12 +25,6 @@ class ProgramFilePaths:
     DMS_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "dms/bin/dms")
     FILT_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "filt/bin/filt")
     SPHGEN_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "sphgen/bin/sphgen")
-    THIN_SPHERES_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "thinspheres/thin_spheres.py"
-    )
-    CLOSE_SPH_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "thinspheres/close_sph.py"
-    )
     PDBTOSPH_PROGRAM_FILE_PATH = os.path.join(
         PROGRAMS_DIR_PATH, "pdbtosph/bin/pdbtosph"
     )
@@ -175,6 +169,7 @@ class BlasterFileNames(object):
     electrostatics_delphi_file_name: str = "delphi.def"
     vdw_parameters_file_name: str = "vdw.parms.amb.mindock"
     vdw_protein_table_file_name: str = "prot.table.ambcrg.ambH"
+    residue_code_to_polar_h_yaml_file_name: str = "residue_code_polar_h.yaml"
 
     #
     receptor_file_name: str = "rec.pdb"
@@ -296,6 +291,11 @@ class BlasterFiles(object):
         self.vdw_protein_table_file = BlasterFile(
             path=os.path.join(
                 working_dir.path, blaster_file_names.vdw_protein_table_file_name
+            )
+        )
+        self.residue_code_to_polar_h_yaml_file = BlasterFile(
+            path=os.path.join(
+                working_dir.path, blaster_file_names.residue_code_to_polar_h_yaml_file_name
             )
         )
         self.receptor_file = BlasterFile(

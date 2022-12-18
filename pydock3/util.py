@@ -31,7 +31,7 @@ def system_call(command_str, cwd=os.getcwd(), timeout_seconds=None, env_vars_dic
     logger.debug(
         f"Running system call.\nCurrent working directory: {cwd}\n Command:\n{command_str}"
     )
-    return subprocess.run(
+    proc = subprocess.run(
         command_str,
         cwd=cwd,
         shell=True,
@@ -42,6 +42,11 @@ def system_call(command_str, cwd=os.getcwd(), timeout_seconds=None, env_vars_dic
         timeout=timeout_seconds,
         env=env_vars_dict,
     )
+    logger.debug(
+        f"System call returned: {proc}\n\nstdout:{proc.stdout}\n\nstderr:{proc.stderr}\n"
+    )
+
+    return proc
 
 
 class Script(object):

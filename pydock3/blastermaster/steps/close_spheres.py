@@ -1,11 +1,9 @@
-#!/usr/bin/env python
-
 # Ryan G. Coleman, Brian K. Shoichet Lab
 
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile
+from pydock3.blastermaster.util import BlasterStep
+from pydock3.blastermaster.programs.thinspheres import sph_lib, pdb_lib
 
 #
 logger = logging.getLogger(__name__)
@@ -26,9 +24,7 @@ class CloseSpheresGenerationStep(BlasterStep):
         super().__init__(step_dir=step_dir)
 
         #
-        self.program_file = ProgramFile(
-            path=ProgramFilePaths.CLOSE_SPH_PROGRAM_FILE_PATH
-        )
+        self.program_file = None
 
         #
         self.process_infiles(
@@ -50,6 +46,47 @@ class CloseSpheresGenerationStep(BlasterStep):
 
     @BlasterStep.handle_run_func
     def run(self):
-        #
-        run_str = f"python {self.program_file.path} {self.infiles.thin_spheres_infile.name} {self.infiles.ligand_infile.name} {self.outfiles.close_spheres_outfile.name} {self.parameters.distance_to_ligand_parameter.value} {self.parameters.distance_to_surface_parameter.value + self.parameters.penetration_parameter.value}"
-        self.run_command(run_str)
+        spheres_list = sph_lib.read_sph(self.infiles.thin_spheres_infile.path, "A", "A")
+        pdb_list = pdb_lib.read_pdb(self.infiles.ligand_infile.path)
+        spheres_list = distance_sph_pdb(
+            spheres_list, pdb_list, self.parameters.distance_to_ligand_parameter.value
+        )
+        radius = (
+            self.parameters.distance_to_surface_parameter.value
+            + self.parameters.penetration_parameter.value
+        )
+        spheres_list = trim_sph(spheres_list, radius)
+        sph_lib.write_sph(self.outfiles.close_spheres_outfile.path, spheres_list)
+
+
+def trim_sph(sph_list, sph_rad):
+    for i in range(len(sph_list) - 1):
+        if sph_list[i][1]:
+            for j in range(i + 1, len(sph_list)):
+                if sph_list[j][1]:
+                    dist = (
+                        (sph_list[i][0].X - sph_list[j][0].X) ** 2
+                        + (sph_list[i][0].Y - sph_list[j][0].Y) ** 2
+                        + (sph_list[i][0].Z - sph_list[j][0].Z) ** 2
+                    )
+                    if dist <= (sph_rad**2.0) / 2.0:
+                        sph_list[j][1] = False
+
+    final_sph_list = []
+    for sph in sph_list:
+        if sph[1]:
+            final_sph_list.append(sph[0])
+
+    return final_sph_list
+
+
+def distance_sph_pdb(spheres, pdb_atoms, distance):
+    sph_list = []
+    for sph in spheres:
+        for atom in pdb_atoms:
+            d2 = (atom.X - sph.X) ** 2 + (atom.Y - sph.Y) ** 2 + (atom.Z - sph.Z) ** 2
+            if d2 < float(distance) ** 2.0:
+                sph_list.append([sph, True])
+                break
+
+    return sph_list

@@ -51,6 +51,7 @@ class ParametersConfiguration:
         data = yamale.make_data(self.config_file_path)
         try:
             yamale.validate(self.schema, data)
+            logger.debug("Config validation success!")
         except ValueError as e:
             raise Exception("Config validation failed!\n%s" % str(e))
 

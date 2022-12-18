@@ -18,8 +18,9 @@ import pandas as pd
 from dirhash import dirhash
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
+import seaborn as sns
+from joypy import joyplot
 
 
 from pydock3.util import (
@@ -50,15 +51,22 @@ from pydock3.blastermaster.util import (
 )
 from pydock3.dockopt.roc import ROC
 from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
+<<<<<<< HEAD
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
+=======
+from pydock3.job_schedulers import SGEJobScheduler, SlurmJobScheduler
+from pydock3.dockopt.report import generate_dockopt_job_report
+>>>>>>> develop
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float
 
 
 #
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
 
 #
 plt.rcParams.update({"font.size": 14})
@@ -80,7 +88,9 @@ METRICS = ["enrichment_score"]
 ALL_POSSIBLE_NON_PARAMETER_COLUMNS = [RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] + METRICS
 
 #
-ROC_IMAGE_FILE_NAME = "roc.png"
+ROC_PLOT_FILE_NAME = "roc.png"
+ENERGY_PLOT_FILE_NAME = "energy.png"
+CHARGE_PLOT_FILE_NAME = "charge.png"
 RESULTS_CSV_FILE_NAME = "results.csv"
 
 
@@ -274,8 +284,8 @@ class EnrichmentScore(Criterion):
     def name(self):
         return "enrichment_score"
 
-    def calculate(self, booleans, indices, image_save_path=None):
-        roc = ROC(booleans, indices)
+    def calculate(self, booleans, image_save_path=None):
+        roc = ROC(booleans)
 
         # save plot
         if image_save_path is not None:
@@ -380,18 +390,45 @@ class RunnableJobWithReport(RunnableJob):
 
             #
             for i, best_job_dir_path in enumerate(self.get_n_best_jobs_dir_paths()):
-                best_job_roc_file_path = os.path.join(
-                    best_job_dir_path, ROC_IMAGE_FILE_NAME
+                #
+                roc_file_path = os.path.join(
+                    best_job_dir_path, ROC_PLOT_FILE_NAME
                 )
-                if File.file_exists(best_job_roc_file_path):
-                    image = mpimg.imread(best_job_roc_file_path)
+                if File.file_exists(roc_file_path):  # TODO: replace this logic with call to `Retrodock.analyze` method or something in order to ensure that these Retrodock-pertaining files are created
+                    image = mpimg.imread(roc_file_path)
                     plt.axis("off")
                     plt.suptitle(
                         f"linear-log ROC plot of {get_ordinal(i+1)} best job\n{best_job_dir_path}"
                     )
                     plt.imshow(image)
-            f.savefig(fig, bbox_inches="tight")
-            plt.close(fig)
+                    f.savefig(fig, bbox_inches="tight")
+                    plt.close(fig)
+
+                #
+                energy_plot_file_path = os.path.join(
+                    best_job_dir_path, ENERGY_PLOT_FILE_NAME
+                )
+                if File.file_exists(energy_plot_file_path):
+                    fig = plt.figure(figsize=(11.0, 8.5))
+                    image = mpimg.imread(energy_plot_file_path)
+                    plt.axis("off")
+                    plt.suptitle("energy terms ridgeline plot of best job")
+                    plt.imshow(image)
+                    f.savefig(fig, bbox_inches="tight")
+                    plt.close(fig)
+
+                #
+                charge_plot_file_path = os.path.join(
+                    best_job_dir_path, CHARGE_PLOT_FILE_NAME
+                )
+                if File.file_exists(charge_plot_file_path):
+                    fig = plt.figure(figsize=(11.0, 8.5))
+                    image = mpimg.imread(charge_plot_file_path)
+                    plt.axis("off")
+                    plt.suptitle("charge violin plot of best job")
+                    plt.imshow(image)
+                    f.savefig(fig, bbox_inches="tight")
+                    plt.close(fig)
 
             #
             multivalued_config_param_columns = [
@@ -1141,7 +1178,6 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         #
         retrodock_jobs = []
-        retrodock_job_dirs = []
         retrodock_job_dir_path_to_docking_configuration_file_names_dict = {}
         for i, (dock_executable_path, dock_files, indock_file) in enumerate(
             docking_configurations
@@ -1163,70 +1199,50 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 path=retro_dock_job_dir_path,
                 create=True,
             )
-            retrodock_job_output_dir = Dir(
-                path=os.path.join(retrodock_job_dir.path, f"output"), create=True
-            )
 
             #
             retrodock_job = RetrodockJob(
                 name=f"dockopt_job_{job_hash}_{retrodock_job_dir.name}",
+                job_dir=retrodock_job_dir,
                 input_sdi_file=retrodock_input_sdi_file,
                 dock_files=dock_files,
                 indock_file=indock_file,
-                output_dir=retrodock_job_output_dir,
                 job_scheduler=scheduler,
                 dock_executable_path=dock_executable_path,
                 temp_storage_path=temp_dir_path,
                 max_reattempts=retrodock_job_max_reattempts,
             )
             retrodock_jobs.append(retrodock_job)
-            retrodock_job_dirs.append(retrodock_job_dir)
         logger.debug("done")
-
-        #
-        def submit_retrodock_job(retrodock_job, skip_if_complete):
-            logger.info(f"Submitting docking job for {retrodock_job.name}...")
-            proc = retrodock_job.run(
-                job_timeout_minutes=retrodock_job_timeout_minutes,
-                skip_if_complete=skip_if_complete,
-            )
-            if proc is None:
-                logger.info(
-                    f"Skipping docking job submission for {retrodock_job.name} since all its OUTDOCK files already exist.\n"
-                )
-            else:
-                logger.debug(
-                    f"Retrodock job submission system call returned: {proc}\n\nstdout:{proc.stdout}\n\nstderr:{proc.stderr}\n"
-                )
-                if proc.stderr:
-                    logger.info(f"Job submission failed due to error: {proc.stderr}\n")
-                else:
-                    logger.info("done.\n")
 
         # submit docking jobs
         for retrodock_job in retrodock_jobs:
-            submit_retrodock_job(retrodock_job, skip_if_complete=True)
+            sub_result, proc = retrodock_job.submit(
+                job_timeout_minutes=retrodock_job_timeout_minutes,
+                skip_if_complete=True,
+            )
+            log_job_submission_result(retrodock_job, sub_result, proc)
 
         # make a queue of tuples containing job-relevant data for processing
         RetrodockJobInfoTuple = collections.namedtuple(
-            "RetrodockJobInfoTuple", "job job_dir flat_param_dict"
+            "RetrodockJobInfoTuple", "job flat_param_dict"
         )
         retrodock_jobs_processing_queue = [
             RetrodockJobInfoTuple(
-                retrodock_jobs[i], retrodock_job_dirs[i], flat_param_dicts[i]
+                retrodock_jobs[i], flat_param_dicts[i]
             )
             for i in range(len(retrodock_jobs))
         ]
 
         # process results of docking jobs
         logger.info(
-            f"Awaiting / processing retrodock job results ({len(retrodock_job_dirs)} jobs in total)"
+            f"Awaiting / processing retrodock job results ({len(retrodock_jobs)} jobs in total)"
         )
         data_dicts = []
         while len(retrodock_jobs_processing_queue) > 0:
             #
             retrodock_job_info_tuple = retrodock_jobs_processing_queue.pop(0)
-            retrodock_job, retrodock_job_dir, flat_param_dict = retrodock_job_info_tuple
+            retrodock_job, flat_param_dict = retrodock_job_info_tuple
 
             #
             if retrodock_job.is_running:
@@ -1254,28 +1270,24 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                                 f"Max job reattempts exhausted for job: {retrodock_job.name}"
                             )
                             continue  # move on to next job in queue without re-attempting failed job
-                        submit_retrodock_job(
-                            retrodock_job, skip_if_complete=False
+
+                        retrodock_job.submit(
+                            job_timeout_minutes=retrodock_job_timeout_minutes,
+                            skip_if_complete=False,
                         )  # re-attempt job
                         retrodock_jobs_processing_queue.append(
                             retrodock_job_info_tuple
                         )  # move job to back of queue
                         continue  # move on to next job in queue while docking job runs
 
-            #
-            actives_outdock_file_path = os.path.join(
-                retrodock_job.output_dir.path, "1", "OUTDOCK.0"
-            )
-            decoys_outdock_file_path = os.path.join(
-                retrodock_job.output_dir.path, "2", "OUTDOCK.0"
-            )
-
             # load outdock file and get dataframe
-            actives_outdock_file = OutdockFile(actives_outdock_file_path)
-            decoys_outdock_file = OutdockFile(decoys_outdock_file_path)
             try:
-                actives_outdock_df = actives_outdock_file.get_dataframe()
-                decoys_outdock_df = decoys_outdock_file.get_dataframe()
+                # get dataframe of actives job results and decoys job results combined
+                df = (
+                    get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+                        retrodock_job.actives_outdock_file.path, retrodock_job.decoys_outdock_file.path
+                    )
+                )
             except Exception as e:  # if outdock file failed to be parsed then re-attempt job
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
                 if retrodock_job.num_attempts > retrodock_job_max_reattempts:
@@ -1283,8 +1295,10 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                         f"Max job reattempts exhausted for job: {retrodock_job.name}"
                     )
                     continue  # move on to next job in queue without re-attempting failed job
-                submit_retrodock_job(
-                    retrodock_job, skip_if_complete=False
+
+                retrodock_job.submit(
+                    job_timeout_minutes=retrodock_job_timeout_minutes,
+                    skip_if_complete=False,
                 )  # re-attempt job
                 retrodock_jobs_processing_queue.append(
                     retrodock_job_info_tuple
@@ -1295,17 +1309,6 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             logger.info(
                 f"Docking job '{retrodock_job.name}' completed. Successfully loaded OUTDOCK file(s)."
             )
-
-            # set is_active column based on outdock file
-            actives_outdock_df["is_active"] = [
-                1 for _ in range(len(actives_outdock_df))
-            ]
-            decoys_outdock_df["is_active"] = [0 for _ in range(len(decoys_outdock_df))]
-
-            # build dataframe of docking results from outdock files
-            df = pd.DataFrame()
-            df = pd.concat([df, actives_outdock_df], ignore_index=True)
-            df = pd.concat([df, decoys_outdock_df], ignore_index=True)
 
             # sort dataframe by total energy score
             df["Total"] = df["Total"].astype(float)
@@ -1318,20 +1321,16 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
             data_dict = copy(flat_param_dict)
-            data_dict[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] = retrodock_job_dir.path
+            data_dict[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] = retrodock_job.job_dir.path
 
             # get ROC and calculate enrichment score of this job's docking set-up
             if isinstance(self.criterion, EnrichmentScore):
                 logger.debug("Calculating ROC and enrichment score...")
                 booleans = df["is_active"]
-                indices = df["Total"].fillna(
-                    np.inf
-                )  # unscored molecules are assumed to have worst possible score (pessimistic approach)
                 data_dict[self.criterion.name] = self.criterion.calculate(
                     booleans,
-                    indices,
                     image_save_path=os.path.join(
-                        retrodock_job_dir.path, ROC_IMAGE_FILE_NAME
+                        retrodock_job.job_dir.path, ROC_PLOT_FILE_NAME
                     ),
                 )
                 logger.debug("done.")
@@ -1394,6 +1393,88 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 best_job_dockfiles_dir.copy_in_file(
                     os.path.join(self.working_dir.path, file_name)
                 )
+
+            #
+            df_best_job = (
+                get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+                    actives_outdock_file_path=os.path.join(
+                        best_retrodock_job_dir_path,
+                        "output",
+                        "1",
+                        "OUTDOCK.0",
+                    ),
+                    decoys_outdock_file_path=os.path.join(
+                        best_retrodock_job_dir_path,
+                        "output",
+                        "2",
+                        "OUTDOCK.0",
+                    ),
+                )
+            )
+
+            # sort dataframe by total energy score
+            df_best_job = df_best_job.sort_values(
+                by=["total_energy", "is_active"], na_position="last", ignore_index=True
+            )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
+            df_best_job = df_best_job.drop_duplicates(
+                subset=["db2_file_path"], keep="first", ignore_index=True
+            )  # keep only the best score per molecule
+
+            # get ROC and calculate enrichment score of this job's docking set-up
+            booleans = df_best_job["is_active"]
+            roc = ROC(booleans)
+
+            # write ROC plot image
+            roc_plot_image_path = os.path.join(dst_best_job_dir_path, ROC_PLOT_FILE_NAME)
+            roc.plot(save_path=roc_plot_image_path)
+
+            # ridge plot for energy terms
+            pivot_rows = []
+            for i, row in df_best_job.iterrows():
+                for col in [
+                    "total_energy",
+                    "electrostatic_energy",
+                    "vdw_energy",
+                    "polar_desolvation_energy",
+                    "apolar_desolvation_energy",
+                ]:
+                    pivot_row = {"energy_term": col}
+                    if row["is_active"] == 1:
+                        pivot_row["active"] = str_to_float(row[col])
+                        pivot_row["decoy"] = np.nan
+                    else:
+                        pivot_row["active"] = np.nan
+                        pivot_row["decoy"] = str_to_float(row[col])
+                    pivot_rows.append(pivot_row)
+            df_best_job_pivot = pd.DataFrame(pivot_rows)
+            fig, ax = joyplot(
+                data=df_best_job_pivot,
+                by="energy_term",
+                column=["active", "decoy"],
+                color=["#686de0", "#eb4d4b"],
+                legend=True,
+                alpha=0.85,
+                figsize=(12, 8),
+                ylim="own",
+            )
+            plt.title("ridgeline plot: energy terms (actives vs. decoys)")
+            plt.tight_layout()
+            plt.savefig(os.path.join(dst_best_job_dir_path, ENERGY_PLOT_FILE_NAME))
+            plt.close(fig)
+
+            # split violin plot of charges
+            fig = plt.figure()
+            sns.violinplot(
+                data=df_best_job,
+                x="charge",
+                y="total_energy",
+                split=True,
+                hue="activity_class",
+            )
+            plt.title("split violin plot: charge (actives vs. decoys)")
+            plt.tight_layout()
+            plt.savefig(os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME))
+            plt.close(fig)
 
         # write report PDF
         self.write_report_pdf()
