@@ -132,7 +132,8 @@ class Retrodock(Script):
         dock_files = BlasterFiles(dock_files_dir).dock_files
 
         #
-        docking_configuration_file_names_required = [os.path.join(dock_files_dir.name, getattr(dock_files, dock_file_field.name).name) for dock_file_field in fields(dock_files)] + [self.INDOCK_FILE_NAME]
+        dock_files_required = [getattr(dock_files, dock_file_field.name) for dock_file_field in fields(dock_files) if dock_file_field.name != "electrostatics_phi_size_file"]
+        docking_configuration_file_names_required = [os.path.join(dock_files_dir.name, dock_file.name) for dock_file in dock_files_required] + [self.INDOCK_FILE_NAME]
         docking_configuration_file_names_not_detected = [file_name for file_name in docking_configuration_file_names_required if not File.file_exists(file_name)]
         if len(docking_configuration_file_names_not_detected) > 0:
             raise Exception("Missing required input files in current working directory:\n"+"\n\t".join(docking_configuration_file_names_not_detected))
