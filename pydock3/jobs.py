@@ -58,12 +58,20 @@ class RetrodockJob(ABC):
     JOBLIST_FILE_NAME = "joblist"
 
     def __post_init__(self):
+        #
         self.output_dir = Dir(
             path=os.path.join(self.job_dir.path, f"output"), create=True
         )
-        self.actives_outdock_file = File(os.path.join(self.output_dir.path, self.ACTIVES_TASK_ID, self.OUTDOCK_FILE_NAME))
-        self.decoys_outdock_file = File(os.path.join(self.output_dir.path, self.DECOYS_TASK_ID, self.OUTDOCK_FILE_NAME))
 
+        #
+        self.actives_output_dir = Dir(os.path.join(self.output_dir.path, self.ACTIVES_TASK_ID), create=True)
+        self.decoys_output_dir = Dir(os.path.join(self.output_dir.path, self.DECOYS_TASK_ID), create=True)
+
+        #
+        self.actives_outdock_file = File(os.path.join(self.actives_output_dir.path, self.OUTDOCK_FILE_NAME))
+        self.decoys_outdock_file = File(os.path.join(self.decoys_output_dir.path, self.OUTDOCK_FILE_NAME))
+
+        #
         self._is_complete = False
 
     def submit(self, job_timeout_minutes=None, skip_if_complete=True):
