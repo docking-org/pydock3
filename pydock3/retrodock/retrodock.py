@@ -2,7 +2,7 @@ import os
 import logging
 from uuid import uuid4
 import time
-from copy import copy
+from dataclasses import fields
 
 import numpy as np
 import pandas as pd
@@ -126,9 +126,39 @@ class Retrodock(Script):
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
-        # create actives and decoys dirs
-        actives_dir = Dir(path=job_dir_path, create=True, reset=False)
-        decoys_dir = Dir(path=job_dir_path, create=True, reset=False)
+        # create dockfiles dir & copy in dock files & INDOCK
+        dock_files_dir_path = os.path.join(job_dir.path, self.DOCK_FILES_DIR_NAME)
+        dock_files_dir = Dir(dock_files_dir_path)
+        dock_files = BlasterFiles(dock_files_dir).dock_files
+
+        #
+        docking_configuration_file_names_required = [getattr(dock_files, dock_file_field.name) for dock_file_field in fields(dock_files)] + [self.INDOCK_FILE_NAME]
+        docking_configuration_file_names_not_detected = [file_name for file_name in docking_configuration_file_names_required if not File.file_exists(file_name)]
+        if len(docking_configuration_file_names_not_detected) > 0:
+            raise Exception("Missing required input files in current working directory:\n"+"\n\t".join(docking_configuration_file_names_not_detected))
+        else:
+            logger.info(
+                f"Copying the following files from current working directory into job dockfiles directory:\n\t{docking_configuration_file_names_required}"
+            )
+            for file_name in docking_configuration_file_names_required:
+                dock_files_dir.copy_in_file(file_name)
+
+        # copy in actives and decoys TGZ files
+        tgz_files = [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]
+        tgz_file_names_in_cwd = [f for f in tgz_files if os.path.isfile(f)]
+        tgz_file_names_not_in_cwd = [f for f in tgz_files if not os.path.isfile(f)]
+        if tgz_file_names_in_cwd:
+            files_to_copy_str = "\n\t".join(tgz_file_names_in_cwd)
+            logger.info(
+                f"Copying the following files from current directory into job directory:\n\t{files_to_copy_str}"
+            )
+            for tgz_file_name in tgz_file_names_in_cwd:
+                job_dir.copy_in_file(tgz_file_name)
+        if tgz_file_names_not_in_cwd:
+            files_missing_str = "\n\t".join(tgz_file_names_not_in_cwd)
+            logger.info(
+                f"The following required files were not found in current working directory. Be sure to add them manually to the job directory before running the job.\n\t{files_missing_str}"
+            )
 
     def run(
         self,
@@ -218,17 +248,12 @@ class Retrodock(Script):
         indock_file = IndockFile(indock_file_path)
 
         #
-        retrodock_job_output_dir = Dir(
-            path=os.path.join(job_dir.path, f"output"), create=True
-        )
-
-        #
         retrodock_job = RetrodockJob(
             name=f"retrodock_job_{uuid4()}",  # TODO: replace this with a hash based on docking configuration
+            job_dir=job_dir,
             input_sdi_file=retrodock_input_sdi_file,
             dock_files=dock_files,
             indock_file=indock_file,
-            output_dir=retrodock_job_output_dir,
             job_scheduler=scheduler,
             dock_executable_path=dock_executable_path,
             temp_storage_path=TMPDIR,
@@ -247,17 +272,9 @@ class Retrodock(Script):
                 time.sleep(1)
                 continue
 
-        #
-        actives_outdock_file_path = os.path.join(
-            retrodock_job.output_dir.path, "1", "OUTDOCK.0"
-        )
-        decoys_outdock_file_path = os.path.join(
-            retrodock_job.output_dir.path, "2", "OUTDOCK.0"
-        )
-
         # get dataframe of actives job results and decoys job results combined
         df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-            actives_outdock_file_path, decoys_outdock_file_path
+            retrodock_job.actives_outdock_file.path, retrodock_job.decoys_outdock_file.path
         )
 
         #
