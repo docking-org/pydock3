@@ -64,8 +64,8 @@ class RetrodockJob(ABC):
         )
 
         #
-        self.actives_output_dir = Dir(os.path.join(self.output_dir.path, self.ACTIVES_TASK_ID), create=True)
-        self.decoys_output_dir = Dir(os.path.join(self.output_dir.path, self.DECOYS_TASK_ID), create=True)
+        self.actives_output_dir = Dir(os.path.join(self.output_dir.path, self.ACTIVES_TASK_ID))
+        self.decoys_output_dir = Dir(os.path.join(self.output_dir.path, self.DECOYS_TASK_ID))
 
         #
         self.actives_outdock_file = File(os.path.join(self.actives_output_dir.path, self.OUTDOCK_FILE_NAME))
