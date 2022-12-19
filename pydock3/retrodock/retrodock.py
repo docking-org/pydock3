@@ -128,7 +128,7 @@ class Retrodock(Script):
 
         # create dockfiles dir & copy in dock files & INDOCK
         dock_files_dir_path = os.path.join(job_dir.path, self.DOCK_FILES_DIR_NAME)
-        dock_files_dir = Dir(dock_files_dir_path)
+        dock_files_dir = Dir(dock_files_dir_path, create=True)
         dock_files = BlasterFiles(dock_files_dir).dock_files
 
         #
