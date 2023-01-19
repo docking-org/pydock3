@@ -3,7 +3,7 @@ definitions:
     list(include('step_list_item'), min=1)
   sequences:
     list(include('sequence_list_item'), min=0)
-pipeline: list(include('step'), include('sequence'), min=1)
+pipeline: list(include('step', required=False), include('sequence', required=False), min=1)
 
 ---
 

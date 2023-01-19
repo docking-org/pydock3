@@ -1306,9 +1306,9 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             )
 
             # sort dataframe by total energy score
-            df["Total"] = df["Total"].astype(float)
+            df["total_energy"] = df["total_energy"].astype(float)
             df = df.sort_values(
-                by=["Total", "is_active"], na_position="last", ignore_index=True
+                by=["total_energy", "is_active"], na_position="last", ignore_index=True
             )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
             df = df.drop_duplicates(
                 subset=["db2_file_path"], keep="first", ignore_index=True
