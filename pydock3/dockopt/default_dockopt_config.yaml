@@ -38,7 +38,7 @@ definitions:
           matching_spheres_perturbation:
             use: true
             num_samples_per_matching_spheres_file: 50
-            standard_deviation_angstroms: 0.3
+            max_deviation_angstroms: 0.3
         indock:
           ligand_atom_file: split_database_index
           output_file_prefix: test.
@@ -112,7 +112,7 @@ definitions:
           matching_spheres_perturbation:
             use: true
             num_samples_per_matching_spheres_file: 50
-            standard_deviation_angstroms: 0.3
+            max_deviation_angstroms: 0.3
   sequences:
     - sequence: &sequence_1
         n_repetitions: 10
