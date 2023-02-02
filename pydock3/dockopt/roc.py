@@ -1,3 +1,4 @@
+from typing import Iterable
 from dataclasses import dataclass
 import math
 
@@ -15,9 +16,13 @@ class Point:
 
 
 class ROC(object):
-    def __init__(self, booleans, alpha=None):
+    def __init__(
+        self,
+        booleans: Iterable[bool],
+        alpha: float = None,
+    ):
         #
-        self.booleans = [bool(b) for b in booleans]
+        self.booleans = booleans
 
         #
         self.num_actives = len([b for b in self.booleans if b])
@@ -73,13 +78,13 @@ class ROC(object):
         #
         self.enrichment_score = self._get_enrichment_score()
 
-    def _get_enrichment_score(self):
+    def _get_enrichment_score(self) -> np.ndarray:
         return (
             self._get_literal_area_under_roc_curve_with_log_scaled_x_axis()
             - (1 - self.alpha)
         ) / (-np.log(self.alpha) - (1 - self.alpha))
 
-    def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
+    def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self) -> np.ndarray:
         # remove point at x=0.0 and add point at x=1.0
         x_values = self.x_coords[1:] + [1.0]
         y_values = self.y_coords[1:] + [self.y_coords[-1]]
@@ -107,7 +112,10 @@ class ROC(object):
 
         return np.dot(weights, y_values_of_intervals)
 
-    def plot(self, save_path):
+    def plot(
+        self,
+        save_path: str
+    ) -> None:
         fig, ax = plt.subplots()
         fig.set_size_inches(8.0, 8.0)
 

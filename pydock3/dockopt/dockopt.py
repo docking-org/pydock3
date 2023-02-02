@@ -1,9 +1,10 @@
+from typing import Union, Iterable, List
 import itertools
 import os
 import shutil
 import sys
 from functools import wraps
-from dataclasses import fields
+from dataclasses import dataclass, fields, asdict
 from copy import copy, deepcopy
 import logging
 import collections
@@ -17,8 +18,7 @@ import numpy as np
 import pandas as pd
 from dirhash import dirhash
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from matplotlib.backends.backend_pdf import PdfPages
+
 import seaborn as sns
 from joypy import joyplot
 
@@ -53,21 +53,16 @@ from pydock3.dockopt.roc import ROC
 from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
-from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float
-
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float, RetrodockScriptRunFuncArgsSet
+from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
+from pydock3.dockopt.results_manager import RESULTS_CSV_FILE_NAME, ResultsManager, DockoptResultsManager
+from pydock3.dockopt.reporter import Reporter, PDFReporter
 
 #
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
-#
-plt.rcParams.update({"font.size": 14})
-
-#
-DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
 #
 SCHEDULER_NAME_TO_CLASS_DICT = {
@@ -76,24 +71,19 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 }
 
 #
-RETRODOCK_JOB_DIR_PATH_COLUMN_NAME = "retrodock_job_dir"
-
-#
-METRICS = ["enrichment_score"]
-ALL_POSSIBLE_NON_PARAMETER_COLUMNS = [RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] + METRICS
-
-#
-ROC_PLOT_FILE_NAME = "roc.png"
-ENERGY_PLOT_FILE_NAME = "energy.png"
-CHARGE_PLOT_FILE_NAME = "charge.png"
-RESULTS_CSV_FILE_NAME = "results.csv"
+CRITERION_CLASS_DICT = {"enrichment_score": EnrichmentScore}
 
 
-def get_persistent_hash_of_tuple(t):
+def get_persistent_hash_of_tuple(t: tuple) -> str:
     m = hashlib.md5()
     for s in t:
         m.update(str(s).encode())
     return m.hexdigest()
+
+
+def get_all_combinations_of_parameters(parameters_with_multivalues):
+    # TODO
+    pass
 
 
 class Dockopt(Script):
@@ -120,7 +110,11 @@ class Dockopt(Script):
 
         return wrapper
 
-    def init(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
+    def init(
+        self,
+        job_dir_path: str = JOB_DIR_NAME,
+        overwrite: bool = False
+    ) -> None:
         # create job dir
         self.job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
@@ -167,23 +161,21 @@ class Dockopt(Script):
     @handle_run_func.__get__(0)
     def run(
         self,
-        scheduler,
-        job_dir_path=".",
-        config_file_path=None,
-        actives_tgz_file_path=None,
-        decoys_tgz_file_path=None,
-        retrodock_job_max_reattempts=0,
-        retrodock_job_timeout_minutes=None,
-        max_scheduler_jobs_running_at_a_time=None,  # TODO
-        export_decoy_poses=False,  # TODO
-    ):
+        scheduler: str,
+        job_dir_path: str = ".",
+        config_file_path: str = None,
+        actives_tgz_file_path: str = None,
+        decoys_tgz_file_path: str = None,
+        retrodock_job_max_reattempts: int = 0,
+        retrodock_job_timeout_minutes: str = None,
+        max_scheduler_jobs_running_at_a_time: str = None,  # TODO
+        export_decoy_poses: bool = False,  # TODO
+    ) -> None:
         # validate args
         if config_file_path is None:
             config_file_path = os.path.join(job_dir_path, self.CONFIG_FILE_NAME)
         if actives_tgz_file_path is None:
-            actives_tgz_file_path = os.path.join(
-                job_dir_path, self.ACTIVES_TGZ_FILE_NAME
-            )
+            actives_tgz_file_path = os.path.join(job_dir_path, self.ACTIVES_TGZ_FILE_NAME)
         if decoys_tgz_file_path is None:
             decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
         try:
@@ -224,6 +216,16 @@ class Dockopt(Script):
             return
 
         #
+        retrodock_run_func_args_set = RetrodockScriptRunFuncArgsSet(
+            actives_tgz_file_path=actives_tgz_file_path,
+            decoys_tgz_file_path=decoys_tgz_file_path,
+            retrodock_job_max_reattempts=retrodock_job_max_reattempts,
+            retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
+            max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,
+            export_decoy_poses=export_decoy_poses,
+        )
+
+        #
         logger.info("Loading config file...")
         config = DockoptParametersConfiguration(config_file_path)
         logger.info("done.")
@@ -244,279 +246,44 @@ class Dockopt(Script):
         blaster_files_to_copy_in = [
             os.path.abspath(f) for f in blaster_file_names if os.path.isfile(f)
         ]
-        branching_job = DockingConfigurationNodeBranchingJob(
-            job_dir_path=job_dir_path,
-            param_dict=config.param_dict["pipeline"][0],  # TODO
-            blaster_files_to_copy_in=blaster_files_to_copy_in,
-        )
-        branching_job.run(
-            scheduler=scheduler,
-            temp_dir_path=temp_dir_path,
-            actives_tgz_file_path=actives_tgz_file_path,
-            decoys_tgz_file_path=decoys_tgz_file_path,
-            retrodock_job_max_reattempts=retrodock_job_max_reattempts,
-            retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
-        )
-
-
-class Criterion(object):
-    def __init__(self):
-        pass
-
-    @property
-    def name(self):
-        raise NotImplementedError
-
-    def calculate(self, *args, **kwargs):
-        raise NotImplementedError
-
-
-class EnrichmentScore(Criterion):
-    def __init__(self):
-        super().__init__()
-
-    @property
-    def name(self):
-        return "enrichment_score"
-
-    def calculate(self, booleans, image_save_path=None):
-        roc = ROC(booleans)
-
-        # save plot
-        if image_save_path is not None:
-            roc.plot(save_path=image_save_path)
-
-        return roc.enrichment_score
-
-
-def record_started_utc_and_finished_utc_for_run_method(_cls):
-    run = getattr(_cls, "run")
-
-    def new_run(self, *args, **kwargs):
-        self.started_utc = datetime.utcnow()
-        run(self, *args, **kwargs)
-        self.finished_utc = datetime.utcnow()
-
-    setattr(_cls, "run", new_run)
-
-    return _cls
-
-
-class RunnableJob(object):
-    def __init__(self, job_dir_path, criterion, top_n):
-        #
-        self.criterion = criterion
-        self.top_n_job_to_keep = top_n
 
         #
-        self.job_dir = Dir(job_dir_path)
-        self.results_csv_file_path = os.path.join(
-            self.job_dir.path, RESULTS_CSV_FILE_NAME
-        )
-
-        #
-        self.started_utc = None  # set by record_started_utc_and_finished_utc_for_run_method() decorator; see .__init_subclass__()
-        self.finished_utc = None  # set by record_started_utc_and_finished_utc_for_run_method() decorator; see .__init_subclass__()
-
-    def __init_subclass__(cls, **kwargs):
-        return record_started_utc_and_finished_utc_for_run_method(_cls=cls)
-
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def write_results_csv(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def load_results_csv(self):
-        df = pd.read_csv(self.results_csv_file_path)
-        df = df.loc[
-            :, ~df.columns.str.contains("^Unnamed")
-        ]  # remove useless index column
-        df = df.sort_values(by=self.criterion.name, ascending=False, ignore_index=True)
-
-        return df
-
-    def get_n_best_jobs_dir_paths(self):
-        df = self.load_results_csv()
-
-        return (
-            df.nlargest(self.top_n_job_to_keep, self.criterion.name)[
-                RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
-            ]
-            .apply(str)
-            .tolist()
-        )
-
-
-class RunnableJobWithReport(RunnableJob):
-    def __init__(self, job_dir_path, criterion, top_n):
-        super().__init__(
-            job_dir_path=job_dir_path,
+        pipeline = DockoptPipeline(
+            dir_path=job_dir_path,
             criterion=criterion,
             top_n=top_n,
+            results_manager=DockoptResultsManager(),
+            components=components,
+            blaster_files_to_copy_in=blaster_files_to_copy_in,
         )
-
-        #
-        self.report_pdf_file_path = os.path.join(self.job_dir.path, "report.pdf")
-
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def write_results_csv(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def write_report_pdf(self):
-        def get_ordinal(n):
-            return "%d%s" % (
-                n,
-                "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10 :: 4],
-            )
-
-        df = self.load_results_csv()
-
-        with PdfPages(self.report_pdf_file_path) as f:
-            #
-            fig = plt.figure(figsize=(11.0, 8.5))
-
-            # write box plot for data grouped by runnable sequence identifier
-            if "pipeline_unit_id" in df.columns:
-                # TODO
-                pass
-
-            #
-            for i, best_job_dir_path in enumerate(self.get_n_best_jobs_dir_paths()):
-                #
-                roc_file_path = os.path.join(
-                    best_job_dir_path, ROC_PLOT_FILE_NAME
-                )
-                if File.file_exists(roc_file_path):  # TODO: replace this logic with call to `Retrodock.analyze` method or something in order to ensure that these Retrodock-pertaining files are created
-                    image = mpimg.imread(roc_file_path)
-                    plt.axis("off")
-                    plt.suptitle(
-                        f"linear-log ROC plot of {get_ordinal(i+1)} best job\n{best_job_dir_path}"
-                    )
-                    plt.imshow(image)
-                    f.savefig(fig, bbox_inches="tight")
-                    plt.close(fig)
-
-                #
-                energy_plot_file_path = os.path.join(
-                    best_job_dir_path, ENERGY_PLOT_FILE_NAME
-                )
-                if File.file_exists(energy_plot_file_path):
-                    fig = plt.figure(figsize=(11.0, 8.5))
-                    image = mpimg.imread(energy_plot_file_path)
-                    plt.axis("off")
-                    plt.suptitle("energy terms ridgeline plot of best job")
-                    plt.imshow(image)
-                    f.savefig(fig, bbox_inches="tight")
-                    plt.close(fig)
-
-                #
-                charge_plot_file_path = os.path.join(
-                    best_job_dir_path, CHARGE_PLOT_FILE_NAME
-                )
-                if File.file_exists(charge_plot_file_path):
-                    fig = plt.figure(figsize=(11.0, 8.5))
-                    image = mpimg.imread(charge_plot_file_path)
-                    plt.axis("off")
-                    plt.suptitle("charge violin plot of best job")
-                    plt.imshow(image)
-                    f.savefig(fig, bbox_inches="tight")
-                    plt.close(fig)
-
-            #
-            multivalued_config_param_columns = [
-                column
-                for column in df.columns
-                if column not in ALL_POSSIBLE_NON_PARAMETER_COLUMNS
-                and df[column].nunique() > 1
-            ]
-            for column in multivalued_config_param_columns:
-                fig = plt.figure(figsize=(8, 6))
-
-                if len(df) == len(df.drop_duplicates(subset=[column])):
-                    df.plot.bar(x=column, y=self.criterion.name, rot=0)
-                else:
-                    sns.boxplot(
-                        data=df,
-                        x=column,
-                        y=self.criterion.name,
-                        showfliers=False,
-                        boxprops={"facecolor": "None"},
-                    )
-                    sns.stripplot(data=df, x=column, y=self.criterion.name, zorder=0.5)
-                    fig.autofmt_xdate(rotation=25)
-                    plt.yticks(rotation=0)
-
-                f.savefig(fig, bbox_inches="tight")
-                plt.close(fig)
-
-            #
-            df = df.sort_values(
-                by=self.criterion.name, ascending=False, ignore_index=True
-            )
-            for column_1, column_2 in itertools.combinations(
-                multivalued_config_param_columns, 2
-            ):
-                #
-                fig, ax = plt.subplots()
-                fig.set_size_inches(8.0, 6.0)
-
-                #
-                df_no_duplicates = df.drop_duplicates(
-                    subset=[column_1, column_2], keep="first", ignore_index=True
-                )
-
-                #
-                df_pivot = pd.pivot_table(
-                    df_no_duplicates,
-                    values=self.criterion.name,
-                    index=[column_1],
-                    columns=[column_2],
-                )
-                df_pivot = df_pivot.sort_index(axis=0, ascending=False)
-                sns.heatmap(
-                    df_pivot,
-                    ax=ax,
-                    annot=True,
-                    square=True,
-                    fmt=".2f",
-                    center=0,
-                    cmap="turbo",
-                    robust=True,
-                    cbar_kws={"label": self.criterion.name},
-                )
-                fig.autofmt_xdate(rotation=25)
-                plt.yticks(rotation=0)
-
-                f.savefig(fig, bbox_inches="tight")
-                plt.close(fig)
+        pipeline.run(retrodock_run_func_args_set=retrodock_run_func_args_set)
 
 
-#
-CRITERION_CLASS_DICT = {"enrichment_score": EnrichmentScore}
-
-
-class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
+class Step(PipelineComponent):
     WORKING_DIR_NAME = "working"
     RETRODOCK_JOBS_DIR_NAME = "retrodock_jobs"
     BEST_RETRODOCK_JOBS_DIR_NAME = "best_retrodock_jobs"
 
     def __init__(
         self,
-        job_dir_path,
-        param_dict,
-        blaster_files_to_copy_in,
+            component_id: str,
+            dir_path: str,
+            criterion: Criterion,
+            top_n: int,
+            results_manager: ResultsManager,
+            parameters: Iterable[dict],
+            blaster_files_to_copy_in: Iterable[BlasterFile],
     ):
         super().__init__(
-            job_dir_path=job_dir_path,
-            criterion=CRITERION_CLASS_DICT[param_dict["criterion"]](),
-            top_n=param_dict["top_n"],
+            component_id=component_id,
+            dir_path=dir_path,
+            criterion=criterion,
+            top_n=top_n,
+            results_manager=results_manager,
         )
 
         #
-        self.param_dict = param_dict
+        self.parameters = parameters
 
         #
         blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
@@ -525,11 +292,11 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             for blaster_file_name in blaster_file_names
         ]
         new_file_names = [
-            f"{File.get_file_name_of_file(file_path)}_1"
+            f"{File.get_file_name_of_file(file_path)}_1"  # TODO
             for file_path in blaster_files_to_copy_in
         ]  # all nodes in graph will be numerically indexed, including input files
         new_backup_file_names = [
-            f"{File.get_file_name_of_file(file_path)}_1"
+            f"{File.get_file_name_of_file(file_path)}_1"  # TODO
             for file_path in backup_blaster_file_paths
         ]  # ^
         self.working_dir = WorkingDir(
@@ -591,7 +358,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         for (
             dock_files_generation_flat_param_dict
         ) in self.dock_files_generation_flat_param_dicts:
-            # get param_dict for get_blaster_steps
+            # get config for get_blaster_steps
             # each value in dict must be an instance of Parameter
             steps = get_blaster_steps(
                 blaster_files=self.blaster_files,
@@ -868,18 +635,8 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             dock_file_node_to_dock_files_arg_dict
         )
 
-    def run(
-        self,
-        scheduler,
-        temp_dir_path,
-        actives_tgz_file_path=None,
-        decoys_tgz_file_path=None,
-        retrodock_job_max_reattempts=0,
-        retrodock_job_timeout_minutes=None,
-        max_scheduler_jobs_running_at_a_time=None,  # TODO
-        export_decoy_poses=False,  # TODO
-    ):
-        #
+    def run(self, retrodock_run_func_args_set: RetrodockScriptRunFuncArgsSet) -> pd.core.frame.DataFrame:
+        # TODO: make work with retrodock_run_func_args_set.
         if actives_tgz_file_path is not None:
             self.actives_tgz_file = File(path=actives_tgz_file_path)
         else:
@@ -1348,10 +1105,14 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         # make dataframe of optimization job results
         df = pd.DataFrame(data=data_dicts)
-        df = df.sort_values(by=self.criterion.name, ascending=False, ignore_index=True)
+
+        return df
+
+
+        df = df.sort_values(by=self.criterion.name, ascending=False, ignore_index=True)  # TODO: get rid of this if opt results saving is moved to decorator
 
         # save optimization job results dataframe to csv
-        optimization_results_csv_file_path = os.path.join(
+        optimization_results_csv_file_path = os.path.join(  # TODO: move this to a decorator, perhaps
             self.job_dir.path, RESULTS_CSV_FILE_NAME
         )
         logger.debug(
@@ -1361,12 +1122,12 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
 
         # copy best job to output dir
         logger.debug(
-            f"Copying {self.top_n_job_to_keep} best jobs to {self.best_retrodock_jobs_dir.path}"
+            f"Copying top {self.top_n} retrodock jobs to {self.best_retrodock_jobs_dir.path}"
         )
         if os.path.isdir(self.best_retrodock_jobs_dir.path):
             shutil.rmtree(self.best_retrodock_jobs_dir.path, ignore_errors=True)
         for i, best_retrodock_job_dir_path in enumerate(
-            df.head(self.top_n_job_to_keep)[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME]
+            df.head(self.top_n)[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME]
         ):
             dst_best_job_dir_path = os.path.join(
                 self.best_retrodock_jobs_dir.path, str(i + 1)
@@ -1416,7 +1177,8 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             )  # keep only the best score per molecule
 
             # get ROC and calculate enrichment score of this job's docking set-up
-            booleans = df_best_job["is_active"]
+            # TODO: get this from Retrodock instead
+            booleans = df_best_job["is_active"].astype(bool)
             roc = ROC(booleans)
 
             # write ROC plot image
@@ -1424,6 +1186,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             roc.plot(save_path=roc_plot_image_path)
 
             # ridge plot for energy terms
+            # TODO: get this from Retrodock instead
             pivot_rows = []
             for i, row in df_best_job.iterrows():
                 for col in [
@@ -1458,6 +1221,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             plt.close(fig)
 
             # split violin plot of charges
+            # TODO: get this from Retrodock instead
             fig = plt.figure()
             sns.violinplot(
                 data=df_best_job,
@@ -1471,14 +1235,11 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
             plt.savefig(os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME))
             plt.close(fig)
 
-        # write report PDF
-        self.write_report_pdf()
-
-    def write_results_csv(self, df):
-        df.to_csv()
-
     @staticmethod
-    def _get_blaster_file_node_with_same_file_name(name, g):
+    def _get_blaster_file_node_with_same_file_name(
+        name: str,
+        g: networkx.classes.digraph.DiGraph,
+    ) -> BlasterFile:
         blaster_file_node_names = [
             node_name
             for node_name, node_data in g.nodes.items()
@@ -1500,7 +1261,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         return blaster_file_node_with_same_file_name
 
     @staticmethod
-    def _get_start_nodes(g):
+    def _get_start_nodes(g: networkx.classes.digraph.DiGraph) -> List[BlasterFile]:
         start_nodes = []
         for node_name, node_data in g.nodes.items():
             if g.in_degree(node_name) == 0:
@@ -1508,7 +1269,7 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         return start_nodes
 
     @staticmethod
-    def _get_dock_file_nodes(g):
+    def _get_dock_file_nodes(g: networkx.classes.digraph.DiGraph):
         dock_file_names = BlasterFileNames().dock_file_names
         end_nodes = []
         for node_name, node_data in g.nodes.items():
@@ -1518,7 +1279,10 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
         return end_nodes
 
     @staticmethod
-    def _run_unrun_steps_needed_to_create_this_blaster_file_node(blaster_file_node, g):
+    def _run_unrun_steps_needed_to_create_this_blaster_file_node(
+        blaster_file_node: str,
+        g: networkx.classes.digraph.DiGraph,
+    ):
         blaster_file = g.nodes[blaster_file_node].get("blaster_file")
 
         if blaster_file is not None:
@@ -1536,87 +1300,242 @@ class DockingConfigurationNodeBranchingJob(RunnableJobWithReport):
                 step_instance.run()
 
 
-class RunnableJobSequenceWithReport(RunnableJobWithReport):
-    def __init__(self, job_dir_path, criterion, top_n, steps):
-        super().__init__(
-            job_dir_path=job_dir_path,
-            criterion=criterion,
-            top_n=top_n,
-        )
+def load_parameters_from_dataframe_row(row, identifier_prefix: str):
+    """Loads the parameters in a dataframe row according to the column names."""
 
-        # validate
-        for step in steps:
-            validate_variable_type(step, RunnableJob)
+    # TODO
 
-        #
-        self.steps = steps
-
-    def run(self):
-        # run steps in sequence
-        for step in self.steps:
-            step.run()
-
-        # write results CSV
-        self.write_results_csv()
-
-        # write report PDF
-        self.write_report_pdf()
-
-    def write_results_csv(self):
-        df = pd.DataFrame()
-        for step in self.steps:
-            step_df = step.load_results_csv()
-            step_df["pipeline_unit_id"] = [
-                step.job_dir_path for _ in range(len(step_df))
-            ]
-            df = pd.concat([df, step_df], ignore_index=True)
-        df = df.sort_values(
-            by=self.criterion.name, ascending=False, ignore_index=True
-        )  # TODO: make this work with more than one criterion option
-        df.to_csv()
+    return parameters
 
 
-class Pipeline(RunnableJobSequenceWithReport):
-    def __init__(self, job_dir_path, criterion, top_n, steps):
-        super().__init__(
-            job_dir_path=job_dir_path,
-            criterion=criterion,
-            top_n=top_n,
-            steps=steps,
-        )
+def get_parameters_with_next_component_reference_value_replaced(parameters: dict, target_key: str, new_ref: float, old_ref: str = '^') -> dict:
+    """Takes a set of parameters that may have numerical operators and replaces the
+    `reference_value` of the `target_key` with the specified float `new_ref` if
+    `reference_value` matches the string `old_ref`."""
+
+    new_parameters = copy.deepcopy(parameters)
+
+    def traverse(obj):
+        if isinstance(obj, dict):
+            if obj.get(target_key):
+                if obj[target_key].get('reference_value') == '^':
+                    obj['reference_value'] = new_ref
+                    return obj
+            else:
+                new_dict = {}
+                for key, value in obj.items():
+                    new_dict[key] = traverse(value)
+                return new_dict
+        elif isinstance(obj, list):
+            for i in range(len(obj)):
+                new_elem = traverse(obj[i])
+                if new_elem != obj[i]:  # should change when replacement occurs
+                    obj[i] = new_elem
+                    return obj
+            raise Exception("Replacement did not occur.")
+        else:
+            raise ValueError("Expected type `list` or `dict`.")
+
+    return traverse(new_parameters)
 
 
-class RepeatableRunnableSequence(RunnableJobSequenceWithReport):
+def get_parameters_with_numerical_operators_applied(parameters: dict) -> dict:
+    """Takes a set of parameters that may have numerical operators and applies them."""
+
+    new_parameters = copy.deepcopy(parameters)
+
+    def traverse(obj):
+        if isinstance(obj, dict):
+            if 'reference_value' in obj and 'arguments' in obj and 'operator' in obj:
+                if obj['operator'] == '+':
+                    obj = [obj['reference_value'] + x for x in obj['arguments']]
+                elif obj['operator'] == '-':
+                    obj = [obj['reference_value'] - x for x in obj['arguments']]
+                elif obj['operator'] == '*':
+                    obj = [obj['reference_value'] * x for x in obj['arguments']]
+                elif obj['operator'] == '/':
+                    obj = [obj['reference_value'] / x for x in obj['arguments']]
+            else:
+                new_dict = {}
+                for key, value in obj.items():
+                    new_dict[key] = traverse(value)
+                return new_dict
+        elif isinstance(obj, list):
+            return [traverse(elem) for elem in obj]
+        else:
+            raise ValueError("Expected type `list` or `dict`.")
+
+    return traverse(new_parameters)
+
+
+class Sequence(PipelineComponentSequence):
     def __init__(
         self,
-        job_dir_path,
-        criterion,
-        top_n,
-        steps,
-        n_repetitions=0,
-        max_iterations_with_no_improvement=sys.maxsize,
+        component_id: str,
+        param_dict: dict,
+        dir_path: str,
+        criterion: Criterion,
+        top_n: int,
+        results_manager: ResultsManager,
+        components: Iterable[dict],
+        num_repetitions: int,
+        max_iterations_with_no_improvement: int,
+        blaster_files_to_copy_in: Iterable[BlasterFile],
     ):
         super().__init__(
-            job_dir_path=job_dir_path,
+            component_id=component_id,
+            param_dict=param_dict,
+            dir_path=dir_path,
             criterion=criterion,
             top_n=top_n,
-            steps=steps,
+            results_manager=results_manager,
+            components=components,
+            num_repetitions=num_repetitions,
+            max_iterations_with_no_improvement=max_iterations_with_no_improvement,
+        )
+
+        self.blaster_files_to_copy_in = blaster_files_to_copy_in
+
+    def run(self, retrodock_run_func_args_set: RetrodockScriptRunFuncArgsSet) -> pd.core.frame.DataFrame:
+        df = pd.DataFrame()
+        last_component_completed = None
+        best_criterion_value_witnessed = -float('inf')
+        num_iterations_left_with_no_improvement = self.max_iterations_with_no_improvement
+        for i in range(self.num_repetitions):
+            df_iteration = pd.DataFrame()
+            component_id = f"{self.component_id}.iter={i+1}"
+            iter_dir_path = os.path.join(self.dir.path, f"iter={i+1}")
+            for j, single_key_dict in enumerate(self.components):
+                #
+                assert len(single_key_dict) == 1
+                component_identifier, kwargs = list(single_key_dict.items())[0]
+
+                #
+                kwargs['component_id'] = f"{component_id}.{j+1}"
+                kwargs['dir_path'] = os.path.join(iter_dir_path, str(j+1))
+                kwargs['results_manager'] = self.results_manager
+
+                # TODO: modify according to prev results
+                if last_component_completed is None:
+                    kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
+                else:
+                    blaster_files_to_copy_in = []
+                    for blaster_file in self.blaster_files_to_copy_in:
+                        new_blaster_file = copy(blaster_file)
+                        # TODO: modify
+                        blaster_files_to_copy_in.append(new_blaster_file)
+                    kwargs['blaster_files_to_copy_in'] = blaster_files_to_copy_in
+
+                #
+                if last_component_completed is None:
+                    #
+                    pass
+                else:
+                    for row_index, row in last_component_completed.load_results_dataframe().head(self.top_n).iterrows():
+                        component_reference_parameters = load_parameters_from_dataframe_row(row)
+                        # TODO: load dataframe columns (flattened) as reference values, flatten the parameters, replace the relevant flattened parameters
+
+
+                # apply numerical operators to relevant parameters
+                last_parameters = last_component_completed
+
+                #
+                if component_identifier == "step":
+                    component = Step(**kwargs)
+                elif component_identifier == "sequence":
+                    component = Sequence(**kwargs)
+                else:
+                    if isinstance(component, dict):
+                        raise ValueError(
+                            f"Only `step` and `sequence` are valid parameter keys. Witnessed `{component_identifier}`")
+                    else:
+                        raise ValueError(
+                            f"`Parameter must be a key-value with key being either `step` or `sequence`. Witnessed: {single_key_dict}")
+
+                #
+                component.run(**asdict(retrodock_run_func_args_set))
+
+                #
+                df_component = component.load_results_dataframe()
+                df_component = df_component.head(component.top_n)
+                df_component["pipeline_component_id"] = [
+                    component.component_id for _ in range(len(df_component))
+                ]
+                df_iteration = pd.concat([df_iteration, df_component], ignore_index=True)
+
+            #
+            df = pd.concat([df, df_iteration], ignore_index=True)
+
+            #
+            best_criterion_value_witnessed_this_iteration = df_iteration[component.criterion.name].max()
+            if best_criterion_value_witnessed_this_iteration <= best_criterion_value_witnessed:
+                if num_iterations_left_with_no_improvement == 0:
+                    break
+                else:
+                    num_iterations_left_with_no_improvement -= 1
+
+        return df
+
+class DockoptPipeline(Pipeline):
+    def __init__(
+            self,
+            dir_path: str,
+            criterion: Criterion,
+            top_n: int,
+            results_manager: ResultsManager,
+            components: Iterable[dict],
+            blaster_files_to_copy_in: Iterable[BlasterFile],
+    ):
+        super().__init__(
+            dir_path=dir_path,
+            criterion=criterion,
+            top_n=top_n,
+            results_manager=results_manager,
+            components=components,
         )
 
         #
-        self.n_repetitions = n_repetitions
-        self.max_iterations_with_no_improvement = max_iterations_with_no_improvement
+        self.blaster_files_to_copy_in = blaster_files_to_copy_in
 
-    def run(self):
-        # TODO
-        pass
+    def run(
+            self,
+            retrodock_run_func_args_set: RetrodockScriptRunFuncArgsSet
+    ) -> pd.core.frame.DataFrame:
+        #
+        df = pd.DataFrame()
+        for i, single_key_dict in enumerate(self.components):
+            #
+            assert len(single_key_dict) == 1
+            component_identifier, kwargs = list(single_key_dict.items())[0]
 
+            #
+            kwargs['component_id'] = f"{self.component_id}.{i+1}"
+            kwargs['dir_path'] = os.path.join(self.dir.path, str(i+1))
+            kwargs['results_manager'] = self.results_manager
 
-class RunnableSequenceIteration(RunnableJobSequenceWithReport):
-    def __init__(self, job_dir_path, criterion, top_n, steps):
-        super().__init__(
-            job_dir_path=job_dir_path,
-            criterion=criterion,
-            top_n=top_n,
-            steps=steps,
-        )
+            #
+            kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
+
+            #
+            if component_identifier == "step":
+                component = Step(**kwargs)
+            elif component_identifier == "sequence":
+                component = Sequence(**kwargs)
+            else:
+                if isinstance(component, dict):
+                    raise ValueError(
+                        f"Only `step` and `sequence` are valid parameter keys. Witnessed `{component_identifier}`")
+                else:
+                    raise ValueError(
+                        f"`Parameter must be a key-value with key being either `step` or `sequence`. Witnessed: {single_key_dict}")
+
+            #
+            component.run(**asdict(retrodock_run_func_args_set))
+
+            #
+            df_component = component.load_results_dataframe()
+            df_component = df_component.head(component.top_n)
+            df_component["pipeline_component_id"] = [
+                component.component_id for _ in range(len(df_component))
+            ]
+            df = pd.concat([df, df_component], ignore_index=True)

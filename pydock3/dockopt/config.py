@@ -1,7 +1,9 @@
 import os
 import logging
 
-from pydock3.config import Parameter, ParametersConfiguration
+from dataclasses import dataclass
+
+from pydock3.config import ParametersConfiguration
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 
 

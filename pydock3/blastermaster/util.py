@@ -10,9 +10,12 @@ from pydock3.util import validate_variable_type, system_call
 from pydock3.config import Parameter
 from pydock3.files import File, Dir, LogFile
 from pydock3.blastermaster.programs import __file__ as PROGRAMS_INIT_FILE_PATH
+from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 
+
+#
 PROGRAMS_DIR_PATH = os.path.dirname(PROGRAMS_INIT_FILE_PATH)
-
+DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
 #
 logger = logging.getLogger(__name__)

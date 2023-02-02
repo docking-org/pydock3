@@ -2,7 +2,8 @@ import os
 import logging
 from uuid import uuid4
 import time
-from dataclasses import fields
+from typing import Union
+from dataclasses import dataclass, fields
 
 import numpy as np
 import pandas as pd
@@ -16,14 +17,12 @@ from pydock3.files import (
     File,
     IndockFile,
     OutdockFile,
-    INDOCK_FILE_NAME,
 )
 from pydock3.dockopt.roc import ROC
-from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
+from pydock3.jobs import RetrodockJob
 from pydock3.blastermaster.blastermaster import BlasterFiles
 from pydock3.jobs import JobSubmissionResult
 from pydock3.job_schedulers import SGEJobScheduler, SlurmJobScheduler
-from pydock3.retrodock import __file__ as RETRODOCK_INIT_FILE_PATH
 
 
 #
@@ -36,6 +35,11 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
     "sge": SGEJobScheduler,
     "slurm": SlurmJobScheduler,
 }
+
+#
+ROC_PLOT_FILE_NAME = "roc.png"
+ENERGY_PLOT_FILE_NAME = "energy.png"
+CHARGE_PLOT_FILE_NAME = "charge.png"
 
 
 # TODO: add this as a decorator of `submit` method of `DockoptJob`
@@ -112,6 +116,21 @@ def get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
     return df
 
 
+@dataclass
+class RetrodockScriptRunFuncArgsSet:
+    scheduler: str
+    job_dir_path: str = "."
+    dock_files_dir_path: Union[None, str] = None
+    indock_file_path: Union[None, str] = None
+    dock_executable_path: Union[None, str] = None
+    actives_tgz_file_path: Union[None, str] = None
+    decoys_tgz_file_path: Union[None, str] = None
+    retrodock_job_max_reattempts: int = 0
+    retrodock_job_timeout_minutes: Union[None, int] = None
+    max_scheduler_jobs_running_at_a_time: Union[None, int] = None
+    export_decoy_poses: bool = False
+
+
 class Retrodock(Script):
     JOB_DIR_NAME = "retrodock_job"
     DOCK_FILES_DIR_NAME = "dockfiles"
@@ -122,7 +141,7 @@ class Retrodock(Script):
     def __init__(self):
         super().__init__()
 
-    def new(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
+    def new(self, job_dir_path=JOB_DIR_NAME, overwrite=False) -> None:
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
@@ -164,17 +183,17 @@ class Retrodock(Script):
     def run(
         self,
         scheduler,
-        dock_executable_path=DOCK3_EXECUTABLE_PATH,
         job_dir_path=".",
         dock_files_dir_path=None,
         indock_file_path=None,
+        dock_executable_path=None,
         actives_tgz_file_path=None,
         decoys_tgz_file_path=None,
         retrodock_job_max_reattempts=0,
         retrodock_job_timeout_minutes=None,
         max_scheduler_jobs_running_at_a_time=None,  # TODO
         export_decoy_poses=False,  # TODO
-    ):
+    ) -> None:
         # validate args
         if dock_files_dir_path is None:
             dock_files_dir_path = os.path.join(job_dir_path, self.DOCK_FILES_DIR_NAME)
@@ -293,14 +312,14 @@ class Retrodock(Script):
 
         # get ROC and calculate enrichment score of this job's docking set-up
         logger.debug("Calculating ROC and enrichment score...")
-        booleans = df["is_active"]
+        booleans = df["is_active"].astype(bool)
         roc = ROC(booleans)
         with open("enrichment_score", "w") as f:
             f.write(f"{roc.enrichment_score}")
         logger.debug("done.")
 
         # write ROC plot image
-        roc_plot_image_path = os.path.join(job_dir.path, "roc.png")
+        roc_plot_image_path = os.path.join(job_dir.path, ROC_PLOT_FILE_NAME)
         roc.plot(save_path=roc_plot_image_path)
 
         # ridge plot for energy terms
@@ -334,7 +353,7 @@ class Retrodock(Script):
         )
         plt.title("ridgeline plot: energy terms (actives vs. decoys)")
         plt.tight_layout()
-        plt.savefig(os.path.join(job_dir.path, "energy.png"))
+        plt.savefig(os.path.join(job_dir.path, ENERGY_PLOT_FILE_NAME))
         plt.close(fig)
 
         # split violin plot of charges
@@ -348,5 +367,5 @@ class Retrodock(Script):
         )
         plt.title("split violin plot: charge (actives vs. decoys)")
         plt.tight_layout()
-        plt.savefig(os.path.join(job_dir.path, "charge.png"))
+        plt.savefig(os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME))
         plt.close(fig)
