@@ -10,9 +10,6 @@ if TYPE_CHECKING:
 
 
 #
-RETRODOCK_JOB_DIR_PATH_COLUMN_NAME = "retrodock_job_dir"
-
-#
 RESULTS_CSV_FILE_NAME = "results.csv"
 
 
