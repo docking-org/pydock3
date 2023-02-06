@@ -233,17 +233,17 @@ class BlasterFileNames(object):
     ligand_desolvation_hydrogen_file_name: str = "ligand.desolv.hydrogen"
 
     @property
-    def dock_file_names(self):
-        return [
-            self.matching_spheres_file_name,
-            self.electrostatics_trim_phi_file_name,
-            self.vdw_file_name,
-            self.vdw_bump_map_file_name,
-            self.vdw_parameters_file_name,
-            self.ligand_desolvation_heavy_file_name,
-            self.ligand_desolvation_hydrogen_file_name,
-            self.electrostatics_phi_size_file_name,
-        ]
+    def dock_file_identifier_to_dock_file_name_dict(self):
+        return {
+            "matching_spheres_file": self.matching_spheres_file_name,
+            "electrostatics_trim_phi_file": self.electrostatics_trim_phi_file_name,
+            "vdw_file": self.vdw_file_name,
+            "vdw_bump_map_file": self.vdw_bump_map_file_name,
+            "vdw_parameters_file": self.vdw_parameters_file_name,
+            "ligand_desolvation_heavy_file": self.ligand_desolvation_heavy_file_name,
+            "ligand_desolvation_hydrogen_file": self.ligand_desolvation_hydrogen_file_name,
+            "electrostatics_phi_size_file": self.electrostatics_phi_size_file_name,
+        }
 
 
 class BlasterFiles(object):

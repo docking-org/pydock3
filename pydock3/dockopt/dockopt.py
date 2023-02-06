@@ -1,5 +1,6 @@
 from typing import Union, Iterable, List
 import itertools
+from operator import getitem
 import os
 import shutil
 import sys
@@ -273,6 +274,7 @@ class Step(PipelineComponent):
             results_manager: ResultsManager,
             parameters: Iterable[dict],
             blaster_files_to_copy_in: Iterable[BlasterFile],
+            dock_files_to_copy_in: Iterable[str],
     ):
         super().__init__(
             component_id=component_id,
@@ -318,6 +320,18 @@ class Step(PipelineComponent):
             create=True,
             reset=True,
         )
+
+        # copy in dock files passed from previous component
+        dock_file_identifier_to_dock_file_name_dict = BlasterFileNames().dock_file_identifier_to_dock_file_name_dict
+        dock_file_name_to_num_witnessed_so_far_dict = {dock_file_name: 0 for dock_file_name in dock_file_identifier_to_dock_file_name_dict.values()}
+        for dock_file in dock_files_to_copy_in:
+            for dock_file_identifier, dock_file_name in dock_file_identifier_to_dock_file_name_dict.items():
+                if dock_file.startswith(dock_file_name):
+                    new_dock_file_name = f"{dock_file_name}_{dock_file_name_to_num_witnessed_so_far_dict[dock_file_name]+1}"  # index starting at 1
+                    self.working_dir.copy_in_file(dock_file, dst_file_name=dock_file_name)
+                    dock_file_name_to_num_witnessed_so_far_dict[dock_file_name] += 1  # increment index for dock file name
+                    break
+            raise Exception(f"Witnessed 'dock_file'. Expected dock file name to start with one of: {dock_file_identifier_to_dock_file_name_dict.values()}")
 
         #
         self.actives_tgz_file = None  # set at beginning of .run()
@@ -1270,7 +1284,7 @@ class Step(PipelineComponent):
 
     @staticmethod
     def _get_dock_file_nodes(g: networkx.classes.digraph.DiGraph):
-        dock_file_names = BlasterFileNames().dock_file_names
+        dock_file_names = list(BlasterFileNames().dock_file_identifier_to_dock_file_name_dict.values())
         end_nodes = []
         for node_name, node_data in g.nodes.items():
             if node_data.get("blaster_file") is not None:
@@ -1300,72 +1314,134 @@ class Step(PipelineComponent):
                 step_instance.run()
 
 
-def load_parameters_from_dataframe_row(row, identifier_prefix: str):
+def get_parameters_with_next_step_reference_value_replaced(parameters: dict, nested_target_keys: str, new_ref: float, old_ref: str = '^') -> dict:
+    """Takes a set of parameters, finds the next nested step to be run, and, if it
+    contains numerical operators, replaces the `reference_value` of the `target_key`
+     with the specified float `new_ref` if `reference_value` matches the string
+     `old_ref`."""
+
+    def get_nested_dict_item(dic, nested_keys):
+        """Get item in nested dictionary"""
+        return reduce(getitem, nested_keys, dic)
+
+    def set_nested_dict_item(dic, nested_keys, value):
+        """Set item in nested dictionary"""
+        reduce(getitem, nested_keys[:-1], dic)[nested_keys[-1]] = value
+        return dic
+
+    def traverse(obj):
+        if isinstance(obj, dict):
+            if obj.get("step") and len(obj) == 1:  # obj is step dict: {'step': [...]}
+                nested_target = get_nested_dict_item(obj['step'], nested_target_keys)
+                if isinstance(nested_target, dict):
+                    if 'reference_value' in step and 'arguments' in step and 'operator' in step:  # numerical operator detected
+                        # replace old ref with new ref
+                        if nested_target['reference_value'] == old_ref:
+                            step = set_nested_dict_item(step, nested_target_keys + ['reference_value'], new_ref)
+
+                            # replace step dict
+                            obj['step'] = step
+
+                        return obj
+                    else:
+                        raise ValueError("dict value under `step` key must have keys `reference_value`, `arguments`, and `operator`.")
+                else:
+                    return obj
+            else:  # the following solution is general, but realistically this must be a sequence dict: {'sequence': [...]}
+                new_dict = {}
+                for key, value in obj.items():
+                    new_dict[key] = traverse(value)
+                return new_dict
+        elif isinstance(obj, list):  # obj is sequence dict value (list)
+            obj[0] = traverse(obj[0])  # only change next step to be run, which will be found in the first element
+            return obj
+        else:
+            raise ValueError("Expected type `list` or `dict`.")
+
+    return traverse(copy.deepcopy(parameters))
+
+
+def get_parameters_with_next_step_numerical_operators_applied(parameters: dict) -> dict:
+    """Takes a set of parameters, finds the next nested step to be run, and, if it
+    contains numerical operators, applies them."""
+
+    def traverse(obj):
+        if isinstance(obj, dict):
+            if 'reference_value' in step and 'arguments' in step and 'operator' in step:  # numerical operator detected
+                # apply operators
+                if step['operator'] == '+':
+                    step = [step['reference_value'] + x for x in step['arguments']]
+                elif step['operator'] == '-':
+                    step = [step['reference_value'] - x for x in step['arguments']]
+                elif step['operator'] == '*':
+                    step = [step['reference_value'] * x for x in step['arguments']]
+                elif step['operator'] == '/':
+                    step = [step['reference_value'] / x for x in step['arguments']]
+                else:
+                    raise ValueError(f"Witnessed operator `{step['operator']}`. Only the following numerical operators are supported: `+`, `-`, `*`, `/`")
+
+                # replace step dict
+                obj['step'] = step
+
+                return obj
+            else:
+                new_dict = {}
+                for key, value in obj.items():
+                    new_dict[key] = traverse(value)
+                return new_dict
+        elif isinstance(obj, list):  # obj is sequence dict value (list)
+            obj[0] = traverse(obj[0])  # only change next step to be run, which will be found in the first element
+            return obj
+        else:
+            return obj
+
+    return traverse(copy.deepcopy(parameters))
+
+
+def get_dock_files_to_copy_from_previous_step_dict_for_next_step(parameters: dict) -> dict:
+    """Takes a set of parameters, finds the next nested step to be run, and returns the dict under its
+    `dock_files_to_copy_from_previous_step` key."""
+
+    def traverse(obj):
+        if isinstance(obj, dict):
+            if obj.get("step") and len(obj) == 1:  # obj is step dict: {'step': [...]}
+                if 'dock_files_to_copy_from_previous_step' in obj['step']:
+                    return obj['dock_files_to_copy_from_previous_step']
+            elif obj.get("sequence") and len(obj) == 1:  # obj is sequence dict: {'sequence': [...]}
+                return traverse(obj['sequence'])
+            else:
+                raise ValueError("Expected key `step` or `sequence`.")
+        elif isinstance(obj, list):  # obj is sequence dict value (list)
+            return traverse(obj[0])  # next step to be run will be found in the first element
+        else:
+            raise ValueError("Expected type `list` or `dict`.")
+
+
+    return traverse(copy.deepcopy(parameters))
+
+
+def load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix: str = 'parameters.'):
     """Loads the parameters in a dataframe row according to the column names."""
 
-    # TODO
+    dic = row.to_dict('records')[0]
+    for key in dic:
+        if key.startswith(identifier_prefix):
+            del dic[key]
 
-    return parameters
+    nested_target_keys_and_value_tuples = [((key.strip(identifier_prefix).split('.')), value) for key, value in dic.items()]
 
-
-def get_parameters_with_next_component_reference_value_replaced(parameters: dict, target_key: str, new_ref: float, old_ref: str = '^') -> dict:
-    """Takes a set of parameters that may have numerical operators and replaces the
-    `reference_value` of the `target_key` with the specified float `new_ref` if
-    `reference_value` matches the string `old_ref`."""
-
-    new_parameters = copy.deepcopy(parameters)
-
-    def traverse(obj):
-        if isinstance(obj, dict):
-            if obj.get(target_key):
-                if obj[target_key].get('reference_value') == '^':
-                    obj['reference_value'] = new_ref
-                    return obj
-            else:
-                new_dict = {}
-                for key, value in obj.items():
-                    new_dict[key] = traverse(value)
-                return new_dict
-        elif isinstance(obj, list):
-            for i in range(len(obj)):
-                new_elem = traverse(obj[i])
-                if new_elem != obj[i]:  # should change when replacement occurs
-                    obj[i] = new_elem
-                    return obj
-            raise Exception("Replacement did not occur.")
-        else:
-            raise ValueError("Expected type `list` or `dict`.")
-
-    return traverse(new_parameters)
+    return nested_target_keys_and_value_tuples
 
 
-def get_parameters_with_numerical_operators_applied(parameters: dict) -> dict:
-    """Takes a set of parameters that may have numerical operators and applies them."""
+def load_dock_file_names_dict_from_dataframe_row(row, identifier_prefix: str = 'dockfiles.'):
+    """Loads the dock file names from dataframe row according to the column names."""
 
-    new_parameters = copy.deepcopy(parameters)
+    dic = row.to_dict('records')[0]
+    for key in dic:
+        if not key.startswith(identifier_prefix):
+            del dic[key]
 
-    def traverse(obj):
-        if isinstance(obj, dict):
-            if 'reference_value' in obj and 'arguments' in obj and 'operator' in obj:
-                if obj['operator'] == '+':
-                    obj = [obj['reference_value'] + x for x in obj['arguments']]
-                elif obj['operator'] == '-':
-                    obj = [obj['reference_value'] - x for x in obj['arguments']]
-                elif obj['operator'] == '*':
-                    obj = [obj['reference_value'] * x for x in obj['arguments']]
-                elif obj['operator'] == '/':
-                    obj = [obj['reference_value'] / x for x in obj['arguments']]
-            else:
-                new_dict = {}
-                for key, value in obj.items():
-                    new_dict[key] = traverse(value)
-                return new_dict
-        elif isinstance(obj, list):
-            return [traverse(elem) for elem in obj]
-        else:
-            raise ValueError("Expected type `list` or `dict`.")
-
-    return traverse(new_parameters)
+    return dic
 
 
 class Sequence(PipelineComponentSequence):
@@ -1397,6 +1473,10 @@ class Sequence(PipelineComponentSequence):
         self.blaster_files_to_copy_in = blaster_files_to_copy_in
 
     def run(self, retrodock_run_func_args_set: RetrodockScriptRunFuncArgsSet) -> pd.core.frame.DataFrame:
+        #
+        dock_file_identifier_to_default_dock_file_name_dict = BlasterFileNames().dock_file_identifier_to_dock_file_name_dict
+
+        #
         df = pd.DataFrame()
         last_component_completed = None
         best_criterion_value_witnessed = -float('inf')
@@ -1414,30 +1494,32 @@ class Sequence(PipelineComponentSequence):
                 kwargs['component_id'] = f"{component_id}.{j+1}"
                 kwargs['dir_path'] = os.path.join(iter_dir_path, str(j+1))
                 kwargs['results_manager'] = self.results_manager
-
-                # TODO: modify according to prev results
-                if last_component_completed is None:
-                    kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
-                else:
-                    blaster_files_to_copy_in = []
-                    for blaster_file in self.blaster_files_to_copy_in:
-                        new_blaster_file = copy(blaster_file)
-                        # TODO: modify
-                        blaster_files_to_copy_in.append(new_blaster_file)
-                    kwargs['blaster_files_to_copy_in'] = blaster_files_to_copy_in
+                kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
 
                 #
                 if last_component_completed is None:
-                    #
-                    pass
+                    kwargs['dock_files_to_copy_in'] = []
                 else:
+                    dock_files_to_copy_in = []
                     for row_index, row in last_component_completed.load_results_dataframe().head(self.top_n).iterrows():
-                        component_reference_parameters = load_parameters_from_dataframe_row(row)
-                        # TODO: load dataframe columns (flattened) as reference values, flatten the parameters, replace the relevant flattened parameters
+                        dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(row, identifier_prefix="dockfiles.")
+                        dock_files_to_copy_from_previous_step_dict = get_dock_files_to_copy_from_previous_step_dict_for_next_step(kwargs)
+                        for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step_dict.items():
+                            if should_be_copied:
+                                dock_file_name = dock_file_names_dict[dock_file_identifier]
+                                dock_file_path = os.path.join(component.working_dir.path, dock_file_name)
+                                dock_files_to_copy_in.append(dock_file_path)
+                    kwargs['dock_files_to_copy_in'] = dock_files_to_copy_in
 
+                #
+                if last_component_completed is not None:
+                    for row_index, row in last_component_completed.load_results_dataframe().head(self.top_n).iterrows():
+                        nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.')
+                        for nested_target_keys, value in nested_target_keys_and_value_tuples:
+                            kwargs = get_parameters_with_next_step_reference_value_replaced(nested_target_keys, value, old_ref='^')
 
-                # apply numerical operators to relevant parameters
-                last_parameters = last_component_completed
+                #
+                kwargs = get_parameters_with_next_step_numerical_operators_applied(kwargs)
 
                 #
                 if component_identifier == "step":
@@ -1476,6 +1558,7 @@ class Sequence(PipelineComponentSequence):
 
         return df
 
+
 class DockoptPipeline(Pipeline):
     def __init__(
             self,
@@ -1512,9 +1595,42 @@ class DockoptPipeline(Pipeline):
             kwargs['component_id'] = f"{self.component_id}.{i+1}"
             kwargs['dir_path'] = os.path.join(self.dir.path, str(i+1))
             kwargs['results_manager'] = self.results_manager
+            kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
 
             #
-            kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
+            if last_component_completed is None:
+                kwargs['dock_files_to_copy_in'] = []
+            else:
+                dock_files_to_copy_in = []
+                for row_index, row in last_component_completed.load_results_dataframe().head(
+                        self.top_n).iterrows():
+                    dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(
+                        row, identifier_prefix="dockfiles.")
+                    dock_files_to_copy_from_previous_step_dict = get_dock_files_to_copy_from_previous_step_dict_for_next_step(
+                        kwargs)
+                    for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step_dict.items():
+                        if should_be_copied:
+                            dock_file_name = dock_file_names_dict[
+                                dock_file_identifier]
+                            dock_file_path = os.path.join(
+                                component.working_dir.path,
+                                dock_file_name)
+                            dock_files_to_copy_in.append(dock_file_path)
+                kwargs['dock_files_to_copy_in'] = dock_files_to_copy_in
+
+            #
+            if last_component_completed is not None:
+                for row_index, row in last_component_completed.load_results_dataframe().head(
+                        self.top_n).iterrows():
+                    nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(
+                        row, identifier_prefix='parameters.')
+                    for nested_target_keys, value in nested_target_keys_and_value_tuples:
+                        kwargs = get_parameters_with_next_step_reference_value_replaced(
+                            nested_target_keys, value, old_ref='^')
+
+            #
+            kwargs = get_parameters_with_next_step_numerical_operators_applied(
+                kwargs)
 
             #
             if component_identifier == "step":
