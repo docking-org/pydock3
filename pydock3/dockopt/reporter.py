@@ -11,7 +11,7 @@ import seaborn as sns
 
 from pydock3.files import File
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
-from pydock3.dockopt.criterion import EnrichmentScore
+from pydock3.dockopt.criterion import criterion_dict
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 RETRODOCK_JOB_DIR_PATH_COLUMN_NAME = "retrodock_job_dir"
 
 #
-METRICS = [EnrichmentScore.name]
+METRICS = list(criterion_dict.keys())
 ALL_POSSIBLE_NON_PARAMETER_COLUMNS = [RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] + METRICS
 
 

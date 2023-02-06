@@ -55,12 +55,13 @@ from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float, RetrodockScriptRunFuncArgsSet
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results_manager import RESULTS_CSV_FILE_NAME, ResultsManager, DockoptResultsManager
-from pydock3.dockopt.reporter import Reporter, PDFReporter
+from pydock3.dockopt.reporter import Reporter, PDFReporter, RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
 from pydock3.dockopt.criterion import EnrichmentScore, Criterion
 from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, Pipeline
+from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
 
 #
 logger = logging.getLogger(__name__)
@@ -84,9 +85,20 @@ def get_persistent_hash_of_tuple(t: tuple) -> str:
     return m.hexdigest()
 
 
-def get_all_combinations_of_parameters(parameters_with_multivalues):
-    # TODO
-    pass
+@dataclass
+class RetrodockArgsSet:
+    scheduler: str
+    job_dir_path: str = "."
+    dock_files_dir_path: Union[None, str] = None
+    indock_file_path: Union[None, str] = None
+    dock_executable_path: Union[None, str] = None
+    actives_tgz_file_path: Union[None, str] = None
+    decoys_tgz_file_path: Union[None, str] = None
+    temp_storage_path: Union[None, str] = None
+    retrodock_job_max_reattempts: int = 0
+    retrodock_job_timeout_minutes: Union[None, int] = None
+    max_scheduler_jobs_running_at_a_time: Union[None, int] = None
+    export_decoy_poses: bool = False
 
 
 class Dockopt(Script):
@@ -211,7 +223,7 @@ class Dockopt(Script):
 
         #
         try:
-            temp_dir_path = os.environ["TMPDIR"]
+            temp_storage_path = os.environ["TMPDIR"]
         except KeyError:
             logger.error(
                 "The following environmental variables are required to submit retrodock jobs: TMPDIR"
@@ -219,10 +231,11 @@ class Dockopt(Script):
             return
 
         #
-        retrodock_run_func_args_set = RetrodockScriptRunFuncArgsSet(
+        retrodock_args_set = RetrodockArgsSet(
             scheduler=scheduler,
             actives_tgz_file_path=actives_tgz_file_path,
             decoys_tgz_file_path=decoys_tgz_file_path,
+            temp_storage_path=temp_storage_path,
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
             max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,
@@ -258,7 +271,7 @@ class Dockopt(Script):
             results_manager=DockoptResultsManager("results.csv"),
             blaster_files_to_copy_in=blaster_files_to_copy_in,
         )
-        pipeline.run(retrodock_run_func_args_set=retrodock_run_func_args_set)
+        pipeline.run(retrodock_args_set=retrodock_args_set)
 
 
 class Step(PipelineComponent):
@@ -270,7 +283,7 @@ class Step(PipelineComponent):
         self,
             component_id: str,
             dir_path: str,
-            criterion: Criterion,
+            criterion: str,
             top_n: int,
             results_manager: ResultsManager,
             parameters: Iterable[dict],
@@ -344,7 +357,7 @@ class Step(PipelineComponent):
         #
         dock_files_generation_flat_param_dicts = (
             get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
-                self.param_dict["dock_files_generation"]
+                self.parameters["dock_files_generation"]
             )
         )
         param_dict_hashes = []
@@ -650,14 +663,13 @@ class Step(PipelineComponent):
             dock_file_node_to_dock_files_arg_dict
         )
 
-    def run(self, retrodock_run_func_args_set: RetrodockScriptRunFuncArgsSet) -> pd.core.frame.DataFrame:
-        # TODO: make work with retrodock_run_func_args_set.
-        if actives_tgz_file_path is not None:
-            self.actives_tgz_file = File(path=actives_tgz_file_path)
+    def run(self, retrodock_args_set: RetrodockArgsSet) -> pd.core.frame.DataFrame:
+        if retrodock_args_set.actives_tgz_file_path is not None:
+            self.actives_tgz_file = File(path=retrodock_args_set.actives_tgz_file_path)
         else:
             self.actives_tgz_file = None
-        if actives_tgz_file_path is not None:
-            self.decoys_tgz_file = File(path=decoys_tgz_file_path)
+        if retrodock_args_set.decoys_tgz_file_path is not None:
+            self.decoys_tgz_file = File(path=retrodock_args_set.decoys_tgz_file_path)
         else:
             self.decoys_tgz_file = None
 
@@ -683,7 +695,7 @@ class Step(PipelineComponent):
         #
         dock_files_modification_flat_param_dicts = (
             get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
-                self.param_dict["dock_files_modification"]
+                self.parameters["dock_files_modification"]
             )
         )
         logger.info("done.")
@@ -823,23 +835,23 @@ class Step(PipelineComponent):
         #
         indock_flat_param_dicts = (
             get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
-                self.param_dict["indock"]
+                self.parameters["indock"]
             )
         )
 
         #
-        if isinstance(self.param_dict["custom_dock_executable"], list):
+        if isinstance(self.parameters["custom_dock_executable"], list):
             dock_executable_paths = []
-            for dock_executable_path in self.param_dict["custom_dock_executable"].value:
+            for dock_executable_path in self.parameters["custom_dock_executable"].value:
                 if dock_executable_path is None:
                     dock_executable_paths.append(DOCK3_EXECUTABLE_PATH)
                 else:
                     dock_executable_paths.append(dock_executable_path)
         else:
-            if self.param_dict["custom_dock_executable"] is None:
+            if self.parameters["custom_dock_executable"] is None:
                 dock_executable_paths = [DOCK3_EXECUTABLE_PATH]
             else:
-                dock_executable_paths = [self.param_dict["custom_dock_executable"]]
+                dock_executable_paths = [self.parameters["custom_dock_executable"]]
 
         #
         docking_configuration_info_combinations = list(
@@ -974,10 +986,10 @@ class Step(PipelineComponent):
                 input_sdi_file=retrodock_input_sdi_file,
                 dock_files=dock_files,
                 indock_file=indock_file,
-                job_scheduler=scheduler,
+                job_scheduler=retrodock_args_set.scheduler,
                 dock_executable_path=dock_executable_path,
-                temp_storage_path=temp_dir_path,
-                max_reattempts=retrodock_job_max_reattempts,
+                temp_storage_path=retrodock_args_set.temp_storage_path,
+                max_reattempts=retrodock_args_set.retrodock_job_max_reattempts,
             )
             retrodock_jobs.append(retrodock_job)
         logger.debug("done")
@@ -985,7 +997,7 @@ class Step(PipelineComponent):
         # submit docking jobs
         for retrodock_job in retrodock_jobs:
             sub_result, proc = retrodock_job.submit(
-                job_timeout_minutes=retrodock_job_timeout_minutes,
+                job_timeout_minutes=retrodock_args_set.retrodock_job_timeout_minutes,
                 skip_if_complete=True,
             )
             log_job_submission_result(retrodock_job, sub_result, proc)
@@ -1250,6 +1262,8 @@ class Step(PipelineComponent):
             plt.savefig(os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME))
             plt.close(fig)
 
+        return df
+
     @staticmethod
     def _get_blaster_file_node_with_same_file_name(
         name: str,
@@ -1303,7 +1317,7 @@ class Step(PipelineComponent):
         if blaster_file is not None:
             if not blaster_file.exists:
                 for parent_node in g.predecessors(blaster_file_node):
-                    DockingConfigurationNodeBranchingJob._run_unrun_steps_needed_to_create_this_blaster_file_node(
+                    Step._run_unrun_steps_needed_to_create_this_blaster_file_node(
                         parent_node, g
                     )
                 a_parent_node = list(g.predecessors(blaster_file_node))[0]
@@ -1425,7 +1439,7 @@ class Sequence(PipelineComponentSequence):
         component_id: str,
         param_dict: dict,
         dir_path: str,
-        criterion: Criterion,
+        criterion: str,
         top_n: int,
         results_manager: ResultsManager,
         components: Iterable[dict],
@@ -1447,7 +1461,7 @@ class Sequence(PipelineComponentSequence):
 
         self.blaster_files_to_copy_in = blaster_files_to_copy_in
 
-    def run(self, retrodock_run_func_args_set: RetrodockScriptRunFuncArgsSet) -> pd.core.frame.DataFrame:
+    def run(self, retrodock_args_set: RetrodockArgsSet) -> pd.core.frame.DataFrame:
         #
         dock_file_identifier_to_default_dock_file_name_dict = BlasterFileNames().dock_file_identifier_to_dock_file_name_dict
 
@@ -1508,7 +1522,7 @@ class Sequence(PipelineComponentSequence):
                         f"Only `step` and `sequence` are component identifiers. Witnessed `{component_identifier}`")
 
                 #
-                component.run(**asdict(retrodock_run_func_args_set))
+                component.run(retrodock_args_set)
 
                 #
                 df_component = component.load_results_dataframe()
@@ -1539,7 +1553,7 @@ class DockoptPipeline(Pipeline):
     def __init__(
             self,
             dir_path: str,
-            criterion: Criterion,
+            criterion: str,
             top_n: int,
             results_manager: ResultsManager,
             components: Iterable[dict],
@@ -1558,7 +1572,7 @@ class DockoptPipeline(Pipeline):
 
     def run(
             self,
-            retrodock_run_func_args_set: RetrodockScriptRunFuncArgsSet
+            retrodock_args_set: RetrodockArgsSet
     ) -> pd.core.frame.DataFrame:
         #
         df = pd.DataFrame()
@@ -1621,7 +1635,7 @@ class DockoptPipeline(Pipeline):
                     f"Only `step` and `sequence` are component identifiers. Witnessed `{component_identifier}`")
 
             #
-            component.run(**asdict(retrodock_run_func_args_set))
+            component.run(retrodock_args_set)
 
             #
             df_component = component.load_results_dataframe()
@@ -1633,3 +1647,5 @@ class DockoptPipeline(Pipeline):
 
             #
             last_component_completed = component
+
+        return df

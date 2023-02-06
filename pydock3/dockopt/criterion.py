@@ -35,3 +35,8 @@ class EnrichmentScore(Criterion):
             roc.plot(save_path=image_save_path)
 
         return roc.enrichment_score
+
+
+criterion_dict = {
+    "enrichment_score": EnrichmentScore
+}

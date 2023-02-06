@@ -5,9 +5,9 @@ from datetime import datetime
 import pandas as pd
 
 from pydock3.files import Dir
+from pydock3.dockopt.criterion import criterion_dict
 if TYPE_CHECKING:
     from pydock3.dockopt.results_manager import ResultsManager
-    from pydock3.dockopt.criterion import Criterion
 
 
 def add_timing_and_results_writing_to_run_method(_cls: object) -> object:
@@ -36,16 +36,21 @@ class PipelineComponent(object):
             self,
             component_id: str,
             dir_path: str,
-            criterion: Criterion,
+            criterion: str,
             top_n: int,
             results_manager: ResultsManager,
     ):
         #
         self.component_id = component_id
         self.dir = Dir(dir_path)
-        self.criterion = criterion
         self.top_n = top_n
         self.results_manager = results_manager
+
+        #
+        if criterion in criterion_dict:
+            self.criterion = criterion_dict[criterion]()
+        else:
+            raise ValueError(f"`criterion` must be one of: {criterion_dict.keys()}")
 
         #
         self.started_utc = None  # set by add_timing_and_reporting_to_run_method() decorator; see .__init_subclass__()
@@ -64,7 +69,7 @@ class PipelineComponent(object):
         return self.results_manager.load_results(self)
 
     def get_top_n_results(self) -> pd.core.frame.DataFrame:
-        return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name).tolist()
+        return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name)
 
 
 class PipelineComponentSequence(PipelineComponent):
@@ -72,7 +77,7 @@ class PipelineComponentSequence(PipelineComponent):
         self,
         component_id: str,
         dir_path: str,
-        criterion: Criterion,
+        criterion: str,
         top_n: int,
         results_manager: ResultsManager,
         components: Iterable[dict],
@@ -100,19 +105,31 @@ class Pipeline(object):
     def __init__(
             self,
             dir_path: str,
-            criterion: Criterion,
+            criterion: str,
             top_n: int,
             results_manager: ResultsManager,
             components: Iterable[dict],
     ):
+        #
         self.dir = Dir(dir_path)
-        self.criterion = criterion
         self.top_n = top_n
         self.results_manager = results_manager
         self.components = components
+
+        #
+        if criterion in criterion_dict:
+            self.criterion = criterion_dict[criterion]()
+        else:
+            raise ValueError(f"`criterion` must be one of: {criterion_dict.keys()}")
 
     def __init_subclass__(cls, **kwargs):
         return add_timing_and_results_writing_to_run_method(_cls=cls)
 
     def run(self, *arg, **kwargs) -> NoReturn:
         raise NotImplementedError
+
+    def load_results_dataframe(self) -> pd.core.frame.DataFrame:
+        return self.results_manager.load_results(self)
+
+    def get_top_n_results(self) -> pd.core.frame.DataFrame:
+        return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name)

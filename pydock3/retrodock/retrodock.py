@@ -2,7 +2,6 @@ import os
 import logging
 from uuid import uuid4
 import time
-from typing import Union
 from dataclasses import dataclass, fields
 
 import numpy as np
@@ -11,7 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from joypy import joyplot
 
-from pydock3.util import Script, CleanExit, get_dataclass_as_dict
+from pydock3.util import Script
 from pydock3.files import (
     Dir,
     File,
@@ -114,21 +113,6 @@ def get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
             df = df.drop(old_col, axis=1)
 
     return df
-
-
-@dataclass
-class RetrodockScriptRunFuncArgsSet:
-    scheduler: str
-    job_dir_path: str = "."
-    dock_files_dir_path: Union[None, str] = None
-    indock_file_path: Union[None, str] = None
-    dock_executable_path: Union[None, str] = None
-    actives_tgz_file_path: Union[None, str] = None
-    decoys_tgz_file_path: Union[None, str] = None
-    retrodock_job_max_reattempts: int = 0
-    retrodock_job_timeout_minutes: Union[None, int] = None
-    max_scheduler_jobs_running_at_a_time: Union[None, int] = None
-    export_decoy_poses: bool = False
 
 
 class Retrodock(Script):

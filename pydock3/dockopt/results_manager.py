@@ -16,8 +16,8 @@ RESULTS_CSV_FILE_NAME = "results.csv"
 def add_sorting_of_results_dataframe_by_criterion_to_write_results_method(_cls: object) -> object:
     write_results = getattr(_cls, "write_results")
 
-    def new_write_results(self, pipeline_component):
-        return write_results(self, pipeline_component).sort_values(by=pipeline_component.criterion.name, ascending=False, ignore_index=True)
+    def new_write_results(self, pipeline_component, results_dataframe):
+        return write_results(self, pipeline_component, results_dataframe.sort_values(by=pipeline_component.criterion.name, ascending=False, ignore_index=True))
 
     setattr(_cls, "write_results", new_write_results)
 
