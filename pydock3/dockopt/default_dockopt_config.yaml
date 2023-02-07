@@ -6,6 +6,7 @@ definitions:
         dock_files_to_copy_from_previous_step:
           matching_spheres_file: false
           electrostatics_trim_phi_file: false
+          electrostatics_phi_size_file: false
           vdw_file: false
           vdw_bump_map_file: false
           vdw_parameters_file: false
@@ -100,12 +101,13 @@ definitions:
         <<: *step_1
         dock_files_to_copy_from_previous_step:
           matching_spheres_file: true
-          electrostatics_trim_phi_file: false
-          vdw_file: false
-          vdw_bump_map_file: false
-          vdw_parameters_file: false
-          ligand_desolvation_heavy_file: false
-          ligand_desolvation_hydrogen_file: false
+          electrostatics_trim_phi_file: true
+          electrostatics_phi_size_file: true
+          vdw_file: true
+          vdw_bump_map_file: true
+          vdw_parameters_file: true
+          ligand_desolvation_heavy_file: true
+          ligand_desolvation_hydrogen_file: true
         parameters:
           <<: *parameters_1
           dock_files_modification:
@@ -113,7 +115,7 @@ definitions:
             matching_spheres_perturbation:
               use: true
               num_samples_per_matching_spheres_file: 50
-              max_deviation_angstroms: 0.3
+              max_deviation_angstroms: 0.1
   sequences:
     - sequence: &sequence_1
         top_n: 1
@@ -128,4 +130,4 @@ pipeline:
   top_n: 1
   criterion: enrichment_score
   components:
-    - *step_1
+    - *sequence_1
