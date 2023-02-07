@@ -21,7 +21,7 @@ step:
   dock_files_to_copy_from_previous_step:
     matching_spheres_file: bool()
     electrostatics_trim_phi_file: bool()
-    electrostatics_phi_size_file: num()
+    electrostatics_phi_size_file: bool()
     vdw_file: bool()
     vdw_bump_map_file: bool()
     vdw_parameters_file: bool()
