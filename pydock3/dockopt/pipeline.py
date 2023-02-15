@@ -68,7 +68,7 @@ class PipelineComponent(object):
     def load_results_dataframe(self) -> pd.core.frame.DataFrame:
         return self.results_manager.load_results(self)
 
-    def get_top_n_results(self) -> pd.core.frame.DataFrame:
+    def get_top_results_dataframe(self) -> pd.core.frame.DataFrame:
         return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name)
 
 
@@ -93,7 +93,7 @@ class PipelineComponentSequence(PipelineComponent):
         )
 
         #
-        self.component_param_dicts = components
+        self.components = components
         self.num_repetitions = num_repetitions
         self.max_iterations_with_no_improvement = max_iterations_with_no_improvement
 
@@ -131,5 +131,5 @@ class Pipeline(object):
     def load_results_dataframe(self) -> pd.core.frame.DataFrame:
         return self.results_manager.load_results(self)
 
-    def get_top_n_results(self) -> pd.core.frame.DataFrame:
+    def get_top_results_dataframe(self) -> pd.core.frame.DataFrame:
         return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name)

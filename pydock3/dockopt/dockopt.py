@@ -4,7 +4,7 @@ from operator import getitem
 import os
 import shutil
 import sys
-from functools import wraps
+from functools import wraps, reduce
 from dataclasses import dataclass, fields, asdict
 from copy import copy, deepcopy
 import logging
@@ -55,13 +55,12 @@ from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float, ROC_PLOT_FILE_NAME
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results_manager import RESULTS_CSV_FILE_NAME, ResultsManager, DockoptResultsManager
-from pydock3.dockopt.reporter import Reporter, PDFReporter, RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
+from pydock3.dockopt.reporter import Reporter, RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
 from pydock3.dockopt.criterion import EnrichmentScore, Criterion
 from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, Pipeline
-from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
 
 #
 logger = logging.getLogger(__name__)
@@ -274,7 +273,7 @@ class Dockopt(Script):
         pipeline.run(retrodock_args_set=retrodock_args_set)
 
 
-class Step(PipelineComponent):
+class DockoptStep(PipelineComponent):
     WORKING_DIR_NAME = "working"
     RETRODOCK_JOBS_DIR_NAME = "retrodock_jobs"
     BEST_RETRODOCK_JOBS_DIR_NAME = "best_retrodock_jobs"
@@ -840,18 +839,18 @@ class Step(PipelineComponent):
         )
 
         #
-        if isinstance(self.parameters["custom_dock_executable"], list):
+        if isinstance(self.parameters["dock_executable_path"], list):
             dock_executable_paths = []
-            for dock_executable_path in self.parameters["custom_dock_executable"].value:
+            for dock_executable_path in self.parameters["dock_executable_path"].value:
                 if dock_executable_path is None:
                     dock_executable_paths.append(DOCK3_EXECUTABLE_PATH)
                 else:
                     dock_executable_paths.append(dock_executable_path)
         else:
-            if self.parameters["custom_dock_executable"] is None:
+            if self.parameters["dock_executable_path"] is None:
                 dock_executable_paths = [DOCK3_EXECUTABLE_PATH]
             else:
-                dock_executable_paths = [self.parameters["custom_dock_executable"]]
+                dock_executable_paths = [self.parameters["dock_executable_path"]]
 
         #
         docking_configuration_info_combinations = list(
@@ -1102,6 +1101,11 @@ class Step(PipelineComponent):
             data_dict = copy(flat_param_dict)
             data_dict[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] = retrodock_job.job_dir.path
 
+            #
+            for dock_file_field in fields(retrodock_job.dock_files):
+                data_dict[f"dockfiles.{dock_file_field.name}"] = getattr(retrodock_job.dock_files, dock_file_field.name).name
+            data_dict["dockfiles.indock_file"] = retrodock_job.indock_file.name
+
             # get ROC and calculate enrichment score of this job's docking set-up
             if isinstance(self.criterion, EnrichmentScore):
                 logger.debug("Calculating ROC and enrichment score...")
@@ -1132,135 +1136,6 @@ class Step(PipelineComponent):
 
         # make dataframe of optimization job results
         df = pd.DataFrame(data=data_dicts)
-
-        return df
-
-
-        df = df.sort_values(by=self.criterion.name, ascending=False, ignore_index=True)  # TODO: get rid of this if opt results saving is moved to decorator
-
-        # save optimization job results dataframe to csv
-        optimization_results_csv_file_path = os.path.join(  # TODO: move this to a decorator, perhaps
-            self.dir.path, RESULTS_CSV_FILE_NAME
-        )
-        logger.debug(
-            f"Saving optimization job results to {optimization_results_csv_file_path}"
-        )
-        df.to_csv(optimization_results_csv_file_path)
-
-        # copy best job to output dir
-        logger.debug(
-            f"Copying top {self.top_n} retrodock jobs to {self.best_retrodock_jobs_dir.path}"
-        )
-        if os.path.isdir(self.best_retrodock_jobs_dir.path):
-            shutil.rmtree(self.best_retrodock_jobs_dir.path, ignore_errors=True)
-        for i, best_retrodock_job_dir_path in enumerate(
-            df.head(self.top_n)[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME]
-        ):
-            dst_best_job_dir_path = os.path.join(
-                self.best_retrodock_jobs_dir.path, str(i + 1)
-            )
-            shutil.copytree(
-                best_retrodock_job_dir_path,
-                dst_best_job_dir_path,
-            )
-
-            # copy docking configuration files to best jobs dir
-            best_job_dockfiles_dir = Dir(
-                os.path.join(dst_best_job_dir_path, "dockfiles"), create=True
-            )
-            for (
-                file_name
-            ) in retrodock_job_dir_path_to_docking_configuration_file_names_dict[
-                best_retrodock_job_dir_path
-            ]:
-                best_job_dockfiles_dir.copy_in_file(
-                    os.path.join(self.working_dir.path, file_name)
-                )
-
-            #
-            df_best_job = (
-                get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-                    actives_outdock_file_path=os.path.join(
-                        best_retrodock_job_dir_path,
-                        "output",
-                        "1",
-                        "OUTDOCK.0",
-                    ),
-                    decoys_outdock_file_path=os.path.join(
-                        best_retrodock_job_dir_path,
-                        "output",
-                        "2",
-                        "OUTDOCK.0",
-                    ),
-                )
-            )
-
-            # sort dataframe by total energy score
-            df_best_job = df_best_job.sort_values(
-                by=["total_energy", "is_active"], na_position="last", ignore_index=True
-            )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
-            df_best_job = df_best_job.drop_duplicates(
-                subset=["db2_file_path"], keep="first", ignore_index=True
-            )  # keep only the best score per molecule
-
-            # get ROC and calculate enrichment score of this job's docking set-up
-            # TODO: get this from Retrodock instead
-            booleans = df_best_job["is_active"].astype(bool)
-            roc = ROC(booleans)
-
-            # write ROC plot image
-            roc_plot_image_path = os.path.join(dst_best_job_dir_path, ROC_PLOT_FILE_NAME)
-            roc.plot(save_path=roc_plot_image_path)
-
-            # ridge plot for energy terms
-            # TODO: get this from Retrodock instead
-            pivot_rows = []
-            for i, row in df_best_job.iterrows():
-                for col in [
-                    "total_energy",
-                    "electrostatic_energy",
-                    "vdw_energy",
-                    "polar_desolvation_energy",
-                    "apolar_desolvation_energy",
-                ]:
-                    pivot_row = {"energy_term": col}
-                    if row["is_active"] == 1:
-                        pivot_row["active"] = str_to_float(row[col])
-                        pivot_row["decoy"] = np.nan
-                    else:
-                        pivot_row["active"] = np.nan
-                        pivot_row["decoy"] = str_to_float(row[col])
-                    pivot_rows.append(pivot_row)
-            df_best_job_pivot = pd.DataFrame(pivot_rows)
-            fig, ax = joyplot(
-                data=df_best_job_pivot,
-                by="energy_term",
-                column=["active", "decoy"],
-                color=["#686de0", "#eb4d4b"],
-                legend=True,
-                alpha=0.85,
-                figsize=(12, 8),
-                ylim="own",
-            )
-            plt.title("ridgeline plot: energy terms (actives vs. decoys)")
-            plt.tight_layout()
-            plt.savefig(os.path.join(dst_best_job_dir_path, ENERGY_PLOT_FILE_NAME))
-            plt.close(fig)
-
-            # split violin plot of charges
-            # TODO: get this from Retrodock instead
-            fig = plt.figure()
-            sns.violinplot(
-                data=df_best_job,
-                x="charge",
-                y="total_energy",
-                split=True,
-                hue="activity_class",
-            )
-            plt.title("split violin plot: charge (actives vs. decoys)")
-            plt.tight_layout()
-            plt.savefig(os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME))
-            plt.close(fig)
 
         return df
 
@@ -1317,7 +1192,7 @@ class Step(PipelineComponent):
         if blaster_file is not None:
             if not blaster_file.exists:
                 for parent_node in g.predecessors(blaster_file_node):
-                    Step._run_unrun_steps_needed_to_create_this_blaster_file_node(
+                    DockoptStep._run_unrun_steps_needed_to_create_this_blaster_file_node(
                         parent_node, g
                     )
                 a_parent_node = list(g.predecessors(blaster_file_node))[0]
@@ -1346,7 +1221,7 @@ def get_parameters_with_next_step_reference_value_replaced(parameters: dict, nes
 
     def traverse(obj):
         if isinstance(obj, dict):  # obj is step
-            nested_target = get_nested_dict_item(obj['step'], nested_target_keys)
+            nested_target = get_nested_dict_item(obj, nested_target_keys)
             if isinstance(nested_target, dict):
                 if 'reference_value' in nested_target and 'arguments' in nested_target and 'operator' in nested_target:  # numerical operator detected
                     # replace old ref with new ref
@@ -1412,8 +1287,8 @@ def get_dock_files_to_copy_from_previous_step_dict_for_next_step(parameters: dic
 def load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix: str = 'parameters.'):
     """Loads the parameters in a dataframe row according to the column names."""
 
-    dic = row.to_dict('records')[0]
-    for key in dic:
+    dic = row.to_dict()
+    for key in list(dic.keys()):
         if key.startswith(identifier_prefix):
             del dic[key]
 
@@ -1425,19 +1300,18 @@ def load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_
 def load_dock_file_names_dict_from_dataframe_row(row, identifier_prefix: str = 'dockfiles.'):
     """Loads the dock file names from dataframe row according to the column names."""
 
-    dic = row.to_dict('records')[0]
-    for key in dic:
+    dic = row.to_dict()
+    for key in list(dic.keys()):
         if not key.startswith(identifier_prefix):
             del dic[key]
 
     return dic
 
 
-class Sequence(PipelineComponentSequence):
+class DockoptStepSequence(PipelineComponentSequence):
     def __init__(
         self,
         component_id: str,
-        param_dict: dict,
         dir_path: str,
         criterion: str,
         top_n: int,
@@ -1446,10 +1320,10 @@ class Sequence(PipelineComponentSequence):
         num_repetitions: int,
         max_iterations_with_no_improvement: int,
         blaster_files_to_copy_in: Iterable[BlasterFile],
+        **kwargs  # TODO
     ):
         super().__init__(
             component_id=component_id,
-            param_dict=param_dict,
             dir_path=dir_path,
             criterion=criterion,
             top_n=top_n,
@@ -1476,10 +1350,14 @@ class Sequence(PipelineComponentSequence):
             iter_dir_path = os.path.join(self.dir.path, f"iter={i+1}")
             for j, kwargs in enumerate(self.components):
                 #
-                if "components" in kwargs:
-                    component_identifier = "sequence"
-                else:
+                if "step" in kwargs:
                     component_identifier = "step"
+                    kwargs = kwargs["step"]
+                elif "sequence" in kwargs:
+                    component_identifier = "sequence"
+                    kwargs = kwargs["sequence"]
+                else:
+                    raise Exception(f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {kwargs}")
 
                 #
                 kwargs['component_id'] = f"{component_id}.{j+1}"
@@ -1497,7 +1375,7 @@ class Sequence(PipelineComponentSequence):
                         dock_files_to_copy_from_previous_step_dict = get_dock_files_to_copy_from_previous_step_dict_for_next_step(kwargs)
                         for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step_dict.items():
                             if should_be_copied:
-                                dock_file_name = dock_file_names_dict[dock_file_identifier]
+                                dock_file_name = dock_file_names_dict[f"dockfiles.{dock_file_identifier}"]
                                 dock_file_path = os.path.join(component.working_dir.path, dock_file_name)
                                 dock_files_to_copy_from_previous_step.append(dock_file_path)
                     kwargs['dock_files_to_copy_from_previous_step'] = dock_files_to_copy_from_previous_step
@@ -1507,16 +1385,16 @@ class Sequence(PipelineComponentSequence):
                     for row_index, row in last_component_completed.load_results_dataframe().head(self.top_n).iterrows():
                         nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.')
                         for nested_target_keys, value in nested_target_keys_and_value_tuples:
-                            kwargs = get_parameters_with_next_step_reference_value_replaced(nested_target_keys, value, old_ref='^')
+                            kwargs = get_parameters_with_next_step_reference_value_replaced(kwargs, nested_target_keys, new_ref=value, old_ref='^')
 
                 #
                 kwargs = get_parameters_with_next_step_numerical_operators_applied(kwargs)
 
                 #
                 if component_identifier == "step":
-                    component = Step(**kwargs)
+                    component = DockoptStep(**kwargs)
                 elif component_identifier == "sequence":
-                    component = Sequence(**kwargs)
+                    component = DockoptStepSequence(**kwargs)
                 else:
                     raise ValueError(
                         f"Only `step` and `sequence` are component identifiers. Witnessed `{component_identifier}`")
@@ -1532,6 +1410,9 @@ class Sequence(PipelineComponentSequence):
                 ]
                 df_iteration = pd.concat([df_iteration, df_component], ignore_index=True)
 
+                #
+                last_component_completed = component
+
             #
             df = pd.concat([df, df_iteration], ignore_index=True)
 
@@ -1542,9 +1423,6 @@ class Sequence(PipelineComponentSequence):
                     break
                 else:
                     num_iterations_left_with_no_improvement -= 1
-
-            #
-            last_component_completed = component
 
         return df
 
@@ -1627,9 +1505,9 @@ class DockoptPipeline(Pipeline):
 
             #
             if component_identifier == "step":
-                component = Step(**kwargs)
+                component = DockoptStep(**kwargs)
             elif component_identifier == "sequence":
-                component = Sequence(**kwargs)
+                component = DockoptStepSequence(**kwargs)
             else:
                 raise ValueError(
                     f"Only `step` and `sequence` are component identifiers. Witnessed `{component_identifier}`")

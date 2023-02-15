@@ -13,7 +13,7 @@ definitions:
           ligand_desolvation_heavy_file: false
           ligand_desolvation_hydrogen_file: false
         parameters: &parameters_1
-          custom_dock_executable: null
+          dock_executable_path: null
           dock_files_generation: &dock_files_generation_1
             receptor_protonation:
               reduce_options: "-HIS -FLIPs"

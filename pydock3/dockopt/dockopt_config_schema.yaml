@@ -28,7 +28,7 @@ step:
     ligand_desolvation_heavy_file: bool()
     ligand_desolvation_hydrogen_file: bool()
   parameters:
-    custom_dock_executable: any(null(), str(), list(null(required=False), str(required=False)), min=1)
+    dock_executable_path: any(null(), str(), list(null(required=False), str(required=False)), min=1)
     dock_files_generation:
       receptor_protonation:
         reduce_options: any(str(), list(str()), include('numerically_operative_multivalued_parameter'))

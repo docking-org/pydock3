@@ -1,12 +1,26 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn
 import os
+import shutil
+import logging
 
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from joypy import joyplot
 
-from pydock3.dockopt.reporter import PDFReporter
+from pydock3.files import Dir
+from pydock3.dockopt.roc import ROC
+from pydock3.dockopt.reporter import PDFReporter, RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
+from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
+
+
+#
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 #
@@ -55,6 +69,8 @@ class DockoptResultsManager(ResultsManager):
         results_dataframe: pd.core.frame.DataFrame,
     ) -> None:
         results_dataframe.to_csv(os.path.join(pipeline_component.dir.path, self.results_file_name))
+        #self.save_best_retrodock_jobs(pipeline_component, os.path.join(pipeline_component.dir.path, "best_retrodock_jobs"))  # TODO
+        #self.write_report(pipeline_component)  # TODO
 
     def load_results(self, pipeline_component: PipelineComponent) -> pd.core.frame.DataFrame:
         df = pd.read_csv(os.path.join(pipeline_component.dir.path, self.results_file_name))
@@ -66,3 +82,123 @@ class DockoptResultsManager(ResultsManager):
 
     def write_report(self, pipeline_component: PipelineComponent) -> None:
         PDFReporter().write_report(pipeline_component)
+
+    def save_best_retrodock_jobs(self, pipeline_component: PipelineComponent, dst_best_jobs_dir_path: str):
+        # copy best job to output dir
+        logger.debug(
+            f"Copying top {pipeline_component.top_n} retrodock jobs to {dst_best_jobs_dir_path}"
+        )
+        if os.path.isdir(dst_best_jobs_dir_path):
+            shutil.rmtree(dst_best_jobs_dir_path, ignore_errors=True)
+
+        for i, row in pipeline_component.get_top_results_dataframe().iterrows():
+            src_retrodock_job_dir_path = row[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME]
+            dst_best_job_dir_path = os.path.join(
+                dst_best_jobs_dir_path, str(i + 1)
+            )
+            shutil.copytree(
+                src_retrodock_job_dir_path,
+                dst_best_job_dir_path,
+            )
+
+            # copy docking configuration files to best jobs dir
+            best_job_dockfiles_dir = Dir(
+                os.path.join(dst_best_job_dir_path, "dockfiles"),
+                create=True
+            )
+            docking_configuration_file_columns = [col for col in row.columns if col.startswith("dockfiles.")]
+            for col in docking_configuration_file_columns:
+                best_job_dockfiles_dir.copy_in_file(
+                    os.path.join(pipeline_component.working_dir.path, row[col])
+                )
+
+            #
+            df_best_job = (
+                get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+                    actives_outdock_file_path=os.path.join(
+                        dst_best_job_dir_path,
+                        "output",
+                        "1",
+                        "OUTDOCK.0",
+                    ),
+                    decoys_outdock_file_path=os.path.join(
+                        dst_best_job_dir_path,
+                        "output",
+                        "2",
+                        "OUTDOCK.0",
+                    ),
+                )
+            )
+
+            # sort dataframe by total energy score
+            df_best_job = df_best_job.sort_values(
+                by=["total_energy", "is_active"],
+                na_position="last", ignore_index=True
+            )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
+            df_best_job = df_best_job.drop_duplicates(
+                subset=["db2_file_path"], keep="first",
+                ignore_index=True
+            )  # keep only the best score per molecule
+
+            # get ROC and calculate enrichment score of this job's docking set-up
+            # TODO: get this from Retrodock instead
+            booleans = df_best_job["is_active"].astype(bool)
+            roc = ROC(booleans)
+
+            # write ROC plot image
+            roc_plot_image_path = os.path.join(dst_best_job_dir_path, ROC_PLOT_FILE_NAME)
+            roc.plot(save_path=roc_plot_image_path)
+
+            # ridge plot for energy terms
+            # TODO: get this from Retrodock instead
+            pivot_rows = []
+            for i, row in df_best_job.iterrows():
+                for col in [
+                    "total_energy",
+                    "electrostatic_energy",
+                    "vdw_energy",
+                    "polar_desolvation_energy",
+                    "apolar_desolvation_energy",
+                ]:
+                    pivot_row = {"energy_term": col}
+                    if row["is_active"] == 1:
+                        pivot_row["active"] = str_to_float(row[col])
+                        pivot_row["decoy"] = np.nan
+                    else:
+                        pivot_row["active"] = np.nan
+                        pivot_row["decoy"] = str_to_float(row[col])
+                    pivot_rows.append(pivot_row)
+            df_best_job_pivot = pd.DataFrame(pivot_rows)
+            fig, ax = joyplot(
+                data=df_best_job_pivot,
+                by="energy_term",
+                column=["active", "decoy"],
+                color=["#686de0", "#eb4d4b"],
+                legend=True,
+                alpha=0.85,
+                figsize=(12, 8),
+                ylim="own",
+            )
+            plt.title(
+                "ridgeline plot: energy terms (actives vs. decoys)")
+            plt.tight_layout()
+            plt.savefig(os.path.join(dst_best_job_dir_path,
+                                     ENERGY_PLOT_FILE_NAME))
+            plt.close(fig)
+
+            # split violin plot of charges
+            # TODO: get this from Retrodock instead
+            fig = plt.figure()
+            sns.violinplot(
+                data=df_best_job,
+                x="charge",
+                y="total_energy",
+                split=True,
+                hue="activity_class",
+            )
+            plt.title(
+                "split violin plot: charge (actives vs. decoys)")
+            plt.tight_layout()
+            plt.savefig(os.path.join(dst_best_job_dir_path,
+                                     CHARGE_PLOT_FILE_NAME))
+            plt.close(fig)

@@ -59,7 +59,7 @@ class PDFReporter(Reporter):
 
             #
             for i, best_job_dir_path in enumerate(
-                    pipeline_component.get_top_n_results()):  # TODO: replace
+                    pipeline_component.get_top_results_dataframe()):  # TODO: replace
                 #
                 roc_file_path = os.path.join(
                     best_job_dir_path, ROC_PLOT_FILE_NAME
