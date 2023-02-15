@@ -337,14 +337,18 @@ class DockoptStep(PipelineComponent):
         # copy in dock files passed from previous component
         dock_file_identifier_to_dock_file_name_dict = BlasterFileNames().dock_file_identifier_to_dock_file_name_dict
         dock_file_name_to_num_witnessed_so_far_dict = {dock_file_name: 0 for dock_file_name in dock_file_identifier_to_dock_file_name_dict.values()}
-        for dock_file in dock_files_to_copy_from_previous_step:
-            for dock_file_identifier, dock_file_name in dock_file_identifier_to_dock_file_name_dict.items():
-                if dock_file.startswith(dock_file_name):
-                    new_dock_file_name = f"{dock_file_name}_{dock_file_name_to_num_witnessed_so_far_dict[dock_file_name]+1}"  # index starting at 1
-                    self.working_dir.copy_in_file(dock_file, dst_file_name=dock_file_name)
-                    dock_file_name_to_num_witnessed_so_far_dict[dock_file_name] += 1  # increment index for dock file name
+        for dock_file_path in dock_files_to_copy_from_previous_step:
+            dock_file_name = File.get_file_name_of_file(dock_file_path)
+            found = False
+            for dock_file_identifier, proper_dock_file_name in dock_file_identifier_to_dock_file_name_dict.items():
+                if dock_file_name.startswith(proper_dock_file_name):
+                    new_dock_file_name = f"{proper_dock_file_name}_{dock_file_name_to_num_witnessed_so_far_dict[proper_dock_file_name]+1}"  # index starting at 1
+                    self.working_dir.copy_in_file(dock_file_path, dst_file_name=new_dock_file_name)
+                    dock_file_name_to_num_witnessed_so_far_dict[proper_dock_file_name] += 1  # increment index for dock file name
+                    found = True
                     break
-            raise Exception(f"Witnessed 'dock_file'. Expected dock file name to start with one of: {dock_file_identifier_to_dock_file_name_dict.values()}")
+            if not found:
+                raise Exception(f"Witnessed '{dock_file_name}'. Expected dock file name to start with one of: {dock_file_identifier_to_dock_file_name_dict.values()}")
 
         #
         self.actives_tgz_file = None  # set at beginning of .run()
@@ -1098,7 +1102,7 @@ class DockoptStep(PipelineComponent):
             )
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
-            data_dict = copy(flat_param_dict)
+            data_dict = {f"parameters.{key}": value for key, value in flat_param_dict.items()}
             data_dict[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] = retrodock_job.job_dir.path
 
             #
@@ -1221,6 +1225,7 @@ def get_parameters_with_next_step_reference_value_replaced(parameters: dict, nes
 
     def traverse(obj):
         if isinstance(obj, dict):  # obj is step
+            print(obj, nested_target_keys)
             nested_target = get_nested_dict_item(obj, nested_target_keys)
             if isinstance(nested_target, dict):
                 if 'reference_value' in nested_target and 'arguments' in nested_target and 'operator' in nested_target:  # numerical operator detected
@@ -1292,7 +1297,7 @@ def load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_
         if key.startswith(identifier_prefix):
             del dic[key]
 
-    nested_target_keys_and_value_tuples = [((key.strip(identifier_prefix).split('.')), value) for key, value in dic.items()]
+    nested_target_keys_and_value_tuples = [(key[len(identifier_prefix):].split('.'), value) for key, value in dic.items() if key.startswith(identifier_prefix)]
 
     return nested_target_keys_and_value_tuples
 
