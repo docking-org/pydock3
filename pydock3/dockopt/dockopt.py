@@ -1394,7 +1394,7 @@ class DockoptStepSequence(PipelineComponentSequence):
                     kwargs['dock_files_to_copy_from_previous_step'] = []
                 else:
                     dock_files_to_copy_from_previous_step = []
-                    for row_index, row in last_component_completed.load_results_dataframe().head(self.top_n).iterrows():
+                    for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
                         dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(row, identifier_prefix="dockfiles.")
                         dock_files_to_copy_from_previous_step_dict = get_dock_files_to_copy_from_previous_step_dict_for_next_step(kwargs)
                         for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step_dict.items():
@@ -1406,7 +1406,7 @@ class DockoptStepSequence(PipelineComponentSequence):
 
                 #
                 if last_component_completed is not None:
-                    for row_index, row in last_component_completed.load_results_dataframe().head(self.top_n).iterrows():
+                    for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
                         nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.')
                         for nested_target_keys, value in nested_target_keys_and_value_tuples:
                             kwargs = get_parameters_with_next_step_reference_value_replaced(kwargs, nested_target_keys, new_ref=value, old_ref='^')
@@ -1508,7 +1508,7 @@ class DockoptPipeline(Pipeline):
             else:
                 dock_files_to_copy_from_previous_step = []
                 for row_index, row in last_component_completed.load_results_dataframe().head(
-                        self.top_n).iterrows():
+                        last_component_completed.top_n).iterrows():
                     dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(
                         row, identifier_prefix="dockfiles.")
                     dock_files_to_copy_from_previous_step_dict = get_dock_files_to_copy_from_previous_step_dict_for_next_step(
@@ -1525,7 +1525,7 @@ class DockoptPipeline(Pipeline):
             #
             if last_component_completed is not None:
                 for row_index, row in last_component_completed.load_results_dataframe().head(
-                        self.top_n).iterrows():
+                        last_component_completed.top_n).iterrows():
                     nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(
                         row, identifier_prefix='parameters.')
                     for nested_target_keys, value in nested_target_keys_and_value_tuples:
