@@ -2,11 +2,11 @@ definitions:
   steps:
     list(include('step_list_item'), min=1)
   sequences:
-    list(include('sequence_list_item'), min=0)
+    list(include('sequence_list_item'), min=1)
 pipeline:
   top_n: num()
   criterion: str()
-  components: list(include('step', required=False), include('sequence', required=False), min=1)
+  components: list(include('step_list_item', required=False), include('sequence_list_item', required=False), min=1)
 
 ---
 

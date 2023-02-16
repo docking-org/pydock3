@@ -1224,14 +1224,20 @@ def get_parameters_with_next_step_reference_value_replaced(parameters: dict, nes
         return dic
 
     def traverse(obj):
-        if isinstance(obj, dict):  # obj is step
-            print(obj, nested_target_keys)
-            nested_target = get_nested_dict_item(obj, nested_target_keys)
-            if isinstance(nested_target, dict):
-                if 'reference_value' in nested_target and 'arguments' in nested_target and 'operator' in nested_target:  # numerical operator detected
-                    # replace old ref with new ref
-                    if nested_target['reference_value'] == old_ref:
-                        obj = set_nested_dict_item(step, nested_target_keys + ['reference_value'], new_ref)
+        if isinstance(obj, dict):
+            if 'step' in obj:
+                obj['step'] = traverse(obj['step'])
+            elif 'sequence' in obj:
+                obj['sequence'] = traverse(obj['sequence'])
+            elif 'components' in obj:
+                obj['components'] = traverse(obj['components'])
+            else:  # TODO: add exception in case other options occur
+                nested_target = get_nested_dict_item(obj, nested_target_keys)  # obj is step
+                if isinstance(nested_target, dict):
+                    if 'reference_value' in nested_target and 'arguments' in nested_target and 'operator' in nested_target:  # numerical operator detected
+                        # replace old ref with new ref
+                        if nested_target['reference_value'] == old_ref:
+                            obj = set_nested_dict_item(step, nested_target_keys + ['reference_value'], new_ref)
             return obj
         elif isinstance(obj, list):  # obj is sequence
             obj[0] = traverse(obj[0])  # only change next step to be run, which will be found in the first element
@@ -1247,8 +1253,14 @@ def get_parameters_with_next_step_numerical_operators_applied(parameters: dict) 
     contains numerical operators, applies them."""
 
     def traverse(obj):
-        if isinstance(obj, dict):  # obj is step
-            if 'reference_value' in obj and 'arguments' in obj and 'operator' in obj:  # numerical operator detected
+        if isinstance(obj, dict):
+            if 'step' in obj:
+                obj['step'] = traverse(obj['step'])
+            elif 'sequence' in obj:
+                obj['sequence'] = traverse(obj['sequence'])
+            elif 'components' in obj:
+                obj['components'] = traverse(obj['components'])
+            elif 'reference_value' in obj and 'arguments' in obj and 'operator' in obj:  # numerical operator detected
                 # apply operators
                 if obj['operator'] == '+':
                     obj = [obj['reference_value'] + x for x in obj['arguments']]
@@ -1276,15 +1288,20 @@ def get_dock_files_to_copy_from_previous_step_dict_for_next_step(parameters: dic
 
     def traverse(obj):
         if isinstance(obj, dict):  # obj is step
-            if 'dock_files_to_copy_from_previous_step' in obj:
+            if 'step' in obj:
+                return traverse(obj['step'])
+            elif 'sequence' in obj:
+                return traverse(obj['sequence'])
+            elif 'components' in obj:
+                return traverse(obj['components'])
+            elif 'dock_files_to_copy_from_previous_step' in obj:
                 return obj['dock_files_to_copy_from_previous_step']
             else:
-                raise ValueError(f"Expected key `dock_files_to_copy_from_previous_step`. Witnessed dict: {obj}")
+                raise ValueError(f"Expected key 'step', 'sequence', 'components', or `dock_files_to_copy_from_previous_step`. Witnessed dict: {obj}")
         elif isinstance(obj, list):  # obj is sequence
             return traverse(obj[0])  # next step to be run will be found in the first element
         else:
             raise ValueError("Expected type `list` or `dict`.")
-
 
     return traverse(deepcopy(parameters))
 
@@ -1353,7 +1370,9 @@ class DockoptStepSequence(PipelineComponentSequence):
             df_iteration = pd.DataFrame()
             component_id = f"{self.component_id}.iter={i+1}"
             iter_dir_path = os.path.join(self.dir.path, f"iter={i+1}")
-            for j, kwargs in enumerate(self.components):
+            for j, c in enumerate(self.components):
+                kwargs = deepcopy(c)
+
                 #
                 if "step" in kwargs:
                     component_identifier = "step"
@@ -1428,6 +1447,8 @@ class DockoptStepSequence(PipelineComponentSequence):
                     break
                 else:
                     num_iterations_left_with_no_improvement -= 1
+            else:
+                best_criterion_value_witnessed = best_criterion_value_witnessed_this_iteration
 
         return df
 
@@ -1461,12 +1482,19 @@ class DockoptPipeline(Pipeline):
         df = pd.DataFrame()
         last_component_completed = None
         best_criterion_value_witnessed = -float('inf')
-        for i, kwargs in enumerate(self.components):
+        for i, c in enumerate(self.components):
+            kwargs = deepcopy(c)
+
             #
-            if "components" in kwargs:
-                component_identifier = "sequence"
-            else:
+            if "step" in kwargs:
                 component_identifier = "step"
+                kwargs = kwargs["step"]
+            elif "sequence" in kwargs:
+                component_identifier = "sequence"
+                kwargs = kwargs["sequence"]
+            else:
+                raise Exception(
+                    f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {kwargs}")
 
             #
             kwargs['component_id'] = f"{i+1}"
@@ -1487,8 +1515,7 @@ class DockoptPipeline(Pipeline):
                         kwargs)
                     for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step_dict.items():
                         if should_be_copied:
-                            dock_file_name = dock_file_names_dict[
-                                dock_file_identifier]
+                            dock_file_name = dock_file_names_dict[f"dockfiles.{dock_file_identifier}"]
                             dock_file_path = os.path.join(
                                 component.working_dir.path,
                                 dock_file_name)
@@ -1503,7 +1530,8 @@ class DockoptPipeline(Pipeline):
                         row, identifier_prefix='parameters.')
                     for nested_target_keys, value in nested_target_keys_and_value_tuples:
                         kwargs = get_parameters_with_next_step_reference_value_replaced(
-                            nested_target_keys, value, old_ref='^')
+                            kwargs, nested_target_keys, value,
+                            old_ref='^')
 
             #
             kwargs = get_parameters_with_next_step_numerical_operators_applied(kwargs)
