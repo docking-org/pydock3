@@ -287,7 +287,8 @@ class DockoptStep(PipelineComponent):
             results_manager: ResultsManager,
             parameters: Iterable[dict],
             blaster_files_to_copy_in: Iterable[BlasterFile],
-            dock_files_to_copy_from_previous_step: Iterable[str],
+            dock_files_to_copy_from_previous_step: dict,
+            last_component_completed: Union[PipelineComponent, None] = None,
     ):
         super().__init__(
             component_id=component_id,
@@ -334,10 +335,25 @@ class DockoptStep(PipelineComponent):
             reset=True,
         )
 
+        #
+        dock_files_paths_to_be_copied = []
+        print('bbb', last_component_completed)
+        if last_component_completed is not None:
+            for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
+                dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(
+                    row, identifier_prefix="dockfiles.")
+                for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step.items():
+                    if should_be_copied:
+                        dock_file_name = dock_file_names_dict[
+                            f"dockfiles.{dock_file_identifier}"]
+                        dock_file_path = os.path.join(last_component_completed.working_dir.path, dock_file_name)
+                        dock_files_paths_to_be_copied.append(dock_file_path)
+            print('ccc', dock_files_paths_to_be_copied)
+
         # copy in dock files passed from previous component
         dock_file_identifier_to_dock_file_name_dict = BlasterFileNames().dock_file_identifier_to_dock_file_name_dict
         dock_file_name_to_num_witnessed_so_far_dict = {dock_file_name: 0 for dock_file_name in dock_file_identifier_to_dock_file_name_dict.values()}
-        for dock_file_path in dock_files_to_copy_from_previous_step:
+        for dock_file_path in dock_files_paths_to_be_copied:
             dock_file_name = File.get_file_name_of_file(dock_file_path)
             found = False
             for dock_file_identifier, proper_dock_file_name in dock_file_identifier_to_dock_file_name_dict.items():
@@ -346,6 +362,7 @@ class DockoptStep(PipelineComponent):
                     self.working_dir.copy_in_file(dock_file_path, dst_file_name=new_dock_file_name)
                     dock_file_name_to_num_witnessed_so_far_dict[proper_dock_file_name] += 1  # increment index for dock file name
                     found = True
+                    print(dock_file_name, new_dock_file_name)
                     break
             if not found:
                 raise Exception(f"Witnessed '{dock_file_name}'. Expected dock file name to start with one of: {dock_file_identifier_to_dock_file_name_dict.values()}")
@@ -1287,7 +1304,7 @@ def get_dock_files_to_copy_from_previous_step_dict_for_next_step(parameters: dic
     `dock_files_to_copy_from_previous_step` key."""
 
     def traverse(obj):
-        if isinstance(obj, dict):  # obj is step
+        if isinstance(obj, dict):
             if 'step' in obj:
                 return traverse(obj['step'])
             elif 'sequence' in obj:
@@ -1342,7 +1359,8 @@ class DockoptStepSequence(PipelineComponentSequence):
         num_repetitions: int,
         max_iterations_with_no_improvement: int,
         blaster_files_to_copy_in: Iterable[BlasterFile],
-        **kwargs  # TODO
+        last_component_completed: Union[PipelineComponent, None] = None,
+        **kwargs  # TODO: make this unnecessary
     ):
         super().__init__(
             component_id=component_id,
@@ -1356,6 +1374,7 @@ class DockoptStepSequence(PipelineComponentSequence):
         )
 
         self.blaster_files_to_copy_in = blaster_files_to_copy_in
+        self.last_component_completed = last_component_completed
 
     def run(self, retrodock_args_set: RetrodockArgsSet) -> pd.core.frame.DataFrame:
         #
@@ -1363,8 +1382,8 @@ class DockoptStepSequence(PipelineComponentSequence):
 
         #
         df = pd.DataFrame()
-        last_component_completed = None
         best_criterion_value_witnessed = -float('inf')
+        last_component_completed_in_sequence = self.last_component_completed
         num_iterations_left_with_no_improvement = self.max_iterations_with_no_improvement
         for i in range(self.num_repetitions):
             df_iteration = pd.DataFrame()
@@ -1372,6 +1391,7 @@ class DockoptStepSequence(PipelineComponentSequence):
             iter_dir_path = os.path.join(self.dir.path, f"iter={i+1}")
             for j, c in enumerate(self.components):
                 kwargs = deepcopy(c)
+                print('aaa', kwargs)
 
                 #
                 if "step" in kwargs:
@@ -1388,25 +1408,11 @@ class DockoptStepSequence(PipelineComponentSequence):
                 kwargs['dir_path'] = os.path.join(iter_dir_path, str(j+1))
                 kwargs['results_manager'] = self.results_manager
                 kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
+                kwargs['last_component_completed'] = last_component_completed_in_sequence
 
                 #
-                if last_component_completed is None:
-                    kwargs['dock_files_to_copy_from_previous_step'] = []
-                else:
-                    dock_files_to_copy_from_previous_step = []
-                    for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
-                        dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(row, identifier_prefix="dockfiles.")
-                        dock_files_to_copy_from_previous_step_dict = get_dock_files_to_copy_from_previous_step_dict_for_next_step(kwargs)
-                        for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step_dict.items():
-                            if should_be_copied:
-                                dock_file_name = dock_file_names_dict[f"dockfiles.{dock_file_identifier}"]
-                                dock_file_path = os.path.join(component.working_dir.path, dock_file_name)
-                                dock_files_to_copy_from_previous_step.append(dock_file_path)
-                    kwargs['dock_files_to_copy_from_previous_step'] = dock_files_to_copy_from_previous_step
-
-                #
-                if last_component_completed is not None:
-                    for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
+                if last_component_completed_in_sequence is not None:
+                    for row_index, row in last_component_completed_in_sequence.load_results_dataframe().head(last_component_completed_in_sequence.top_n).iterrows():
                         nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.')
                         for nested_target_keys, value in nested_target_keys_and_value_tuples:
                             kwargs = get_parameters_with_next_step_reference_value_replaced(kwargs, nested_target_keys, new_ref=value, old_ref='^')
@@ -1435,7 +1441,7 @@ class DockoptStepSequence(PipelineComponentSequence):
                 df_iteration = pd.concat([df_iteration, df_component], ignore_index=True)
 
                 #
-                last_component_completed = component
+                last_component_completed_in_sequence = component
 
             #
             df = pd.concat([df, df_iteration], ignore_index=True)
@@ -1501,26 +1507,7 @@ class DockoptPipeline(Pipeline):
             kwargs['dir_path'] = os.path.join(self.dir.path, str(i+1))
             kwargs['results_manager'] = self.results_manager
             kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
-
-            #
-            if last_component_completed is None:
-                kwargs['dock_files_to_copy_from_previous_step'] = []
-            else:
-                dock_files_to_copy_from_previous_step = []
-                for row_index, row in last_component_completed.load_results_dataframe().head(
-                        last_component_completed.top_n).iterrows():
-                    dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(
-                        row, identifier_prefix="dockfiles.")
-                    dock_files_to_copy_from_previous_step_dict = get_dock_files_to_copy_from_previous_step_dict_for_next_step(
-                        kwargs)
-                    for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step_dict.items():
-                        if should_be_copied:
-                            dock_file_name = dock_file_names_dict[f"dockfiles.{dock_file_identifier}"]
-                            dock_file_path = os.path.join(
-                                component.working_dir.path,
-                                dock_file_name)
-                            dock_files_to_copy_from_previous_step.append(dock_file_path)
-                kwargs['dock_files_to_copy_from_previous_step'] = dock_files_to_copy_from_previous_step
+            kwargs['last_component_completed'] = last_component_completed
 
             #
             if last_component_completed is not None:
