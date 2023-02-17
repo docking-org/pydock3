@@ -130,4 +130,4 @@ pipeline:
   top_n: 1
   criterion: enrichment_score
   components:
-    - *sequence_1
+    - sequence: *sequence_1
