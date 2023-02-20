@@ -640,6 +640,10 @@ class OutdockFile(File):
             #
             lines = [x.strip() for x in f.readlines()]
 
+            #
+            if not lines[-1].startswith("elapsed time (sec):"):
+                raise Exception("Final line of OutdockFile does not begin with 'elapsed time (sec):', indicating a failure of some kind.")
+
             # find first ligand line ("Input ligand: [...]")
             first_db2_line_index = None
             for i, line in enumerate(lines):
