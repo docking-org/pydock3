@@ -115,7 +115,9 @@ step:
 
 sequence:
   top_n: num()
+  inter_iteration_top_n: num()
   criterion: str()
+  inter_iteration_criterion: str()
   num_repetitions: int(min=0)
   max_iterations_with_no_improvement: int(min=0)
   components: list(include('step_list_item'), include('sequence_list_item'), min=1)

@@ -39,8 +39,8 @@ definitions:
           dock_files_modification: &dock_files_modification_1
             matching_spheres_perturbation:
               use: true
-              num_samples_per_matching_spheres_file: 50
-              max_deviation_angstroms: 0.3
+              num_samples_per_matching_spheres_file: 10
+              max_deviation_angstroms: 0.4
           indock:
             ligand_atom_file: split_database_index
             output_file_prefix: test.
@@ -52,7 +52,7 @@ definitions:
             timeout: 10.0
             nodes_maximum: 4
             nodes_minimum: 4
-            bump_maximum: 10.0
+            bump_maximum: [10.0, 100.0]
             bump_rigid: 10.0
             mol2_score_maximum: 100.0
             chemical_matching: no
@@ -110,24 +110,73 @@ definitions:
           ligand_desolvation_hydrogen_file: true
         parameters:
           <<: *parameters_1
+          dock_files_generation:
+            receptor_protonation:
+              reduce_options: "-HIS -FLIPs"
+            thin_spheres_elec:
+              use: true
+              molecular_surface_density: 1.0
+              distance_to_surface:
+                reference_value: ^
+                arguments: [-0.04, -0.03, -0.02, -0.01, 0.0, 0.01, 0.02, 0.03, 0.04]
+                operator: +
+              penetration: 0.0
+              distance_to_ligand: 2.0
+            thin_spheres_desolv:
+              use: true
+              molecular_surface_density: 1.0
+              distance_to_surface:
+                reference_value: ^
+                arguments: [-0.08, -0.06, -0.04, -0.02, 0.0, 0.02, 0.04, 0.06, 0.08]
+                operator: +
+              penetration: 0.0
+              distance_to_ligand: 2.0
+            ligand_desolvation:
+              other_radius: 1.0
+            covalent:
+              use: false
+              residue_num: 1
+              residue_name: CYS
+              residue_atoms: CA,CB,SG
+          dock_files_modification:
+            <<: *dock_files_modification_1
+            matching_spheres_perturbation:
+              use: true
+              num_samples_per_matching_spheres_file: 10
+              max_deviation_angstroms: 0.4
+    - step: &step_3
+        <<: *step_1
+        dock_files_to_copy_from_previous_step:
+          matching_spheres_file: true
+          electrostatics_trim_phi_file: true
+          electrostatics_phi_size_file: true
+          vdw_file: true
+          vdw_bump_map_file: true
+          vdw_parameters_file: true
+          ligand_desolvation_heavy_file: true
+          ligand_desolvation_hydrogen_file: true
+        parameters:
+          <<: *parameters_1
           dock_files_modification:
             <<: *dock_files_modification_1
             matching_spheres_perturbation:
               use: true
               num_samples_per_matching_spheres_file: 50
-              max_deviation_angstroms: 0.1
+              max_deviation_angstroms: 0.4
   sequences:
     - sequence: &sequence_1
         top_n: 1
+        inter_iteration_top_n: 1
         criterion: enrichment_score
+        inter_iteration_criterion: enrichment_score
         num_repetitions: 1
         max_iterations_with_no_improvement: 1
         components:
-          - step: *step_1
-          - step: *step_2
+          - step: *step_3
 
 pipeline:
   top_n: 1
   criterion: enrichment_score
   components:
-    - sequence: *sequence_1
+    - step: *step_1
+    - step: *step_2

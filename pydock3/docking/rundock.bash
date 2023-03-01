@@ -2,11 +2,11 @@
 
 # req:
 # EXPORT_DEST
-# INPUT_SOURCE
 # DOCKEXEC
 # TMPDIR
-# DOCKFILE_PATHS_LIST
-# INDOCK_PATH
+# ARRAY_JOB_DOCKING_CONFIGURATIONS
+# INPUT_TARBALL
+# SKIP_IF_ALREADY_DONE
 
 #optional:
 # ONLY_EXPORT_MOL2_FOR_TASK_1
@@ -42,36 +42,33 @@ log SCHEDULER_NAME=$SCHEDULER_NAME
 log JOB_ID=$JOB_ID
 log TASK_ID=$TASK_ID
 log EXPORT_DEST=$EXPORT_DEST
-log INPUT_SOURCE=$INPUT_SOURCE
 log DOCKEXEC=$DOCKEXEC
 log TMPDIR=$TMPDIR
-log DOCKFILE_PATHS_LIST=$DOCKFILE_PATHS_LIST
-log INDOCK_PATH=$INDOCK_PATH
+log ARRAY_JOB_DOCKING_CONFIGURATIONS
+log INPUT_TARBALL
 log ONLY_EXPORT_MOL2_FOR_TASK_1=$ONLY_EXPORT_MOL2_FOR_TASK_1
 log df=$(df)
 
 # validate required environmental variables
-for var in EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC TMPDIR DOCKFILE_PATHS_LIST INDOCK_PATH; do
+for var in EXPORT_DEST DOCKFILES DOCKEXEC TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL; do
 	if [[ -z var ]]; then
-		echo "One or more of the following require environmental variables are not defined: EXPORT_DEST INPUT_SOURCE DOCKFILES DOCKEXEC TMPDIR DOCKFILE_PATHS_LIST INDOCK_PATH"
+		echo "One or more of the following require environmental variables are not defined: EXPORT_DEST DOCKFILES DOCKEXEC TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL"
 		exit 1
 	fi
 done
 
 # initialize all our important variables & directories
 JOB_DIR=${TMPDIR}/$(whoami)/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}
-INPUT_TARBALL=$(sed "${TASK_ID}q;d" $EXPORT_DEST/joblist | awk '{print $1}')
 EXTRACT_DIR=$JOB_DIR/input/$(basename $INPUT_TARBALL)
 DOCKFILES_TEMP=$JOB_DIR/working/dockfiles
 
 #
 log JOB_DIR=$JOB_DIR
-log INPUT_TARBALL=$INPUT_TARBALL
 log EXTRACT_DIR=$EXTRACT_DIR
 log DOCKFILES_TEMP=$DOCKFILES_TEMP
 
 #
-OUTPUT=${EXPORT_DEST}/$(sed "${TASK_ID}q;d" $EXPORT_DEST/joblist | awk '{print $2}')
+OUTPUT=${EXPORT_DEST}/${TASK_ID}
 LOG_OUT=${TMPDIR}/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}.out
 LOG_ERR=${TMPDIR}/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}.err
 
@@ -85,12 +82,21 @@ mkdir -p $OUTPUT
 chmod -R 777 $OUTPUT
 
 # copy dockfiles
-for d in $DOCKFILE_PATHS_LIST; do
-	cp $d $DOCKFILES_TEMP/$(basename "$d")
-done
+awk "\$1==${TASK_ID}{for (j=2; j<=NF; j++) print \$j}" "$ARRAY_JOB_DOCKING_CONFIGURATIONS" | xargs -I {} cp {} "$DOCKFILES_TEMP"
 
-# copy indock file and set name to 'INDOCK'
-cp $INDOCK_PATH $DOCKFILES_TEMP/INDOCK
+# validate that there is exactly one INDOCK file
+num_indock_files=$(ls "$DOCKFILES_TEMP"/INDOCK* 2>/dev/null | wc -l)
+if [ ! "$num_indock_files" -eq 1 ]; then
+    echo "There must be exactly one INDOCK file! Either none or multilple found in $DOCKFILES_TEMP"
+	  exit 1
+else
+    # change copied indock file's name to "INDOCK" for convenience
+    for file in "$DOCKFILES_TEMP"/INDOCK*; do
+        new_name="INDOCK"
+        mv "$file" "$DOCKFILES_TEMP"/"$new_name"
+        echo "Renamed file $file to $new_name"
+    done
+fi
 
 #
 log "starting input extract"

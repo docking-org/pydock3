@@ -120,6 +120,9 @@ class Dir(FileSystemEntity):
                 pass
             logger.info(f"Deleted directory {self}.")
 
+    def reset(self):
+        self.create(reset=True)
+
     def copy_in_file(self, src_file_path, dst_file_name=None, overwrite=True):
         """#TODO"""
         File.validate_file_exists(src_file_path)

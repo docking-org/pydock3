@@ -1,4 +1,4 @@
-from typing import Union, Iterable, List
+from typing import Union, Iterable, List, Tuple
 import itertools
 from operator import getitem
 import os
@@ -51,16 +51,16 @@ from pydock3.blastermaster.util import (
     BlasterFileNames,
 )
 from pydock3.dockopt.roc import ROC
-from pydock3.jobs import RetrodockJob, DOCK3_EXECUTABLE_PATH
+from pydock3.jobs import ArrayDockingJob, DOCK3_EXECUTABLE_PATH
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.blastermaster.programs.thinspheres.sph_lib import read_sph, write_sph
 from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float, ROC_PLOT_FILE_NAME
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
-from pydock3.dockopt.results_manager import RESULTS_CSV_FILE_NAME, ResultsManager, DockoptResultsManager
-from pydock3.dockopt.reporter import Reporter, RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
+from pydock3.dockopt.results_manager import BEST_RETRODOCK_JOBS_DIR_NAME, RESULTS_CSV_FILE_NAME, ResultsManager, DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
+from pydock3.dockopt.reporter import Reporter, RETRODOCK_JOB_ID_COLUMN_NAME
 from pydock3.dockopt.criterion import EnrichmentScore, Criterion
-from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, Pipeline
+from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, PipelineComponentSequenceIteration
 
 #
 logger = logging.getLogger(__name__)
@@ -85,12 +85,8 @@ def get_persistent_hash_of_tuple(t: tuple) -> str:
 
 
 @dataclass
-class RetrodockArgsSet:
+class DockoptPipelineComponentRunFuncArgSet:
     scheduler: str
-    job_dir_path: str = "."
-    dock_files_dir_path: Union[None, str] = None
-    indock_file_path: Union[None, str] = None
-    dock_executable_path: Union[None, str] = None
     actives_tgz_file_path: Union[None, str] = None
     decoys_tgz_file_path: Union[None, str] = None
     temp_storage_path: Union[None, str] = None
@@ -112,6 +108,7 @@ class Dockopt(Script):
     def __init__(self):
         super().__init__()
 
+        #
         self.job_dir = None  # assigned in .init()
 
     @staticmethod
@@ -230,7 +227,7 @@ class Dockopt(Script):
             return
 
         #
-        retrodock_args_set = RetrodockArgsSet(
+        component_run_func_arg_set = DockoptPipelineComponentRunFuncArgSet(
             scheduler=scheduler,
             actives_tgz_file_path=actives_tgz_file_path,
             decoys_tgz_file_path=decoys_tgz_file_path,
@@ -264,19 +261,18 @@ class Dockopt(Script):
         ]
 
         #
-        pipeline = DockoptPipeline(
+        pipeline = DockoptStepSequenceIteration(
             **config.param_dict["pipeline"],
+            component_id="p",
             dir_path=job_dir_path,
-            results_manager=DockoptResultsManager("results.csv"),
             blaster_files_to_copy_in=blaster_files_to_copy_in,
         )
-        pipeline.run(retrodock_args_set=retrodock_args_set)
+        pipeline.run(component_run_func_arg_set=component_run_func_arg_set)
 
 
 class DockoptStep(PipelineComponent):
     WORKING_DIR_NAME = "working"
     RETRODOCK_JOBS_DIR_NAME = "retrodock_jobs"
-    BEST_RETRODOCK_JOBS_DIR_NAME = "best_retrodock_jobs"
 
     def __init__(
         self,
@@ -284,7 +280,6 @@ class DockoptStep(PipelineComponent):
             dir_path: str,
             criterion: str,
             top_n: int,
-            results_manager: ResultsManager,
             parameters: Iterable[dict],
             blaster_files_to_copy_in: Iterable[BlasterFile],
             dock_files_to_copy_from_previous_step: dict,
@@ -295,7 +290,7 @@ class DockoptStep(PipelineComponent):
             dir_path=dir_path,
             criterion=criterion,
             top_n=top_n,
-            results_manager=results_manager,
+            results_manager=DockoptStepResultsManager(RESULTS_CSV_FILE_NAME),
         )
 
         #
@@ -329,43 +324,70 @@ class DockoptStep(PipelineComponent):
             create=True,
             reset=False,
         )
+
+        #
         self.best_retrodock_jobs_dir = Dir(
-            path=os.path.join(self.dir.path, self.BEST_RETRODOCK_JOBS_DIR_NAME),
+            path=os.path.join(self.dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
             reset=True,
         )
 
         #
-        dock_files_paths_to_be_copied = []
-        print('bbb', last_component_completed)
+        dock_files_to_be_copied_unique_paths = []
+        dock_files_to_be_copied_paths_sets = []
         if last_component_completed is not None:
             for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
-                dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(
-                    row, identifier_prefix="dockfiles.")
+                dock_file_names_dict = load_dock_file_names_dict_from_dataframe_row(row, identifier_prefix="dockfiles.")
+                dock_files_to_be_copied_paths_set = []
                 for dock_file_identifier, should_be_copied in dock_files_to_copy_from_previous_step.items():
                     if should_be_copied:
-                        dock_file_name = dock_file_names_dict[
-                            f"dockfiles.{dock_file_identifier}"]
-                        dock_file_path = os.path.join(last_component_completed.working_dir.path, dock_file_name)
-                        dock_files_paths_to_be_copied.append(dock_file_path)
-            print('ccc', dock_files_paths_to_be_copied)
+                        #
+                        dock_file_name = dock_file_names_dict[f"dockfiles.{dock_file_identifier}"]
+
+                        #
+                        src_component_dir_names = row['pipeline_component_id'].split('.')
+                        dst_component_dir_names = self.component_id.split('.')
+                        common_prefix_dir_names = os.path.commonprefix([src_component_dir_names, dst_component_dir_names])
+                        num_directories_up_till_common = len(dst_component_dir_names) - len(common_prefix_dir_names)
+                        num_directories_down_from_common = len(src_component_dir_names) - len(common_prefix_dir_names)
+                        relative_path_down_from_common = os.path.join(*src_component_dir_names[-num_directories_down_from_common:])
+                        common_dir_path = os.path.join(*([self.dir.path] + (['..'] * num_directories_up_till_common)))
+                        working_dir_path = os.path.join(common_dir_path, relative_path_down_from_common, 'working')  # TODO: make 'working' a constant shared by every class
+
+                        #
+                        dock_file_path = os.path.join(working_dir_path, dock_file_name)
+                        dock_files_to_be_copied_unique_paths.append(dock_file_path)
+                        dock_files_to_be_copied_paths_set.append(dock_file_path)
+                dock_files_to_be_copied_paths_sets.append(tuple(dock_files_to_be_copied_paths_set))
+        dock_files_to_be_copied_unique_paths = list(set(dock_files_to_be_copied_unique_paths))
+        dock_files_to_be_copied_paths_sets = list(set(dock_files_to_be_copied_paths_sets))
 
         # copy in dock files passed from previous component
         dock_file_identifier_to_dock_file_name_dict = BlasterFileNames().dock_file_identifier_to_dock_file_name_dict
-        dock_file_name_to_num_witnessed_so_far_dict = {dock_file_name: 0 for dock_file_name in dock_file_identifier_to_dock_file_name_dict.values()}
-        for dock_file_path in dock_files_paths_to_be_copied:
+        dock_file_proper_name_to_dock_file_names_copied_into_working_dir_dict = collections.defaultdict(list)
+        src_dock_file_path_to_dst_dock_file_name_dict = {}
+        for dock_file_path in dock_files_to_be_copied_unique_paths:
             dock_file_name = File.get_file_name_of_file(dock_file_path)
             found = False
-            for dock_file_identifier, proper_dock_file_name in dock_file_identifier_to_dock_file_name_dict.items():
-                if dock_file_name.startswith(proper_dock_file_name):
-                    new_dock_file_name = f"{proper_dock_file_name}_{dock_file_name_to_num_witnessed_so_far_dict[proper_dock_file_name]+1}"  # index starting at 1
+            for dock_file_identifier, dock_file_proper_name in dock_file_identifier_to_dock_file_name_dict.items():
+                if dock_file_name.startswith(dock_file_proper_name):
+                    new_dock_file_name = f"{dock_file_proper_name}_{len(dock_file_proper_name_to_dock_file_names_copied_into_working_dir_dict[dock_file_proper_name])+1}"  # index starting at 1, auto-increments
                     self.working_dir.copy_in_file(dock_file_path, dst_file_name=new_dock_file_name)
-                    dock_file_name_to_num_witnessed_so_far_dict[proper_dock_file_name] += 1  # increment index for dock file name
+                    src_dock_file_path_to_dst_dock_file_name_dict[dock_file_path] = new_dock_file_name
+                    dock_file_proper_name_to_dock_file_names_copied_into_working_dir_dict[dock_file_proper_name].append(new_dock_file_name)
                     found = True
-                    print(dock_file_name, new_dock_file_name)
                     break
             if not found:
                 raise Exception(f"Witnessed '{dock_file_name}'. Expected dock file name to start with one of: {dock_file_identifier_to_dock_file_name_dict.values()}")
+
+        #
+        copied_dock_files_in_working_dir_names_sets = []
+        for dock_file_paths_set in dock_files_to_be_copied_paths_sets:
+            names_set = []
+            for dock_file_path in dock_file_paths_set:
+                names_set.append(src_dock_file_path_to_dst_dock_file_name_dict[dock_file_path])
+            copied_dock_files_in_working_dir_names_sets.append(tuple(names_set))
+        copied_dock_files_in_working_dir_names_sets = list(set(copied_dock_files_in_working_dir_names_sets))
 
         #
         self.actives_tgz_file = None  # set at beginning of .run()
@@ -560,6 +582,36 @@ class DockoptStep(PipelineComponent):
             graph = nx.compose(graph, subgraph)
 
         #
+        if len(dock_file_proper_name_to_dock_file_names_copied_into_working_dir_dict) > 0:
+            partial_dock_file_nodes_combinations = []
+            dock_file_node_name_to_dock_file_name_dict = {}
+            for dock_file_nodes_combination in dock_file_nodes_combinations:
+                partial_dock_file_nodes_combination = []
+                for node_name in dock_file_nodes_combination:
+                    dock_file_name = graph.nodes[node_name]["blaster_file"].name
+                    if not any([dock_file_name.startswith(dock_file_proper_name) for dock_file_proper_name in dock_file_proper_name_to_dock_file_names_copied_into_working_dir_dict]):  # if no copied dock file names match
+                        partial_dock_file_nodes_combination.append(node_name)
+                partial_dock_file_nodes_combinations.append(tuple(partial_dock_file_nodes_combination))
+            partial_dock_file_nodes_combinations = list(set(partial_dock_file_nodes_combinations))
+
+            #
+            new_dock_file_nodes_combinations = []
+            for partial_dock_file_nodes_combination in partial_dock_file_nodes_combinations:
+                for other_partial_dock_files_combination in copied_dock_files_in_working_dir_names_sets:
+                    new_dock_file_nodes_combination = list(partial_dock_file_nodes_combination) + list(other_partial_dock_files_combination)
+                    new_dock_file_nodes_combinations.append(new_dock_file_nodes_combination)
+            dock_file_nodes_combinations = new_dock_file_nodes_combinations
+
+            #
+            for dock_file_proper_name, dock_file_names_in_working_dir in dock_file_proper_name_to_dock_file_names_copied_into_working_dir_dict.items():
+                for dock_file_name_in_working_dir in dock_file_names_in_working_dir:
+                    graph.add_node(
+                        dock_file_name_in_working_dir,  # no hash necessary since it doesn't need to be identified by its ancestry, just its name with suffix
+                        blaster_file=BlasterFile(os.path.join(self.working_dir.path, dock_file_name_in_working_dir)),
+                        original_blaster_file_name=dock_file_proper_name,
+                    )
+
+        #
         self.dock_file_nodes_combinations = dock_file_nodes_combinations
 
         # update self.graph blaster_files' file paths
@@ -579,6 +631,8 @@ class DockoptStep(PipelineComponent):
             original_blaster_file_name = graph.nodes[blaster_file_node][
                 "original_blaster_file_name"
             ]
+            if original_blaster_file_name in dock_file_proper_name_to_dock_file_names_copied_into_working_dir_dict:
+                continue  # skip for files copied from previous pipeline component
             original_blaster_file_name_to_num_unique_instances_witnessed_so_far_counter[
                 original_blaster_file_name
             ] += 1
@@ -668,6 +722,7 @@ class DockoptStep(PipelineComponent):
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
         )
 
+        #
         dock_file_node_to_dock_files_arg_dict = {}
         for dock_file_nodes_combination in self.dock_file_nodes_combinations:
             for node in dock_file_nodes_combination:
@@ -683,13 +738,13 @@ class DockoptStep(PipelineComponent):
             dock_file_node_to_dock_files_arg_dict
         )
 
-    def run(self, retrodock_args_set: RetrodockArgsSet) -> pd.core.frame.DataFrame:
-        if retrodock_args_set.actives_tgz_file_path is not None:
-            self.actives_tgz_file = File(path=retrodock_args_set.actives_tgz_file_path)
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
+        if component_run_func_arg_set.actives_tgz_file_path is not None:
+            self.actives_tgz_file = File(path=component_run_func_arg_set.actives_tgz_file_path)
         else:
             self.actives_tgz_file = None
-        if retrodock_args_set.decoys_tgz_file_path is not None:
-            self.decoys_tgz_file = File(path=retrodock_args_set.decoys_tgz_file_path)
+        if component_run_func_arg_set.decoys_tgz_file_path is not None:
+            self.decoys_tgz_file = File(path=component_run_func_arg_set.decoys_tgz_file_path)
         else:
             self.decoys_tgz_file = None
 
@@ -743,6 +798,11 @@ class DockoptStep(PipelineComponent):
             "matching_spheres_perturbation.use"
         ].value:
             logger.info("Running matching spheres perturbation...")
+
+            #
+            unique_matching_spheres_file_paths = list(set([dock_files_combination.matching_spheres_file.path for dock_files_combination in dock_files_combinations]))
+
+            #
             dock_files_combinations_after_modifications = []
             dock_files_generation_flat_param_dicts_after_modifications = []
             dock_files_modification_flat_param_dicts_after_modifications = []
@@ -753,66 +813,60 @@ class DockoptStep(PipelineComponent):
                 unperturbed_file_name_to_perturbed_file_names_dict = (
                     collections.defaultdict(list)
                 )
-                for node_name, node_data in self.graph.nodes(data=True):
-                    if node_data.get("blaster_file") is None:
-                        continue
-                    if (
-                        node_data["original_blaster_file_name"]
-                        == self.blaster_files.matching_spheres_file.name
-                    ):
-                        file_name = node_data["blaster_file"].name
-                        spheres = read_sph(
-                            os.path.join(self.working_dir.path, file_name),
-                            chosen_cluster="A",
-                            color="A",
-                        )
+                for matching_spheres_file_path in unique_matching_spheres_file_paths:
+                    matching_spheres_file_name = File.get_file_name_of_file(matching_spheres_file_path)
+                    spheres = read_sph(
+                        matching_spheres_file_path,
+                        chosen_cluster="A",
+                        color="A",
+                    )
 
+                    #
+                    for i in range(
+                        int(
+                            dock_files_modification_flat_param_dict[
+                                "matching_spheres_perturbation.num_samples_per_matching_spheres_file"
+                            ].value
+                        )
+                    ):
                         #
-                        for i in range(
-                            int(
+                        perturbed_file_name = f"{matching_spheres_file_name}_{i + 1}"
+                        perturbed_file_path = os.path.join(
+                            self.working_dir.path, perturbed_file_name
+                        )
+                        unperturbed_file_name_to_perturbed_file_names_dict[
+                            matching_spheres_file_name
+                        ].append(perturbed_file_name)
+
+                        # skip perturbation if perturbed file already exists
+                        if File.file_exists(perturbed_file_path):
+                            continue
+
+                        # perturb all spheres in file
+                        new_spheres = []
+                        for sphere in spheres:
+                            new_sphere = copy(sphere)
+                            max_deviation = float(
                                 dock_files_modification_flat_param_dict[
-                                    "matching_spheres_perturbation.num_samples_per_matching_spheres_file"
+                                    "matching_spheres_perturbation.max_deviation_angstroms"
                                 ].value
                             )
-                        ):
-                            #
-                            perturbed_file_name = f"{file_name}_{i + 1}"
-                            perturbed_file_path = os.path.join(
-                                self.working_dir.path, perturbed_file_name
+                            perturbation_xyz = tuple(
+                                [
+                                    random.uniform(
+                                        -max_deviation,
+                                        max_deviation,
+                                    )
+                                    for _ in range(3)
+                                ]
                             )
-                            unperturbed_file_name_to_perturbed_file_names_dict[
-                                file_name
-                            ].append(perturbed_file_name)
+                            new_sphere.X += perturbation_xyz[0]
+                            new_sphere.Y += perturbation_xyz[1]
+                            new_sphere.Z += perturbation_xyz[2]
+                            new_spheres.append(new_sphere)
 
-                            # skip perturbation if perturbed file already exists
-                            if File.file_exists(perturbed_file_path):
-                                continue
-
-                            # perturb all spheres in file
-                            new_spheres = []
-                            for sphere in spheres:
-                                new_sphere = copy(sphere)
-                                max_deviation = float(
-                                    dock_files_modification_flat_param_dict[
-                                        "matching_spheres_perturbation.max_deviation_angstroms"
-                                    ].value
-                                )
-                                perturbation_xyz = tuple(
-                                    [
-                                        random.uniform(
-                                            -max_deviation,
-                                            max_deviation,
-                                        )
-                                        for _ in range(3)
-                                    ]
-                                )
-                                new_sphere.X += perturbation_xyz[0]
-                                new_sphere.Y += perturbation_xyz[1]
-                                new_sphere.Z += perturbation_xyz[2]
-                                new_spheres.append(new_sphere)
-
-                            # write perturbed spheres to new matching spheres file
-                            write_sph(perturbed_file_path, new_spheres)
+                        # write perturbed spheres to new matching spheres file
+                        write_sph(perturbed_file_path, new_spheres)
 
                 #
                 for i, (
@@ -888,7 +942,6 @@ class DockoptStep(PipelineComponent):
 
         # make indock file for each combination of (1) set of dock files and (2) indock_flat_param_dict
         logger.info("Making INDOCK files...")
-        flat_param_dicts = []
         docking_configurations = []
         for i, (
             dock_executable_path,
@@ -899,6 +952,9 @@ class DockoptStep(PipelineComponent):
             ),
             indock_flat_param_dict,
         ) in enumerate(docking_configuration_info_combinations):
+            #
+            task_id = str(i + 1)
+
             # get full flat parameter dict
             flat_param_dict = {}
             flat_param_dict["dock_executable_path"] = dock_executable_path
@@ -929,184 +985,134 @@ class DockoptStep(PipelineComponent):
             indock_file.write(dock_files, flat_param_dict)
 
             #
-            flat_param_dicts.append(flat_param_dict)
             docking_configurations.append(
-                (dock_executable_path, dock_files, indock_file)
+                (task_id, dock_executable_path, dock_files, indock_file, flat_param_dict)
             )
 
-        # TODO: improve this
-        all_docking_configuration_file_names = []
-        for node_name, node_data in self.graph.nodes.items():
-            original_blaster_file_name = node_data.get("original_blaster_file_name")
-            if original_blaster_file_name is not None:
-                all_docking_configuration_file_names.append(
-                    node_data["blaster_file"].path
-                )
-        unique_dock_file_nodes = list(
-            set(
-                [
-                    node
-                    for dock_file_nodes_combination in self.dock_file_nodes_combinations
-                    for node in dock_file_nodes_combination
-                ]
-            )
-        )
-        for node in unique_dock_file_nodes:
-            all_docking_configuration_file_names.append(
-                self.graph.nodes[node]["blaster_file"].name
-            )
+        #
+        unique_docking_configuration_node_names = list(set(list(itertools.chain.from_iterable(self.dock_file_nodes_combinations))))
+        unique_docking_configuration_file_names = [self.graph.nodes[node_name]['blaster_file'].name for node_name in unique_docking_configuration_node_names]
 
         #
         job_hash = dirhash(
             self.working_dir.path,
             "md5",
-            match=all_docking_configuration_file_names,
+            match=unique_docking_configuration_file_names,
         )
         with open(os.path.join(self.dir.path, "job_hash.md5"), "w") as f:
             f.write(f"{job_hash}\n")
 
-        # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi
-        logger.info("Writing actives_and_decoys.sdi file...")
-        retrodock_input_sdi_file = File(
-            path=os.path.join(self.dir.path, "actives_and_decoys.sdi")
-        )
-        with open(retrodock_input_sdi_file.path, "w") as f:
-            f.write(f"{self.actives_tgz_file.path}\n")
-            f.write(f"{self.decoys_tgz_file.path}\n")
-        logger.info("done")
+        #
+        array_job_docking_configurations_file_path = os.path.join(self.dir.path, "array_job_docking_configurations.txt")
+        with open(array_job_docking_configurations_file_path, 'w') as f:
+            for task_id, dock_executable_path, dock_files, indock_file, flat_param_dict in docking_configurations:
+                dockfile_paths_str = " ".join([getattr(dock_files, dock_file_field_name).path for dock_file_field_name in sorted([field.name for field in fields(dock_files)])])
+                f.write(f"{task_id} {indock_file.path} {dockfile_paths_str} {dock_executable_path}\n")
 
         #
-        retrodock_jobs = []
-        retrodock_job_dir_path_to_docking_configuration_file_names_dict = {}
-        for i, (dock_executable_path, dock_files, indock_file) in enumerate(
-            docking_configurations
-        ):
-            #
-            retro_dock_job_dir_path = os.path.join(
-                self.retrodock_jobs_dir.path, str(i + 1)
-            )
-            docking_configuration_file_names = [
-                getattr(dock_files, dock_file_field.name).name
-                for dock_file_field in fields(dock_files)
-            ] + [indock_file.name]
-            retrodock_job_dir_path_to_docking_configuration_file_names_dict[
-                retro_dock_job_dir_path
-            ] = docking_configuration_file_names
+        def get_actives_outdock_file_path_for_task(task_id):
+            return os.path.join(self.retrodock_jobs_dir.path, 'actives', task_id, 'OUTDOCK.0')
 
-            #
-            retrodock_job_dir = Dir(
-                path=retro_dock_job_dir_path,
-                create=True,
-            )
+        def get_decoys_outdock_file_path_for_task(task_id):
+            return os.path.join(self.retrodock_jobs_dir.path, 'decoys', task_id, 'OUTDOCK.0')
 
-            #
-            retrodock_job = RetrodockJob(
-                name=f"dockopt_job_{job_hash}_{retrodock_job_dir.name}",
-                job_dir=retrodock_job_dir,
-                input_sdi_file=retrodock_input_sdi_file,
-                dock_files=dock_files,
-                indock_file=indock_file,
-                job_scheduler=retrodock_args_set.scheduler,
+        def job_array_task_is_complete(task_id):
+            return File.file_exists(get_actives_outdock_file_path_for_task(task_id)) and File.file_exists(get_decoys_outdock_file_path_for_task(task_id))
+
+        # submit retrodock jobs (one for actives, one for decoys)
+        array_jobs = []
+        for sub_dir_name, input_molecules_tgz_file_path in [('actives', component_run_func_arg_set.actives_tgz_file_path), ('decoys', component_run_func_arg_set.decoys_tgz_file_path)]:
+            array_job = ArrayDockingJob(
+                name=f"dockopt_job_{job_hash}_{sub_dir_name}",
+                job_dir=Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name)),
+                input_molecules_tgz_file_path=input_molecules_tgz_file_path,
+                job_scheduler=component_run_func_arg_set.scheduler,
                 dock_executable_path=dock_executable_path,
-                temp_storage_path=retrodock_args_set.temp_storage_path,
-                max_reattempts=retrodock_args_set.retrodock_job_max_reattempts,
+                temp_storage_path=component_run_func_arg_set.temp_storage_path,
+                array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
+                max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,
             )
-            retrodock_jobs.append(retrodock_job)
-        logger.debug("done")
-
-        # submit docking jobs
-        for retrodock_job in retrodock_jobs:
-            sub_result, proc = retrodock_job.submit(
-                job_timeout_minutes=retrodock_args_set.retrodock_job_timeout_minutes,
+            sub_result, procs = array_job.submit_all_tasks(
+                job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
                 skip_if_complete=True,
             )
-            log_job_submission_result(retrodock_job, sub_result, proc)
+            array_jobs.append(array_job)
+            log_job_submission_result(array_job, sub_result, procs)
 
         # make a queue of tuples containing job-relevant data for processing
-        RetrodockJobInfoTuple = collections.namedtuple(
-            "RetrodockJobInfoTuple", "job flat_param_dict"
-        )
-        retrodock_jobs_processing_queue = [
-            RetrodockJobInfoTuple(
-                retrodock_jobs[i], flat_param_dicts[i]
-            )
-            for i in range(len(retrodock_jobs))
-        ]
+        docking_configurations_processing_queue = deepcopy(docking_configurations)
 
         # process results of docking jobs
         logger.info(
-            f"Awaiting / processing retrodock job results ({len(retrodock_jobs)} jobs in total)"
+            f"Awaiting / processing retrodock job results ({len(docking_configurations)} tasks in total)"
         )
         data_dicts = []
-        while len(retrodock_jobs_processing_queue) > 0:
+        task_id_to_num_reattempts_dict = collections.defaultdict(int)
+        while len(docking_configurations_processing_queue) > 0:
             #
-            retrodock_job_info_tuple = retrodock_jobs_processing_queue.pop(0)
-            retrodock_job, flat_param_dict = retrodock_job_info_tuple
+            docking_configuration = docking_configurations_processing_queue.pop(0)
+            task_id, dock_executable_path, dock_files, indock_file, flat_param_dict = docking_configuration
 
-            #
-            if retrodock_job.is_running:
-                retrodock_jobs_processing_queue.append(
-                    retrodock_job_info_tuple
-                )  # move job to back of queue
+            if any([not array_job.task_is_complete(task_id) for array_job in array_jobs]):  # one or both OUTDOCK files do not exist yet
                 time.sleep(
                     1
-                )  # sleep a bit while waiting for outdock file in order to avoid wasteful queue-cycling
-                continue  # move on to next job in queue while job continues to run
-            else:
-                if (
-                    not retrodock_job.is_complete
-                ):  # not all expected OUTDOCK files exist yet
-                    time.sleep(
-                        1
-                    )  # sleep for a bit and check again in case job just finished
-                    if not retrodock_job.is_complete:
-                        # job must have timed out / failed
+                )  # sleep for a bit
+                if any([(not array_job.task_is_complete(task_id)) and (not array_job.is_running) for array_job in array_jobs]):
+                    # task must have timed out / failed for one or both jobs
+                    logger.warning(
+                        f"Failure / time out witnessed for task {task_id}"
+                    )
+                    if task_id_to_num_reattempts_dict[task_id] > component_run_func_arg_set.retrodock_job_max_reattempts:
                         logger.warning(
-                            f"Job failure / time out witnessed for job: {retrodock_job.name}"
+                            f"Max reattempts exhausted for task {task_id}"
                         )
-                        if retrodock_job.num_attempts > retrodock_job_max_reattempts:
-                            logger.warning(
-                                f"Max job reattempts exhausted for job: {retrodock_job.name}"
-                            )
-                            continue  # move on to next job in queue without re-attempting failed job
+                        continue  # move on to next in queue without re-attempting failed task
 
-                        retrodock_job.submit(
-                            job_timeout_minutes=retrodock_job_timeout_minutes,
-                            skip_if_complete=False,
-                        )  # re-attempt job
-                        retrodock_jobs_processing_queue.append(
-                            retrodock_job_info_tuple
-                        )  # move job to back of queue
-                        continue  # move on to next job in queue while docking job runs
+                    for array_job in array_jobs:
+                        if not array_job.task_is_complete(task_id):
+                            array_job.submit_task(
+                                task_id,
+                                job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
+                                skip_if_complete=False,
+                            )  # re-attempt relevant job(s) for incomplete task
+                    task_id_to_num_reattempts_dict[task_id] += 1
+                
+                docking_configurations_processing_queue.append(
+                    docking_configuration
+                )  # move to back of queue
+                continue  # move on to next in queue
 
-            # load outdock file and get dataframe
+            # load outdock files and get dataframe
             try:
                 # get dataframe of actives job results and decoys job results combined
                 df = (
                     get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-                        retrodock_job.actives_outdock_file.path, retrodock_job.decoys_outdock_file.path
+                        get_actives_outdock_file_path_for_task(task_id), get_decoys_outdock_file_path_for_task(task_id)
                     )
                 )
-            except Exception as e:  # if outdock file failed to be parsed then re-attempt job
+            except Exception as e:  # if outdock files failed to be parsed then re-attempt task
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
-                if retrodock_job.num_attempts > retrodock_job_max_reattempts:
+                if task_id_to_num_reattempts_dict[task_id] > component_run_func_arg_set.retrodock_job_max_reattempts:
                     logger.warning(
-                        f"Max job reattempts exhausted for job: {retrodock_job.name}"
+                        f"Max reattempts exhausted for task {task_id}"
                     )
-                    continue  # move on to next job in queue without re-attempting failed job
+                    continue  # move on to next in queue without re-attempting failed task
 
-                retrodock_job.submit(
-                    job_timeout_minutes=retrodock_job_timeout_minutes,
-                    skip_if_complete=False,
-                )  # re-attempt job
-                retrodock_jobs_processing_queue.append(
-                    retrodock_job_info_tuple
-                )  # move job to back of queue
-                continue  # move on to next job in queue while docking job runs
+                for array_job in array_jobs:
+                    array_job.submit_task(
+                        task_id,
+                        job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
+                        skip_if_complete=False,
+                    )  # re-attempt both jobs
+                task_id_to_num_reattempts_dict[task_id] += 1
+                docking_configurations_processing_queue.append(
+                    docking_configuration
+                )  # move to back of queue
+                continue  # move on to next in queue
 
             #
             logger.info(
-                f"Docking job '{retrodock_job.name}' completed. Successfully loaded OUTDOCK file(s)."
+                f"Task {task_id} completed. Successfully loaded both OUTDOCK files."
             )
 
             # sort dataframe by total energy score
@@ -1120,40 +1126,37 @@ class DockoptStep(PipelineComponent):
 
             # make data dict for this job (will be used to make dataframe for results of all jobs)
             data_dict = {f"parameters.{key}": value for key, value in flat_param_dict.items()}
-            data_dict[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] = retrodock_job.job_dir.path
+            data_dict[RETRODOCK_JOB_ID_COLUMN_NAME] = task_id
 
             #
-            for dock_file_field in fields(retrodock_job.dock_files):
-                data_dict[f"dockfiles.{dock_file_field.name}"] = getattr(retrodock_job.dock_files, dock_file_field.name).name
-            data_dict["dockfiles.indock_file"] = retrodock_job.indock_file.name
+            for dock_file_field in fields(dock_files):
+                data_dict[f"dockfiles.{dock_file_field.name}"] = getattr(dock_files, dock_file_field.name).name
+            data_dict["dockfiles.indock_file"] = indock_file.name
 
             # get ROC and calculate enrichment score of this job's docking set-up
             if isinstance(self.criterion, EnrichmentScore):
                 logger.debug("Calculating ROC and enrichment score...")
                 booleans = df["is_active"]
                 data_dict[self.criterion.name] = self.criterion.calculate(
-                    booleans,
-                    image_save_path=os.path.join(
-                        retrodock_job.job_dir.path, ROC_PLOT_FILE_NAME
-                    ),
+                    booleans
                 )
                 logger.debug("done.")
+
+            #
+            data_dict['pipeline_component_id'] = self.component_id
 
             # save data_dict for this job
             data_dicts.append(data_dict)
 
         # write jobs completion status
-        num_jobs_completed = len(
-            [1 for retrodock_job in retrodock_jobs if retrodock_job.is_complete]
-        )
+        num_tasks_successful = len(data_dicts)
         logger.info(
-            f"Finished {num_jobs_completed} out of {len(retrodock_jobs)} retrodock jobs."
+            f"Finished {num_tasks_successful} out of {len(docking_configurations)} tasks."
         )
-        if num_jobs_completed == 0:
-            logger.error(
-                "All retrodock jobs failed. Something is wrong. Please check logs."
+        if num_tasks_successful == 0:
+            raise Exception(
+                "All tasks failed. Something is wrong. Please check logs."
             )
-            return
 
         # make dataframe of optimization job results
         df = pd.DataFrame(data=data_dicts)
@@ -1225,7 +1228,7 @@ class DockoptStep(PipelineComponent):
                 step_instance.run()
 
 
-def get_parameters_with_next_step_reference_value_replaced(parameters: dict, nested_target_keys: str, new_ref: float, old_ref: str = '^') -> dict:
+def get_parameters_with_next_step_reference_value_replaced(parameters: dict, nested_target_keys: List[str], new_ref: float, old_ref: str = '^') -> dict:
     """Takes a set of parameters, finds the next nested step to be run, and, if it
     contains numerical operators, replaces the `reference_value` of the `target_key`
      with the specified float `new_ref` if `reference_value` matches the string
@@ -1242,25 +1245,22 @@ def get_parameters_with_next_step_reference_value_replaced(parameters: dict, nes
 
     def traverse(obj):
         if isinstance(obj, dict):
-            if 'step' in obj:
-                obj['step'] = traverse(obj['step'])
-            elif 'sequence' in obj:
-                obj['sequence'] = traverse(obj['sequence'])
-            elif 'components' in obj:
-                obj['components'] = traverse(obj['components'])
-            else:  # TODO: add exception in case other options occur
-                nested_target = get_nested_dict_item(obj, nested_target_keys)  # obj is step
+            try:
+                nested_target = get_nested_dict_item(obj, nested_target_keys)
                 if isinstance(nested_target, dict):
                     if 'reference_value' in nested_target and 'arguments' in nested_target and 'operator' in nested_target:  # numerical operator detected
                         # replace old ref with new ref
                         if nested_target['reference_value'] == old_ref:
-                            obj = set_nested_dict_item(step, nested_target_keys + ['reference_value'], new_ref)
+                            obj = set_nested_dict_item(obj, nested_target_keys + ['reference_value'], new_ref)
+            except:
+                for key, value in obj.items():
+                    obj[key] = traverse(value)
             return obj
         elif isinstance(obj, list):  # obj is sequence
             obj[0] = traverse(obj[0])  # only change next step to be run, which will be found in the first element
             return obj
         else:
-            raise ValueError("Expected type `list` or `dict`.")
+            return obj
 
     return traverse(deepcopy(parameters))
 
@@ -1271,24 +1271,21 @@ def get_parameters_with_next_step_numerical_operators_applied(parameters: dict) 
 
     def traverse(obj):
         if isinstance(obj, dict):
-            if 'step' in obj:
-                obj['step'] = traverse(obj['step'])
-            elif 'sequence' in obj:
-                obj['sequence'] = traverse(obj['sequence'])
-            elif 'components' in obj:
-                obj['components'] = traverse(obj['components'])
-            elif 'reference_value' in obj and 'arguments' in obj and 'operator' in obj:  # numerical operator detected
+            if 'reference_value' in obj and 'arguments' in obj and 'operator' in obj:  # numerical operator detected
                 # apply operators
                 if obj['operator'] == '+':
-                    obj = [obj['reference_value'] + x for x in obj['arguments']]
+                    obj = [float(obj['reference_value']) + float(x) for x in obj['arguments']]
                 elif obj['operator'] == '-':
-                    obj = [obj['reference_value'] - x for x in obj['arguments']]
+                    obj = [float(obj['reference_value'])  - float(x) for x in obj['arguments']]
                 elif obj['operator'] == '*':
-                    obj = [obj['reference_value'] * x for x in obj['arguments']]
+                    obj = [float(obj['reference_value'])  * float(x) for x in obj['arguments']]
                 elif obj['operator'] == '/':
-                    obj = [obj['reference_value'] / x for x in obj['arguments']]
+                    obj = [float(obj['reference_value'])  / float(x) for x in obj['arguments']]
                 else:
                     raise ValueError(f"Witnessed operator `{obj['operator']}`. Only the following numerical operators are supported: `+`, `-`, `*`, `/`")
+            else:
+                for key, value in obj.items():
+                    obj[key] = traverse(value)
             return obj
         elif isinstance(obj, list):  # obj is sequence
             obj[0] = traverse(obj[0])  # only change next step to be run, which will be found in the first element
@@ -1299,7 +1296,7 @@ def get_parameters_with_next_step_numerical_operators_applied(parameters: dict) 
     return traverse(deepcopy(parameters))
 
 
-def get_dock_files_to_copy_from_previous_step_dict_for_next_step(parameters: dict) -> dict:
+def get_dock_files_to_copy_from_previous_step_dict_for_next_step(parameters: Union[dict, list]) -> dict:
     """Takes a set of parameters, finds the next nested step to be run, and returns the dict under its
     `dock_files_to_copy_from_previous_step` key."""
 
@@ -1323,15 +1320,11 @@ def get_dock_files_to_copy_from_previous_step_dict_for_next_step(parameters: dic
     return traverse(deepcopy(parameters))
 
 
-def load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix: str = 'parameters.'):
+def load_nested_target_keys_and_value_tuples_from_dataframe_row(row: pd.Series, identifier_prefix: str = 'parameters.') -> List[Tuple[List[str], Union[float, str]]]:
     """Loads the parameters in a dataframe row according to the column names."""
 
     dic = row.to_dict()
-    for key in list(dic.keys()):
-        if key.startswith(identifier_prefix):
-            del dic[key]
-
-    nested_target_keys_and_value_tuples = [(key[len(identifier_prefix):].split('.'), value) for key, value in dic.items() if key.startswith(identifier_prefix)]
+    nested_target_keys_and_value_tuples = [(key.split('.'), value) for key, value in dic.items() if key.startswith(identifier_prefix)]
 
     return nested_target_keys_and_value_tuples
 
@@ -1347,17 +1340,15 @@ def load_dock_file_names_dict_from_dataframe_row(row, identifier_prefix: str = '
     return dic
 
 
-class DockoptStepSequence(PipelineComponentSequence):
+class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
+
     def __init__(
         self,
         component_id: str,
         dir_path: str,
         criterion: str,
         top_n: int,
-        results_manager: ResultsManager,
         components: Iterable[dict],
-        num_repetitions: int,
-        max_iterations_with_no_improvement: int,
         blaster_files_to_copy_in: Iterable[BlasterFile],
         last_component_completed: Union[PipelineComponent, None] = None,
         **kwargs  # TODO: make this unnecessary
@@ -1367,127 +1358,25 @@ class DockoptStepSequence(PipelineComponentSequence):
             dir_path=dir_path,
             criterion=criterion,
             top_n=top_n,
-            results_manager=results_manager,
+            results_manager=DockoptStepSequenceIterationResultsManager(RESULTS_CSV_FILE_NAME),
             components=components,
-            num_repetitions=num_repetitions,
-            max_iterations_with_no_improvement=max_iterations_with_no_improvement,
         )
 
+        #
         self.blaster_files_to_copy_in = blaster_files_to_copy_in
         self.last_component_completed = last_component_completed
 
-    def run(self, retrodock_args_set: RetrodockArgsSet) -> pd.core.frame.DataFrame:
         #
-        dock_file_identifier_to_default_dock_file_name_dict = BlasterFileNames().dock_file_identifier_to_dock_file_name_dict
+        self.best_retrodock_jobs_dir = Dir(
+            path=os.path.join(self.dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
+            create=True,
+            reset=True,
+        )
 
-        #
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
-        num_iterations_left_with_no_improvement = self.max_iterations_with_no_improvement
-        for i in range(self.num_repetitions):
-            df_iteration = pd.DataFrame()
-            component_id = f"{self.component_id}.iter={i+1}"
-            iter_dir_path = os.path.join(self.dir.path, f"iter={i+1}")
-            for j, c in enumerate(self.components):
-                kwargs = deepcopy(c)
-                print('aaa', kwargs)
-
-                #
-                if "step" in kwargs:
-                    component_identifier = "step"
-                    kwargs = kwargs["step"]
-                elif "sequence" in kwargs:
-                    component_identifier = "sequence"
-                    kwargs = kwargs["sequence"]
-                else:
-                    raise Exception(f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {kwargs}")
-
-                #
-                kwargs['component_id'] = f"{component_id}.{j+1}"
-                kwargs['dir_path'] = os.path.join(iter_dir_path, str(j+1))
-                kwargs['results_manager'] = self.results_manager
-                kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
-                kwargs['last_component_completed'] = last_component_completed_in_sequence
-
-                #
-                if last_component_completed_in_sequence is not None:
-                    for row_index, row in last_component_completed_in_sequence.load_results_dataframe().head(last_component_completed_in_sequence.top_n).iterrows():
-                        nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.')
-                        for nested_target_keys, value in nested_target_keys_and_value_tuples:
-                            kwargs = get_parameters_with_next_step_reference_value_replaced(kwargs, nested_target_keys, new_ref=value, old_ref='^')
-
-                #
-                kwargs = get_parameters_with_next_step_numerical_operators_applied(kwargs)
-
-                #
-                if component_identifier == "step":
-                    component = DockoptStep(**kwargs)
-                elif component_identifier == "sequence":
-                    component = DockoptStepSequence(**kwargs)
-                else:
-                    raise ValueError(
-                        f"Only `step` and `sequence` are component identifiers. Witnessed `{component_identifier}`")
-
-                #
-                component.run(retrodock_args_set)
-
-                #
-                df_component = component.load_results_dataframe()
-                df_component = df_component.head(component.top_n)
-                df_component["pipeline_component_id"] = [
-                    component.component_id for _ in range(len(df_component))
-                ]
-                df_iteration = pd.concat([df_iteration, df_component], ignore_index=True)
-
-                #
-                last_component_completed_in_sequence = component
-
-            #
-            df = pd.concat([df, df_iteration], ignore_index=True)
-
-            #
-            best_criterion_value_witnessed_this_iteration = df_iteration[component.criterion.name].max()
-            if best_criterion_value_witnessed_this_iteration <= best_criterion_value_witnessed:
-                if num_iterations_left_with_no_improvement == 0:
-                    break
-                else:
-                    num_iterations_left_with_no_improvement -= 1
-            else:
-                best_criterion_value_witnessed = best_criterion_value_witnessed_this_iteration
-
-        return df
-
-
-class DockoptPipeline(Pipeline):
-    def __init__(
-            self,
-            dir_path: str,
-            criterion: str,
-            top_n: int,
-            results_manager: ResultsManager,
-            components: Iterable[dict],
-            blaster_files_to_copy_in: Iterable[BlasterFile],
-    ):
-        super().__init__(
-            dir_path=dir_path,
-            criterion=criterion,
-            top_n=top_n,
-            results_manager=results_manager,
-            components=components,
-        )
-
-        #
-        self.blaster_files_to_copy_in = blaster_files_to_copy_in
-
-    def run(
-            self,
-            retrodock_args_set: RetrodockArgsSet
-    ) -> pd.core.frame.DataFrame:
-        #
-        df = pd.DataFrame()
-        last_component_completed = None
-        best_criterion_value_witnessed = -float('inf')
         for i, c in enumerate(self.components):
             kwargs = deepcopy(c)
 
@@ -1499,26 +1388,20 @@ class DockoptPipeline(Pipeline):
                 component_identifier = "sequence"
                 kwargs = kwargs["sequence"]
             else:
-                raise Exception(
-                    f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {kwargs}")
+                raise Exception(f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {kwargs}")
 
             #
-            kwargs['component_id'] = f"{i+1}"
+            kwargs['component_id'] = f"{self.component_id}.{i+1}"
             kwargs['dir_path'] = os.path.join(self.dir.path, str(i+1))
-            kwargs['results_manager'] = self.results_manager
             kwargs['blaster_files_to_copy_in'] = self.blaster_files_to_copy_in
-            kwargs['last_component_completed'] = last_component_completed
+            kwargs['last_component_completed'] = last_component_completed_in_sequence
 
             #
-            if last_component_completed is not None:
-                for row_index, row in last_component_completed.load_results_dataframe().head(
-                        last_component_completed.top_n).iterrows():
-                    nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(
-                        row, identifier_prefix='parameters.')
+            if last_component_completed_in_sequence is not None:
+                for row_index, row in last_component_completed_in_sequence.load_results_dataframe().head(last_component_completed_in_sequence.top_n).iterrows():
+                    nested_target_keys_and_value_tuples = load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.')
                     for nested_target_keys, value in nested_target_keys_and_value_tuples:
-                        kwargs = get_parameters_with_next_step_reference_value_replaced(
-                            kwargs, nested_target_keys, value,
-                            old_ref='^')
+                        kwargs = get_parameters_with_next_step_reference_value_replaced(kwargs, nested_target_keys, new_ref=value, old_ref='^')
 
             #
             kwargs = get_parameters_with_next_step_numerical_operators_applied(kwargs)
@@ -1533,17 +1416,109 @@ class DockoptPipeline(Pipeline):
                     f"Only `step` and `sequence` are component identifiers. Witnessed `{component_identifier}`")
 
             #
-            component.run(retrodock_args_set)
+            component.run(component_run_func_arg_set)
 
             #
             df_component = component.load_results_dataframe()
-            df_component = df_component.head(component.top_n)
             df_component["pipeline_component_id"] = [
                 component.component_id for _ in range(len(df_component))
             ]
             df = pd.concat([df, df_component], ignore_index=True)
 
             #
-            last_component_completed = component
+            last_component_completed_in_sequence = component
+
+        return df
+
+
+class DockoptStepSequence(PipelineComponentSequence):
+
+    def __init__(
+        self,
+        component_id: str,
+        dir_path: str,
+        criterion: str,
+        top_n: int,
+        components: Iterable[dict],
+        num_repetitions: int,
+        max_iterations_with_no_improvement: int,
+        inter_iteration_criterion: str,
+        inter_iteration_top_n: int,
+        blaster_files_to_copy_in: Iterable[BlasterFile],
+        last_component_completed: Union[PipelineComponent, None] = None,
+        **kwargs  # TODO: make this unnecessary
+    ):
+        super().__init__(
+            component_id=component_id,
+            dir_path=dir_path,
+            criterion=criterion,
+            top_n=top_n,
+            results_manager=DockoptStepSequenceResultsManager(RESULTS_CSV_FILE_NAME),
+            components=components,
+            num_repetitions=num_repetitions,
+            max_iterations_with_no_improvement=max_iterations_with_no_improvement,
+            inter_iteration_criterion=inter_iteration_criterion,
+            inter_iteration_top_n=inter_iteration_top_n,
+        )
+
+        #
+        self.blaster_files_to_copy_in = blaster_files_to_copy_in
+        self.last_component_completed = last_component_completed
+
+        #
+        self.best_retrodock_jobs_dir = Dir(
+            path=os.path.join(self.dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
+            create=True,
+            reset=True,
+        )
+
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
+        df = pd.DataFrame()
+        best_criterion_value_witnessed = -float('inf')
+        last_component_completed_in_sequence = self.last_component_completed
+        num_iterations_left_with_no_improvement = self.max_iterations_with_no_improvement
+        for i in range(self.num_repetitions+1):
+            #
+            iteration_num =  i + 1
+
+            #
+            if i == 0:
+                component_criterion = self.last_component_completed.criterion.name
+                component_top_n = self.last_component_completed.top_n
+            else:
+                component_criterion = self.inter_iteration_criterion
+                component_top_n = self.inter_iteration_top_n
+            component = DockoptStepSequenceIteration(
+                component_id=f"{self.component_id}.iter={iteration_num}",
+                dir_path=os.path.join(self.dir.path, f"iter={iteration_num}"),
+                criterion=component_criterion,
+                top_n=component_top_n,
+                components=self.components,
+                blaster_files_to_copy_in=self.blaster_files_to_copy_in,
+                last_component_completed=last_component_completed_in_sequence,
+            )
+
+            #
+            component.run(component_run_func_arg_set)
+
+            #
+            df_component = component.load_results_dataframe()
+            df_component["pipeline_component_id"] = [
+                component.component_id for _ in range(len(df_component))
+            ]
+            df = pd.concat([df, df_component], ignore_index=True)
+
+            #
+            last_component_completed_in_sequence = component
+
+            #
+            best_criterion_value_witnessed_this_iteration = df_component[component.criterion.name].max()
+            if best_criterion_value_witnessed_this_iteration <= best_criterion_value_witnessed:
+                if num_iterations_left_with_no_improvement == 0:
+                    break
+                else:
+                    num_iterations_left_with_no_improvement -= 1
+            else:
+                best_criterion_value_witnessed = best_criterion_value_witnessed_this_iteration
 
         return df

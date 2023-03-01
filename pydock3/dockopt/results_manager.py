@@ -12,7 +12,7 @@ from joypy import joyplot
 
 from pydock3.files import Dir
 from pydock3.dockopt.roc import ROC
-from pydock3.dockopt.reporter import PDFReporter, RETRODOCK_JOB_DIR_PATH_COLUMN_NAME
+from pydock3.dockopt.reporter import PDFReporter, RETRODOCK_JOB_ID_COLUMN_NAME
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
@@ -24,6 +24,7 @@ logger.setLevel(logging.DEBUG)
 
 
 #
+BEST_RETRODOCK_JOBS_DIR_NAME = "best_retrodock_jobs"
 RESULTS_CSV_FILE_NAME = "results.csv"
 
 
@@ -59,7 +60,7 @@ class ResultsManager(object):
         raise NotImplementedError
 
 
-class DockoptResultsManager(ResultsManager):
+class DockoptPipelineComponentResultsManager(ResultsManager):
     def __init__(self, results_file_name: str):
         super().__init__(results_file_name)
 
@@ -69,8 +70,8 @@ class DockoptResultsManager(ResultsManager):
         results_dataframe: pd.core.frame.DataFrame,
     ) -> None:
         results_dataframe.to_csv(os.path.join(pipeline_component.dir.path, self.results_file_name))
-        #self.save_best_retrodock_jobs(pipeline_component, os.path.join(pipeline_component.dir.path, "best_retrodock_jobs"))  # TODO
-        #self.write_report(pipeline_component)  # TODO
+        self.save_best_retrodock_jobs(pipeline_component)
+        self.write_report(pipeline_component)
 
     def load_results(self, pipeline_component: PipelineComponent) -> pd.core.frame.DataFrame:
         df = pd.read_csv(os.path.join(pipeline_component.dir.path, self.results_file_name))
@@ -83,22 +84,34 @@ class DockoptResultsManager(ResultsManager):
     def write_report(self, pipeline_component: PipelineComponent) -> None:
         PDFReporter().write_report(pipeline_component)
 
-    def save_best_retrodock_jobs(self, pipeline_component: PipelineComponent, dst_best_jobs_dir_path: str):
-        # copy best job to output dir
-        logger.debug(
-            f"Copying top {pipeline_component.top_n} retrodock jobs to {dst_best_jobs_dir_path}"
-        )
-        if os.path.isdir(dst_best_jobs_dir_path):
-            shutil.rmtree(dst_best_jobs_dir_path, ignore_errors=True)
+    def save_best_retrodock_jobs(self, pipeline_component: PipelineComponent) -> NoReturn:
+        raise NotImplementedError
 
+
+class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
+
+    def __init__(self, results_file_name: str):
+        super().__init__(results_file_name)
+
+    def save_best_retrodock_jobs(self, pipeline_component: PipelineComponent):
+        # reset best jobs dir
+        pipeline_component.best_retrodock_jobs_dir.reset()
+
+        #
+        logger.debug(
+            f"Copying top {pipeline_component.top_n} retrodock jobs to {pipeline_component.best_retrodock_jobs_dir.path}"
+        )
         for i, row in pipeline_component.get_top_results_dataframe().iterrows():
-            src_retrodock_job_dir_path = row[RETRODOCK_JOB_DIR_PATH_COLUMN_NAME]
-            dst_best_job_dir_path = os.path.join(
-                dst_best_jobs_dir_path, str(i + 1)
+            src_retrodock_job_actives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "actives", str(row[RETRODOCK_JOB_ID_COLUMN_NAME]))
+            src_retrodock_job_decoys_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "decoys", str(row[RETRODOCK_JOB_ID_COLUMN_NAME]))
+            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={row['pipeline_component_id']}_job={row[RETRODOCK_JOB_ID_COLUMN_NAME]}")
+            shutil.copytree(
+                src_retrodock_job_actives_dir_path,
+                os.path.join(dst_best_job_dir_path, "actives"),
             )
             shutil.copytree(
-                src_retrodock_job_dir_path,
-                dst_best_job_dir_path,
+                src_retrodock_job_decoys_dir_path,
+                os.path.join(dst_best_job_dir_path, "decoys"),
             )
 
             # copy docking configuration files to best jobs dir
@@ -106,7 +119,7 @@ class DockoptResultsManager(ResultsManager):
                 os.path.join(dst_best_job_dir_path, "dockfiles"),
                 create=True
             )
-            docking_configuration_file_columns = [col for col in row.columns if col.startswith("dockfiles.")]
+            docking_configuration_file_columns = [col for col in row.to_dict() if col.startswith("dockfiles.")]
             for col in docking_configuration_file_columns:
                 best_job_dockfiles_dir.copy_in_file(
                     os.path.join(pipeline_component.working_dir.path, row[col])
@@ -117,14 +130,12 @@ class DockoptResultsManager(ResultsManager):
                 get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
                     actives_outdock_file_path=os.path.join(
                         dst_best_job_dir_path,
-                        "output",
-                        "1",
+                        "actives",
                         "OUTDOCK.0",
                     ),
                     decoys_outdock_file_path=os.path.join(
                         dst_best_job_dir_path,
-                        "output",
-                        "2",
+                        "decoys",
                         "OUTDOCK.0",
                     ),
                 )
@@ -179,11 +190,9 @@ class DockoptResultsManager(ResultsManager):
                 figsize=(12, 8),
                 ylim="own",
             )
-            plt.title(
-                "ridgeline plot: energy terms (actives vs. decoys)")
+            plt.title("ridgeline plot: energy terms (actives vs. decoys)")
             plt.tight_layout()
-            plt.savefig(os.path.join(dst_best_job_dir_path,
-                                     ENERGY_PLOT_FILE_NAME))
+            plt.savefig(os.path.join(dst_best_job_dir_path, ENERGY_PLOT_FILE_NAME))
             plt.close(fig)
 
             # split violin plot of charges
@@ -196,9 +205,61 @@ class DockoptResultsManager(ResultsManager):
                 split=True,
                 hue="activity_class",
             )
-            plt.title(
-                "split violin plot: charge (actives vs. decoys)")
+            plt.title("split violin plot: charge (actives vs. decoys)")
             plt.tight_layout()
-            plt.savefig(os.path.join(dst_best_job_dir_path,
-                                     CHARGE_PLOT_FILE_NAME))
+            plt.savefig(os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME))
             plt.close(fig)
+
+
+class DockoptStepSequenceIterationResultsManager(DockoptPipelineComponentResultsManager):
+
+    def __init__(self, results_file_name: str):
+        super().__init__(results_file_name)
+
+    def save_best_retrodock_jobs(self, pipeline_component: PipelineComponent):
+        # reset best jobs dir
+        pipeline_component.best_retrodock_jobs_dir.reset()
+
+        #
+        logger.debug(
+            f"Copying top {pipeline_component.top_n} retrodock jobs to {pipeline_component.best_retrodock_jobs_dir.path}"
+        )
+        for i, row in pipeline_component.get_top_results_dataframe().iterrows():
+            #
+            component_relative_id = pipeline_component.component_id.lstrip(f"{row['pipeline_component_id']}.")
+            component_relative_dir_path = "/".join(component_relative_id.split("."))
+
+            #
+            src_best_job_dir_path = os.path.join(component_relative_dir_path, BEST_RETRODOCK_JOBS_DIR_NAME)
+            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={row['pipeline_component_id']}_job={row[RETRODOCK_JOB_ID_COLUMN_NAME]}")
+            shutil.copytree(
+                src_best_job_dir_path,
+                dst_best_job_dir_path,
+            )
+
+
+class DockoptStepSequenceResultsManager(DockoptPipelineComponentResultsManager):
+
+    def __init__(self, results_file_name: str):
+        super().__init__(results_file_name)
+
+    def save_best_retrodock_jobs(self, pipeline_component: PipelineComponent):
+        # reset best jobs dir
+        pipeline_component.best_retrodock_jobs_dir.reset()
+
+        #
+        logger.debug(
+            f"Copying top {pipeline_component.top_n} retrodock jobs to {pipeline_component.best_retrodock_jobs_dir.path}"
+        )
+        for i, row in pipeline_component.get_top_results_dataframe().iterrows():
+            #
+            component_relative_id = pipeline_component.component_id.lstrip(f"{row['pipeline_component_id']}.")
+            component_relative_dir_path = "/".join(component_relative_id.split("."))
+
+            #
+            src_best_job_dir_path = os.path.join(component_relative_dir_path, BEST_RETRODOCK_JOBS_DIR_NAME)
+            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i + 1}_step={row['pipeline_component_id']}_job={row[RETRODOCK_JOB_ID_COLUMN_NAME]}")
+            shutil.copytree(
+                src_best_job_dir_path,
+                dst_best_job_dir_path,
+            )

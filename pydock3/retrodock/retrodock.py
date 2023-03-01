@@ -2,7 +2,7 @@ import os
 import logging
 from uuid import uuid4
 import time
-from dataclasses import dataclass, fields
+from dataclasses import fields
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ from pydock3.files import (
     OutdockFile,
 )
 from pydock3.dockopt.roc import ROC
-from pydock3.jobs import RetrodockJob
+from pydock3.jobs import ArrayDockingJob
 from pydock3.blastermaster.blastermaster import BlasterFiles
 from pydock3.jobs import JobSubmissionResult
 from pydock3.job_schedulers import SGEJobScheduler, SlurmJobScheduler
@@ -42,20 +42,21 @@ CHARGE_PLOT_FILE_NAME = "charge.png"
 
 
 # TODO: add this as a decorator of `submit` method of `DockoptJob`
-def log_job_submission_result(job, submission_result, proc):
+def log_job_submission_result(job, submission_result, procs):
     if submission_result is JobSubmissionResult.SUCCESS:
-        logger.info(f"Retrodock job '{job.name}' successfully submitted.\n")
+        logger.info(f"Job '{job.name}' successfully submitted.\n")
     elif submission_result is JobSubmissionResult.FAILED:
-        logger.info(
-            f"Retrodock job submission failed for '{job.name}' due to error: {proc.stderr}\n"
-        )
+        for proc in procs:
+            logger.info(
+                f"Job submission failed for '{job.name}' due to error: {proc.stderr}\n"
+            )
     elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE:
         logger.info(
-            f"Retrodock job submission skipped for '{job.name}' since all its OUTDOCK files already exist.\n"
+            f"Job submission skipped for '{job.name}' since all its OUTDOCK files already exist.\n"
         )
     elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_STILL_RUNNING:
         logger.info(
-            f"Retrodock job submission skipped for '{job.name}' since it is still running from a previous submission.\n"
+            f"Job submission skipped for '{job.name}' since it is still running from a previous submission.\n"
         )
     else:
         raise Exception(f"Unrecognized JobSubmissionResult: {submission_result}")
@@ -252,22 +253,28 @@ class Retrodock(Script):
         indock_file = IndockFile(indock_file_path)
 
         #
-        retrodock_job = RetrodockJob(
+        array_job_docking_configurations_file_path = os.path.join(job_dir.path, "array_job_docking_configurations.txt")
+        with open(array_job_docking_configurations_file_path, 'w') as f:
+            retrodock_job_num = 1
+            dockfile_paths_str = " ".join([getattr(dock_files, dock_file_field_name).path for dock_file_field_name in sorted([field.name for field in fields(dock_files)])])
+            f.write(f"{retrodock_job_num} {indock_file.path} {dockfile_paths_str} {dock_executable_path}\n")
+
+        #
+        retrodock_job = ArrayDockingJob(
             name=f"retrodock_job_{uuid4()}",  # TODO: replace this with a hash based on docking configuration
             job_dir=job_dir,
             input_sdi_file=retrodock_input_sdi_file,
-            dock_files=dock_files,
-            indock_file=indock_file,
             job_scheduler=scheduler,
             dock_executable_path=dock_executable_path,
+            array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
             temp_storage_path=TMPDIR,
             max_reattempts=retrodock_job_max_reattempts,
         )
-        sub_result, proc = retrodock_job.submit(
+        sub_result, procs = retrodock_job.submit(
             job_timeout_minutes=retrodock_job_timeout_minutes,
             skip_if_complete=True,
         )
-        log_job_submission_result(retrodock_job, sub_result, proc)
+        log_job_submission_result(retrodock_job, sub_result, procs)
 
         #
         while not retrodock_job.is_complete:

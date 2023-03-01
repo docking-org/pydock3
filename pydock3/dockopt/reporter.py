@@ -17,11 +17,11 @@ if TYPE_CHECKING:
 
 
 #
-RETRODOCK_JOB_DIR_PATH_COLUMN_NAME = "retrodock_job_dir"
+RETRODOCK_JOB_ID_COLUMN_NAME = "retrodock_job_id"
 
 #
 METRICS = list(criterion_dict.keys())
-ALL_POSSIBLE_NON_PARAMETER_COLUMNS = [RETRODOCK_JOB_DIR_PATH_COLUMN_NAME] + METRICS
+ALL_POSSIBLE_NON_PARAMETER_COLUMNS = [RETRODOCK_JOB_ID_COLUMN_NAME] + METRICS
 
 
 class Reporter(object):
@@ -58,19 +58,18 @@ class PDFReporter(Reporter):
                 pass
 
             #
-            for i, best_job_dir_path in enumerate(
-                    pipeline_component.get_top_results_dataframe()):  # TODO: replace
+            for i, row in pipeline_component.get_top_results_dataframe().iterrows():
+                #
+                best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"{i + 1}_id={row[RETRODOCK_JOB_ID_COLUMN_NAME]}")
+
                 #
                 roc_file_path = os.path.join(
                     best_job_dir_path, ROC_PLOT_FILE_NAME
                 )
-                if File.file_exists(
-                        roc_file_path):  # TODO: replace this logic with call to `Retrodock.analyze` method or something in order to ensure that these Retrodock-pertaining files are created
+                if File.file_exists(roc_file_path):  # TODO: replace this logic with call to `Retrodock.analyze` method or something in order to ensure that these Retrodock-pertaining files are created
                     image = mpimg.imread(roc_file_path)
                     plt.axis("off")
-                    plt.suptitle(
-                        f"linear-log ROC plot of {get_ordinal(i + 1)} best job\n{best_job_dir_path}"
-                    )
+                    plt.suptitle(f"linear-log ROC plot of {get_ordinal(i + 1)} best job\n{best_job_dir_path}")
                     plt.imshow(image)
                     f.savefig(fig, bbox_inches="tight")
                     plt.close(fig)
@@ -83,8 +82,7 @@ class PDFReporter(Reporter):
                     fig = plt.figure(figsize=(11.0, 8.5))
                     image = mpimg.imread(energy_plot_file_path)
                     plt.axis("off")
-                    plt.suptitle(
-                        "energy terms ridgeline plot of best job")
+                    plt.suptitle("energy terms ridgeline plot of best job")
                     plt.imshow(image)
                     f.savefig(fig, bbox_inches="tight")
                     plt.close(fig)

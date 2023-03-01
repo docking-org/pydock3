@@ -21,8 +21,9 @@ class JobScheduler(ABC):
             job_name,
             script_path,
             env_vars_dict,
-            output_dir_path,
-            n_tasks,
+            out_log_dir_path,
+            err_log_dir_path,
+            task_ids,
             job_timeout_minutes=None,
     ):
         """returns: subprocess.CompletedProcess"""
@@ -34,12 +35,13 @@ class JobScheduler(ABC):
         raise NotImplementedError
 
 
-
 class SlurmJobScheduler(JobScheduler):
     REQUIRED_ENV_VAR_NAMES = [
         "SBATCH_EXEC",
         "SQUEUE_EXEC",
     ]
+
+    MAX_ARRAY_JOBS_SUBMITTED_PER_SBATCH = 100
 
     def __init__(self):
         super().__init__(name="Slurm")
@@ -60,19 +62,25 @@ class SlurmJobScheduler(JobScheduler):
             job_name,
             script_path,
             env_vars_dict,
-            output_dir_path,
-            n_tasks,
+            out_log_dir_path,
+            err_log_dir_path,
+            task_ids,
             job_timeout_minutes=None,
     ):
-        command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {output_dir_path}/{job_name}_%A_%a.out -e {output_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array=1-{n_tasks} {script_path}"
-        if job_timeout_minutes is None:
-            command_str += " --time=0"
-        else:
-            command_str += f" --time={job_timeout_minutes}"
+        procs = []
+        for some_task_ids in [task_ids[x:x+self.MAX_ARRAY_JOBS_SUBMITTED_PER_SBATCH] for x in range(0, len(task_ids), self.MAX_ARRAY_JOBS_SUBMITTED_PER_SBATCH)]:
+            array_str = ','.join(some_task_ids)
+            command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array={array_str} {script_path}"
+            if job_timeout_minutes is None:
+                command_str += " --time=0"
+            else:
+                command_str += f" --time={job_timeout_minutes}"
+            proc = system_call(
+                command_str, env_vars_dict=env_vars_dict
+            )  # need to pass env_vars_dict here so that '--export=ALL' in command can pass along all the env vars
+            procs.append(proc)
 
-        return system_call(
-            command_str, env_vars_dict=env_vars_dict
-        )  # need to pass env_vars_dict here so that '--export=ALL' in command can pass along all the env vars
+        return procs
 
     def is_running_job(self, job_name):
         command_str = f"{self.SQUEUE_EXEC} --format='%.18i %.{len(job_name)}j' | grep '{job_name}'"
@@ -108,8 +116,9 @@ class SGEJobScheduler(JobScheduler):
             job_name,
             script_path,
             env_vars_dict,
-            output_dir_path,
-            n_tasks,
+            out_log_dir_path,
+            err_log_dir_path,
+            task_ids,
             job_timeout_minutes=None,
     ):
         #
@@ -117,16 +126,20 @@ class SGEJobScheduler(JobScheduler):
             raise Exception(f"{self.name} job names must start with a letter.")
 
         #
-        command_str = f"source {self.SGE_SETTINGS}; {self.QSUB_EXEC} -V -N {job_name} -o {output_dir_path} -e {output_dir_path} -cwd -S /bin/bash -q !gpu.q -t 1-{n_tasks} {script_path}"
-        if job_timeout_minutes is not None:
-            job_timeout_seconds = 60 * job_timeout_minutes
-            command_str += (
-                f" -l s_rt={job_timeout_seconds} -l h_rt={job_timeout_seconds} "
-            )
+        procs = []
+        for task_id in task_ids:
+            command_str = f"source {self.SGE_SETTINGS}; {self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd -S /bin/bash -q !gpu.q -t {task_id} {script_path}"
+            if job_timeout_minutes is not None:
+                job_timeout_seconds = 60 * job_timeout_minutes
+                command_str += (
+                    f" -l s_rt={job_timeout_seconds} -l h_rt={job_timeout_seconds} "
+                )
+            proc = system_call(
+                command_str, env_vars_dict=env_vars_dict
+            )  # need to pass env_vars_dict here so that '-V' in command can pass along all the env vars
+            procs.append(proc)
 
-        return system_call(
-            command_str, env_vars_dict=env_vars_dict
-        )  # need to pass env_vars_dict here so that '-V' in command can pass along all the env vars
+        return procs
 
     def is_running_job(self, job_name):
         command_str = f"{self.QSTAT_EXEC} -r | grep '{job_name}'"

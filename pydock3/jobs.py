@@ -1,11 +1,12 @@
 import logging
+import subprocess
+from typing import Tuple, List
 import os
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from enum import Enum
 
-from pydock3.files import Dir, File, IndockFile
-from pydock3.blastermaster.util import DockFiles
+from pydock3.files import Dir, File
 from pydock3.job_schedulers import JobScheduler
 
 from pydock3.docking import __file__ as DOCKING_INIT_FILE_PATH
@@ -31,6 +32,7 @@ class JobSubmissionResult(Enum):
     SKIPPED_BECAUSE_STILL_RUNNING = 4
 
 
+
 @dataclass
 class DockingJob(ABC):
     @abstractmethod
@@ -39,104 +41,127 @@ class DockingJob(ABC):
 
 
 @dataclass
-class RetrodockJob(ABC):
+class ArrayDockingJob(ABC):
     name: str
     job_dir: Dir
-    input_sdi_file: File
-    dock_files: DockFiles
-    indock_file: IndockFile
+    input_molecules_tgz_file_path: str
     job_scheduler: JobScheduler
     temp_storage_path: str
+    array_job_docking_configurations_file_path: str
     dock_executable_path: str = DOCK3_EXECUTABLE_PATH
     max_reattempts: int = 0
-    num_attempts: int = 0
 
-    N_TASKS = 2
-    ACTIVES_TASK_ID = "1"
-    DECOYS_TASK_ID = "2"
     OUTDOCK_FILE_NAME = "OUTDOCK.0"
-    JOBLIST_FILE_NAME = "joblist"
 
     def __post_init__(self):
         #
-        self.output_dir = Dir(
-            path=os.path.join(self.job_dir.path, f"output"), create=True
-        )
+        with open(self.array_job_docking_configurations_file_path, 'r') as f:
+            self.task_ids = [line.strip().split()[0] for line in f.readlines()]
 
-        #
-        self.actives_output_dir = Dir(os.path.join(self.output_dir.path, self.ACTIVES_TASK_ID))
-        self.decoys_output_dir = Dir(os.path.join(self.output_dir.path, self.DECOYS_TASK_ID))
+        # create task dirs
+        task_id_to_num_attempts_so_far_dict = {}
+        for task_id in self.task_ids:
+            task_dir = Dir(os.path.join(self.job_dir.path, task_id), create=True, reset=False)
+            task_id_to_num_attempts_so_far_dict[task_id] = 0
 
-        #
-        self.actives_outdock_file = File(os.path.join(self.actives_output_dir.path, self.OUTDOCK_FILE_NAME))
-        self.decoys_outdock_file = File(os.path.join(self.decoys_output_dir.path, self.OUTDOCK_FILE_NAME))
+        # create log dirs
+        self.out_log_dir = Dir(os.path.join(self.job_dir.path, "out_logs"), create=True, reset=False)
+        self.err_log_dir = Dir(os.path.join(self.job_dir.path, "err_logs"), create=True, reset=False)
 
-        #
-        self._is_complete = False
-
-    def submit(self, job_timeout_minutes=None, skip_if_complete=True):
+    def submit_all_tasks(self, job_timeout_minutes=None, skip_if_complete=True) -> Tuple[JobSubmissionResult, List[subprocess.CompletedProcess]]:
         """
-        if job submission is skipped, returns (JobSubmissionResult, None)
-        if job submission is not skipped, returns (JobSubmissionResult, subprocess.CompletedProcess)
+        if job submission is skipped, returns (JobSubmissionResult, [])
+        if job submission is not skipped, returns (JobSubmissionResult, List[subprocess.CompletedProcess])
+        in case of failed submissions and (JobSubmissionResult, []) otherwise.
         """
 
         #
         if self.is_running:
-            return JobSubmissionResult.SKIPPED_BECAUSE_STILL_RUNNING, None
+            return JobSubmissionResult.SKIPPED_BECAUSE_STILL_RUNNING, []
 
         #
         if skip_if_complete:
             if self.is_complete:
-                return JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE, None
+                return JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE, []
 
-        # reset output dir
-        self.output_dir.delete()
-        self.output_dir.create()
-
-        # make joblist
-        with open(self.input_sdi_file.path, "r") as f:
-            tgz_file_paths = [line.strip() for line in f.readlines()]
-        try:
-            assert len(tgz_file_paths) == 2
-        except AssertionError:
-            raise Exception(
-                "Attempted to pass SDI file with more than two lines to RetrodockJob()"
-            )
-        with open(os.path.join(self.output_dir.path, self.JOBLIST_FILE_NAME), "w") as f:
-            for i, tgz_file_path in enumerate(tgz_file_paths):
-                task_id = i + 1
-                f.write(f"{tgz_file_path} {task_id}\n")
+        # reset task dirs
+        task_ids_to_submit = []
+        for task_id in self.task_ids:
+            if not (self.task_is_complete(task_id) and skip_if_complete):
+                task_dir = Dir(os.path.join(self.job_dir.path, task_id), create=True, reset=True)  # reset dir
+                task_ids_to_submit.append(task_id)
 
         # set env vars dict
-        dock_file_paths = [
-            getattr(self.dock_files, dock_file_field.name).path
-            for dock_file_field in fields(self.dock_files)
-        ]
         env_vars_dict = {
-            "EXPORT_DEST": self.output_dir.path,
-            "INPUT_SOURCE": self.input_sdi_file.path,
+            "EXPORT_DEST": self.job_dir.path,
             "DOCKEXEC": self.dock_executable_path,
             "TMPDIR": self.temp_storage_path,
-            "DOCKFILE_PATHS_LIST": " ".join(dock_file_paths),
-            "INDOCK_PATH": self.indock_file.path,
+            "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
+            "INPUT_TARBALL": self.input_molecules_tgz_file_path,
             "ONLY_EXPORT_MOL2_FOR_TASK_1": "true",
         }
 
         # submit job
-        proc = self.job_scheduler.submit(
+        procs = self.job_scheduler.submit(
             job_name=self.name,
             script_path=DOCK_RUN_SCRIPT_PATH,
             env_vars_dict=env_vars_dict,
-            output_dir_path=self.output_dir.path,
-            n_tasks=self.N_TASKS,
+            out_log_dir_path=self.out_log_dir.path,
+            err_log_dir_path=self.err_log_dir.path,
+            task_ids=task_ids_to_submit,
             job_timeout_minutes=job_timeout_minutes,
         )
-        self.num_attempts += 1
 
-        if proc.stderr:
-            return JobSubmissionResult.FAILED, proc
+        failed_procs = [proc for proc in procs if proc.stderr]
+        if failed_procs:
+            return JobSubmissionResult.FAILED, failed_procs
         else:
-            return JobSubmissionResult.SUCCESS, proc
+            return JobSubmissionResult.SUCCESS, []
+
+    def submit_task(self, task_id, job_timeout_minutes=None, skip_if_complete=True) -> Tuple[JobSubmissionResult, List[subprocess.CompletedProcess]]:
+        """
+        if job submission is skipped, returns (JobSubmissionResult, [])
+        if job submission is not skipped, returns (JobSubmissionResult, List[subprocess.CompletedProcess])
+        in case of failed submissions and (JobSubmissionResult, []) otherwise.
+        """
+
+        #
+        if skip_if_complete:
+            if self.task_is_complete(task_id):
+                return JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE, []
+
+        # reset task dir
+        task_ids_to_submit = []
+        if not (self.task_is_complete(task_id) and skip_if_complete):
+            task_dir = Dir(os.path.join(self.job_dir.path, task_id), create=True, reset=True)  # reset dir
+            task_ids_to_submit.append(task_id)
+
+        # set env vars dict
+        env_vars_dict = {
+            "EXPORT_DEST": self.job_dir.path,
+            "DOCKEXEC": self.dock_executable_path,
+            "TMPDIR": self.temp_storage_path,
+            "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
+            "INPUT_TARBALL": self.input_molecules_tgz_file_path,
+            "ONLY_EXPORT_MOL2_FOR_TASK_1": "true",
+        }
+
+        # submit job
+        procs = self.job_scheduler.submit(
+            job_name=self.name,
+            script_path=DOCK_RUN_SCRIPT_PATH,
+            env_vars_dict=env_vars_dict,
+            out_log_dir_path=self.out_log_dir.path,
+            err_log_dir_path=self.err_log_dir.path,
+            task_ids=task_ids_to_submit,
+            job_timeout_minutes=job_timeout_minutes,
+        )
+
+        failed_procs = [proc for proc in procs if proc.stderr]
+        if failed_procs:
+            return JobSubmissionResult.FAILED, failed_procs
+        else:
+            return JobSubmissionResult.SUCCESS, []
 
     @property
     def is_running(self):
@@ -146,9 +171,10 @@ class RetrodockJob(ABC):
     def is_complete(self):
         return all(
             [
-                File.file_exists(
-                    os.path.join(self.output_dir.path, task_id, self.OUTDOCK_FILE_NAME)
-                )
-                for task_id in [self.ACTIVES_TASK_ID, self.DECOYS_TASK_ID]
+                self.task_is_complete(task_id)
+                for task_id in self.task_ids
             ]
         )
+
+    def task_is_complete(self, task_id):
+        return File.file_exists(os.path.join(self.job_dir.path, task_id, self.OUTDOCK_FILE_NAME))
