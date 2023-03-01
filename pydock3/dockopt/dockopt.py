@@ -1055,7 +1055,7 @@ class DockoptStep(PipelineComponent):
 
             if any([not array_job.task_is_complete(task_id) for array_job in array_jobs]):  # one or both OUTDOCK files do not exist yet
                 time.sleep(
-                    1
+                    0.01
                 )  # sleep for a bit
                 if any([(not array_job.task_is_complete(task_id)) and (not array_job.is_running) for array_job in array_jobs]):
                     # task must have timed out / failed for one or both jobs
