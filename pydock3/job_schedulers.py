@@ -1,6 +1,8 @@
 import logging
 import os
 from abc import ABC, abstractmethod
+from itertools import groupby
+from operator import itemgetter
 
 from pydock3.util import system_call
 
@@ -67,9 +69,17 @@ class SlurmJobScheduler(JobScheduler):
             task_ids,
             job_timeout_minutes=None,
     ):
+        #
+        task_nums = sorted([int(task_id) for task_id in task_ids])
+        contiguous_task_nums_sets = [list(map(itemgetter(1), g)) for k, g in groupby(enumerate(task_nums), lambda x: x[0] - x[1])]
+
+        #
         procs = []
-        for some_task_ids in [task_ids[x:x+self.MAX_ARRAY_JOBS_SUBMITTED_PER_SBATCH] for x in range(0, len(task_ids), self.MAX_ARRAY_JOBS_SUBMITTED_PER_SBATCH)]:
-            array_str = ','.join(some_task_ids)
+        for contiguous_task_nums_set in contiguous_task_nums_sets:
+            if len(contiguous_task_nums_set) == 1:
+                array_str = f"{contiguous_task_nums_sets[0]}"
+            else:
+                array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
             command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array={array_str} {script_path}"
             if job_timeout_minutes is None:
                 command_str += " --time=0"
@@ -126,9 +136,17 @@ class SGEJobScheduler(JobScheduler):
             raise Exception(f"{self.name} job names must start with a letter.")
 
         #
+        task_nums = sorted([int(task_id) for task_id in task_ids])
+        contiguous_task_nums_sets = [list(map(itemgetter(1), g)) for k, g in groupby(enumerate(task_nums), lambda x: x[0] - x[1])]
+
+        #
         procs = []
-        for task_id in task_ids:
-            command_str = f"source {self.SGE_SETTINGS}; {self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd -S /bin/bash -q !gpu.q -t {task_id} {script_path}"
+        for contiguous_task_nums_set in contiguous_task_nums_sets:
+            if len(contiguous_task_nums_set) == 1:
+                array_str = f"{contiguous_task_nums_sets[0]}"
+            else:
+                array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
+            command_str = f"source {self.SGE_SETTINGS}; {self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd -S /bin/bash -q !gpu.q -t {array_str} {script_path}"
             if job_timeout_minutes is not None:
                 job_timeout_seconds = 60 * job_timeout_minutes
                 command_str += (
