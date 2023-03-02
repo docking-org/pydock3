@@ -193,8 +193,6 @@ function cleanup {
 		nlog=0
 	fi
 
-	chmod -R 777 $OUTPUT
-
 	cp -p $JOB_DIR/working/OUTDOCK $OUTPUT/OUTDOCK.$nout
 	if $ONLY_EXPORT_MOL2_FOR_TASK_1; then
 		if [ $TASK_ID == 1 ]; then
@@ -211,6 +209,8 @@ function cleanup {
 	elif [ -f $OUTPUT/restart ]; then
 		rm $OUTPUT/restart
 	fi
+
+	chmod -R 777 $OUTPUT
 
 	rm -rf $JOB_DIR
 }
