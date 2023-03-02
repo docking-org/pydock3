@@ -50,6 +50,7 @@ class ArrayDockingJob(ABC):
     array_job_docking_configurations_file_path: str
     dock_executable_path: str = DOCK3_EXECUTABLE_PATH
     max_reattempts: int = 0
+    export_mol2: bool = True
 
     OUTDOCK_FILE_NAME = "OUTDOCK.0"
 
@@ -98,8 +99,13 @@ class ArrayDockingJob(ABC):
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
             "INPUT_TARBALL": self.input_molecules_tgz_file_path,
-            "ONLY_EXPORT_MOL2_FOR_TASK_1": "true",
         }
+
+        #
+        if self.export_mol2:
+            env_vars_dict["EXPORT_MOL2"] = "true"
+        else:
+            env_vars_dict["EXPORT_MOL2"] = "false"
 
         # submit job
         procs = self.job_scheduler.submit(
@@ -143,8 +149,13 @@ class ArrayDockingJob(ABC):
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
             "INPUT_TARBALL": self.input_molecules_tgz_file_path,
-            "ONLY_EXPORT_MOL2_FOR_TASK_1": "true",
         }
+
+        #
+        if self.export_mol2:
+            env_vars_dict["EXPORT_MOL2"] = "true"
+        else:
+            env_vars_dict["EXPORT_MOL2"] = "false"
 
         # submit job
         procs = self.job_scheduler.submit(

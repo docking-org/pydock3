@@ -1021,7 +1021,10 @@ class DockoptStep(PipelineComponent):
 
         # submit retrodock jobs (one for actives, one for decoys)
         array_jobs = []
-        for sub_dir_name, input_molecules_tgz_file_path in [('actives', component_run_func_arg_set.actives_tgz_file_path), ('decoys', component_run_func_arg_set.decoys_tgz_file_path)]:
+        for sub_dir_name, should_export_mol2, input_molecules_tgz_file_path in [
+            ('actives', True, component_run_func_arg_set.actives_tgz_file_path),
+            ('decoys', False, component_run_func_arg_set.decoys_tgz_file_path),
+        ]:
             array_job = ArrayDockingJob(
                 name=f"dockopt_job_{job_hash}_{sub_dir_name}",
                 job_dir=Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name)),
@@ -1031,6 +1034,7 @@ class DockoptStep(PipelineComponent):
                 temp_storage_path=component_run_func_arg_set.temp_storage_path,
                 array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
                 max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,
+                export_mol2=should_export_mol2,
             )
             sub_result, procs = array_job.submit_all_tasks(
                 job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,

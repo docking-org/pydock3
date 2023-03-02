@@ -9,12 +9,12 @@
 # SKIP_IF_ALREADY_DONE
 
 #optional:
-# ONLY_EXPORT_MOL2_FOR_TASK_1
+# EXPORT_MOL2
 
 
 # set default for unset vars
-if [[ -z $ONLY_EXPORT_MOL2_FOR_TASK_1 ]]; then
-	ONLY_EXPORT_MOL2_FOR_TASK_1=false
+if [[ -z $EXPORT_MOL2 ]]; then
+	EXPORT_MOL2=true
 fi
 
 # get scheduler job / task IDs
@@ -46,7 +46,7 @@ log DOCKEXEC=$DOCKEXEC
 log TMPDIR=$TMPDIR
 log ARRAY_JOB_DOCKING_CONFIGURATIONS
 log INPUT_TARBALL
-log ONLY_EXPORT_MOL2_FOR_TASK_1=$ONLY_EXPORT_MOL2_FOR_TASK_1
+log EXPORT_MOL2=$EXPORT_MOL2
 log df=$(df)
 
 # validate required environmental variables
@@ -194,12 +194,8 @@ function cleanup {
 	fi
 
 	cp -p $JOB_DIR/working/OUTDOCK $OUTPUT/OUTDOCK.$nout
-	if $ONLY_EXPORT_MOL2_FOR_TASK_1; then
-		if [ $TASK_ID == 1 ]; then
-			cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
-		fi
-  else
-    cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
+	if $EXPORT_MOL2; then
+	  cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
   fi
 	cp -p $LOG_OUT $OUTPUT/$nout.out
 	cp -p $LOG_ERR $OUTPUT/$nout.err
