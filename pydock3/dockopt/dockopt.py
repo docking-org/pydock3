@@ -1424,9 +1424,6 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
 
             #
             df_component = component.load_results_dataframe()
-            df_component["pipeline_component_id"] = [
-                component.component_id for _ in range(len(df_component))
-            ]
             df = pd.concat([df, df_component], ignore_index=True)
 
             #
@@ -1507,9 +1504,6 @@ class DockoptStepSequence(PipelineComponentSequence):
 
             #
             df_component = component.load_results_dataframe()
-            df_component["pipeline_component_id"] = [
-                component.component_id for _ in range(len(df_component))
-            ]
             df = pd.concat([df, df_component], ignore_index=True)
 
             #
