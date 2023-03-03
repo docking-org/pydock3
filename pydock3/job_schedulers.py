@@ -77,7 +77,7 @@ class SlurmJobScheduler(JobScheduler):
         procs = []
         for contiguous_task_nums_set in contiguous_task_nums_sets:
             if len(contiguous_task_nums_set) == 1:
-                array_str = f"{contiguous_task_nums_sets[0]}"
+                array_str = f"{contiguous_task_nums_set[0]}"
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
             command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array={array_str} {script_path}"
@@ -143,7 +143,7 @@ class SGEJobScheduler(JobScheduler):
         procs = []
         for contiguous_task_nums_set in contiguous_task_nums_sets:
             if len(contiguous_task_nums_set) == 1:
-                array_str = f"{contiguous_task_nums_sets[0]}"
+                array_str = f"{contiguous_task_nums_set[0]}"
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
             command_str = f"source {self.SGE_SETTINGS}; {self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd -S /bin/bash -q !gpu.q -t {array_str} {script_path}"
