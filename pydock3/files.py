@@ -115,7 +115,7 @@ class Dir(FileSystemEntity):
 
     def delete(self):
         if os.path.exists(self.path):
-            shutil.rmtree(self.path)
+            shutil.rmtree(self.path, ignore_errors=True)
             while os.path.isdir(self.path):
                 pass
             logger.info(f"Deleted directory {self}.")
