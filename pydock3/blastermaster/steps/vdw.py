@@ -34,10 +34,10 @@ class VDWScoringGridGenerationStep(BlasterStep):
         super().__init__(
             working_dir=working_dir,
             infile_tuples=[
-                (protein_table_infile, "protein_table_infile"),
-                (vdw_parameters_infile, "vdw_parameters_infile"),
-                (charged_receptor_infile, "charged_receptor_infile"),
-                (box_infile, "box_infile"),
+                (protein_table_infile, "protein_table_infile", None),
+                (vdw_parameters_infile, "vdw_parameters_infile", None),
+                (charged_receptor_infile, "charged_receptor_infile", None),
+                (box_infile, "box_infile", None),
             ],
             outfile_tuples=[
                 (vdw_outfile, "vdw_outfile", self.MandatoryFileNames.VDW_FILE),

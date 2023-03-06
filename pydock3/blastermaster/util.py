@@ -200,7 +200,13 @@ class WorkingDir(Dir):
         if backup_files_to_copy_in is None:
             backup_files_to_copy_in = []
         if new_backup_file_names is None:
-            new_file_names = []
+            new_backup_file_names = []
+
+        #
+        if len(files_to_copy_in) != len(new_file_names):
+            raise Exception("# files to copy in must match # of new file names.")
+        if len(backup_files_to_copy_in) != len(new_backup_file_names):
+            raise Exception("# backup files to copy in must match # of new backup file names.")
 
         # copy in specified files if they exist, otherwise try to copy in backup files
         file_names_to_copy_in = [
@@ -230,7 +236,7 @@ class BlasterFiles(object):
         working_dir,
     ):
         #
-        for blaster_file_identifier, proper_blaster_file_name in BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT:
+        for blaster_file_identifier, proper_blaster_file_name in BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.items():
             blaster_file = BlasterFile(path=os.path.join(working_dir.path, proper_blaster_file_name), identifier=blaster_file_identifier)
             setattr(self, blaster_file_identifier, blaster_file)
 
@@ -277,9 +283,9 @@ class BlasterStep(object):
         self._parameters = None
 
         #
-        self.infiles = self._process_infiles(infile_tuples)
-        self.outfiles = self._process_outfiles(outfile_tuples)
-        self.parameters = self._process_parameters(parameter_tuples)
+        self.infiles = self._process_infiles(*infile_tuples)
+        self.outfiles = self._process_outfiles(*outfile_tuples)
+        self.parameters = self._process_parameters(*parameter_tuples)
 
         #
         if program_file_path:
@@ -337,7 +343,7 @@ class BlasterStep(object):
 
         #
         Infiles = collections.namedtuple(
-            "Infiles", " ".join([arg_name for infile, arg_name in infile_tuples])
+            "Infiles", " ".join([arg_name for infile, arg_name, new_file_name in infile_tuples])
         )
 
         #
@@ -355,7 +361,7 @@ class BlasterStep(object):
 
         self._outfiles = outfiles_named_tuple
 
-    def _process_outfiles(self, *outfile_tuples, new_file_names_tuple=None):
+    def _process_outfiles(self, *outfile_tuples):
         step_outfiles = []
         for i, (outfile, arg_name, new_file_name) in enumerate(outfile_tuples):
             #
@@ -381,7 +387,7 @@ class BlasterStep(object):
 
         #
         Outfiles = collections.namedtuple(
-            "Outfiles", " ".join([arg_name for outfile, arg_name in outfile_tuples])
+            "Outfiles", " ".join([arg_name for outfile, arg_name, new_file_name in outfile_tuples])
         )
 
         #

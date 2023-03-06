@@ -54,7 +54,7 @@ class MatchingSpheresPerturbationStep(BlasterStep):
         new_spheres = []
         for sphere in spheres:
             new_sphere = deepcopy(sphere)
-            max_deviation = float(self.parameters.max_deviation_angstroms.value)
+            max_deviation = float(self.parameters.max_deviation_angstroms_parameter.value)
             perturbation_xyz = tuple(
                 [
                     random.uniform(

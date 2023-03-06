@@ -48,7 +48,6 @@ class ArrayDockingJob(ABC):
     job_scheduler: JobScheduler
     temp_storage_path: str
     array_job_docking_configurations_file_path: str
-    dock_executable_path: str = DOCK3_EXECUTABLE_PATH
     max_reattempts: int = 0
     export_mol2: bool = True
 
@@ -95,7 +94,6 @@ class ArrayDockingJob(ABC):
         # set env vars dict
         env_vars_dict = {
             "EXPORT_DEST": self.job_dir.path,
-            "DOCKEXEC": self.dock_executable_path,
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
             "INPUT_TARBALL": self.input_molecules_tgz_file_path,
@@ -145,7 +143,6 @@ class ArrayDockingJob(ABC):
         # set env vars dict
         env_vars_dict = {
             "EXPORT_DEST": self.job_dir.path,
-            "DOCKEXEC": self.dock_executable_path,
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
             "INPUT_TARBALL": self.input_molecules_tgz_file_path,

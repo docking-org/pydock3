@@ -2,7 +2,6 @@
 
 # req:
 # EXPORT_DEST
-# DOCKEXEC
 # TMPDIR
 # ARRAY_JOB_DOCKING_CONFIGURATIONS
 # INPUT_TARBALL
@@ -42,7 +41,6 @@ log SCHEDULER_NAME=$SCHEDULER_NAME
 log JOB_ID=$JOB_ID
 log TASK_ID=$TASK_ID
 log EXPORT_DEST=$EXPORT_DEST
-log DOCKEXEC=$DOCKEXEC
 log TMPDIR=$TMPDIR
 log ARRAY_JOB_DOCKING_CONFIGURATIONS
 log INPUT_TARBALL
@@ -50,9 +48,9 @@ log EXPORT_MOL2=$EXPORT_MOL2
 log df=$(df)
 
 # validate required environmental variables
-for var in EXPORT_DEST DOCKFILES DOCKEXEC TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL; do
+for var in EXPORT_DEST DOCKFILES TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL; do
 	if [[ -z var ]]; then
-		echo "One or more of the following require environmental variables are not defined: EXPORT_DEST DOCKFILES DOCKEXEC TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL"
+		echo "One or more of the following require environmental variables are not defined: EXPORT_DEST DOCKFILES TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL"
 		exit 1
 	fi
 done
@@ -83,6 +81,10 @@ chmod -R 777 $OUTPUT
 
 # copy dockfiles
 awk "\$1==${TASK_ID}{for (j=2; j<=NF; j++) print \$j}" "$ARRAY_JOB_DOCKING_CONFIGURATIONS" | xargs -I {} cp {} "$DOCKFILES_TEMP"
+
+# get dock executable path from array job docking configurations file (dockexec is last column)
+DOCKEXEC=$(awk -v var="$TASK_ID" '$1 == var {print $NF}' "$ARRAY_JOB_DOCKING_CONFIGURATIONS")
+log DOCKEXEC=$DOCKEXEC
 
 # validate that there is exactly one INDOCK file
 num_indock_files=$(ls "$DOCKFILES_TEMP"/INDOCK* 2>/dev/null | wc -l)

@@ -19,8 +19,8 @@ class ReceptorTransformationForElectrostatics(BlasterStep):
         super().__init__(
             working_dir=working_dir,
             infile_tuples=[
-                (charged_receptor_infile, "charged_receptor_infile"),
-                (spheres_pdb_infile, "spheres_pdb_infile"),
+                (charged_receptor_infile, "charged_receptor_infile", None),
+                (spheres_pdb_infile, "spheres_pdb_infile", None),
             ],
             outfile_tuples=[
                 (receptor_low_dielectric_pdb_outfile, "receptor_low_dielectric_pdb_outfile", None),
