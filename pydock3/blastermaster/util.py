@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 import collections
 from copy import deepcopy
 from datetime import datetime
@@ -8,7 +9,7 @@ from dataclasses import dataclass
 
 from pydock3.util import validate_variable_type, system_call
 from pydock3.config import Parameter
-from pydock3.files import File, Dir, LogFile
+from pydock3.files import File, Dir, ProgramFile, LogFile
 from pydock3.blastermaster.programs import __file__ as PROGRAMS_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 
@@ -20,6 +21,64 @@ DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 #
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+#
+BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT = {
+    'add_h_dict_file': "reduce_wwPDB_het_dict.txt",
+    'binding_site_residues_parameters_file': "filt.params",
+    'molecular_surface_radii_file': "radii",
+    'electrostatics_charge_file': "amb.crg.oxt",
+    'electrostatics_radius_file': "vdw.siz",
+    'electrostatics_delphi_file': "delphi.def",
+    'vdw_parameters_file': "vdw.parms.amb.mindock",
+    'vdw_protein_table_file': "prot.table.ambcrg.ambH",
+    'residue_code_to_polar_h_yaml_file': "residue_code_polar_h.yaml",
+    'receptor_file': "rec.pdb",
+    'ligand_file': "xtal-lig.pdb",
+    'receptor_most_occupied_residues_renamed_file': "rec.most_occ_renamed.pdb",
+    'ligand_hetatm_renamed_file': "xtal-lig.hetatm_renamed.pdb",
+    'charged_receptor_file': "rec.crg.pdb",
+    'charged_receptor_deprotonated_file': "rec.crg.deprotonated.pdb",
+    'binding_site_residues_file': "rec.site",
+    'molecular_surface_file': "rec.ms",
+    'all_spheres_file': "all_spheres.sph",
+    'electrostatics_phi_file': "qnifft.electrostatics.phi",
+    'electrostatics_pdb_file': "qnifft.atm",
+    'electrostatics_trim_phi_file': "trim.electrostatics.phi",
+    'electrostatics_phi_size_file': "phi.size",
+    'thin_spheres_elec_file': "thin_spheres_elec.sph",
+    'thin_spheres_desolv_file': "thin_spheres_desolv.sph",
+    'thin_spheres_elec_molecular_surface_file': "rec.ts_elec.ms",
+    'thin_spheres_desolv_molecular_surface_file': "rec.ts_desolv.ms",
+    'close_spheres_elec_file': f"thin_spheres_elec.sph.close",
+    'close_spheres_desolv_file': f"thin_spheres_desolv.sph.close",
+    'close_spheres_elec_pdb_file': f"thin_spheres_elec.sph.close.pdb",
+    'close_spheres_desolv_pdb_file': f"thin_spheres_desolv.close.pdb",
+    'matching_spheres_file': "matching_spheres.sph",
+    'box_file': "box",
+    'ligand_matching_spheres_file': "xtal-lig.match.sph",
+    'low_dielectric_spheres_file': "lowdielectric.sph",
+    'low_dielectric_spheres_pdb_file': f"lowdielectric.sph.pdb",
+    'receptor_low_dielectric_pdb_file': "receptor.crg.lowdielectric.pdb",
+    'charged_receptor_desolv_pdb_file': "rec.crg.lds.pdb",
+    'vdw_file': "vdw.vdw",
+    'vdw_bump_map_file': "vdw.bmp",
+    'ligand_desolvation_heavy_file': "ligand.desolv.heavy",
+    'ligand_desolvation_hydrogen_file': "ligand.desolv.hydrogen",
+}
+PROPER_BLASTER_FILE_NAME_TO_BLASTER_FILE_IDENTIFIER_DICT = {value: key for key, value in BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.items()}
+DOCK_FILE_IDENTIFIERS = [
+    "electrostatics_phi_size_file",
+    "electrostatics_trim_phi_file",
+    "ligand_desolvation_heavy_file",
+    "ligand_desolvation_hydrogen_file",
+    "matching_spheres_file",
+    "vdw_bump_map_file",
+    "vdw_file",
+    "vdw_parameters_file",
+]
+DOCK_FILE_IDENTIFIER_TO_PROPER_DOCK_FILE_NAME_DICT = {dock_file_identifier: BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT[dock_file_identifier] for dock_file_identifier in DOCK_FILE_IDENTIFIERS}
 
 
 #
@@ -55,22 +114,24 @@ class ProgramFilePaths:
 class BlasterFile(File):
     """#TODO"""
 
-    def __init__(self, path, src_file_path=None):
+    def __init__(self, path, identifier, src_file_path=None):
         super().__init__(path=path)
 
         #
-        self.src_file_path = None
+        self.identifier = identifier
 
         #
-
         if src_file_path is not None:
             if self.exists:
+                self.src_file_path = None
                 logger.debug(
                     f"Source file provided for {self.name} but file already exists in working dir: '{self.path}'. Using existing version instead of source file {src_file_path}."
                 )
             else:
                 self.src_file_path = src_file_path
                 self.copy_from(self.src_file_path, overwrite=True)
+        else:
+            self.src_file_path = None
 
         #
         if self.exists:
@@ -161,91 +222,6 @@ class WorkingDir(Dir):
                 self.copy_in_file(src_file_path, dst_file_name=dst_file_name)
 
 
-@dataclass
-class BlasterFileNames(object):
-    #
-    add_h_dict_file_name: str = "reduce_wwPDB_het_dict.txt"
-    binding_site_residues_parameters_file_name: str = "filt.params"
-    molecular_surface_radii_file_name: str = "radii"
-    electrostatics_charge_file_name: str = "amb.crg.oxt"
-    electrostatics_radius_file_name: str = "vdw.siz"
-    electrostatics_delphi_file_name: str = "delphi.def"
-    vdw_parameters_file_name: str = "vdw.parms.amb.mindock"
-    vdw_protein_table_file_name: str = "prot.table.ambcrg.ambH"
-    residue_code_to_polar_h_yaml_file_name: str = "residue_code_polar_h.yaml"
-
-    #
-    receptor_file_name: str = "rec.pdb"
-    ligand_file_name: str = "xtal-lig.pdb"
-
-    receptor_most_occupied_residues_renamed_file_name: str = "rec.most_occ_renamed.pdb"
-
-    ligand_hetatm_renamed_file_name: str = "xtal-lig.hetatm_renamed.pdb"
-
-    charged_receptor_file_name: str = "rec.crg.pdb"
-
-    charged_receptor_deprotonated_file_name: str = "rec.crg.deprotonated.pdb"
-
-    binding_site_residues_file_name: str = "rec.site"
-
-    molecular_surface_file_name: str = "rec.ms"
-
-    all_spheres_file_name: str = "all_spheres.sph"
-
-    electrostatics_phi_file_name: str = "qnifft.electrostatics.phi"
-    electrostatics_pdb_file_name: str = "qnifft.atm"
-    electrostatics_trim_phi_file_name: str = "trim.electrostatics.phi"
-    electrostatics_phi_size_file_name: str = "phi.size"
-
-    thin_spheres_elec_file_name: str = "thin_spheres_elec.sph"
-    thin_spheres_desolv_file_name: str = "thin_spheres_desolv.sph"
-
-    thin_spheres_elec_molecular_surface_file_name: str = "rec.ts_elec.ms"
-    thin_spheres_desolv_molecular_surface_file_name: str = "rec.ts_desolv.ms"
-
-    close_spheres_elec_file_name: str = f"{thin_spheres_elec_file_name}.close"
-    close_spheres_desolv_file_name: str = f"{thin_spheres_desolv_file_name}.close"
-
-    close_spheres_elec_pdb_file_name: str = f"{thin_spheres_elec_file_name}.close.pdb"
-    close_spheres_desolv_pdb_file_name: str = (
-        f"{thin_spheres_desolv_file_name}.close.pdb"
-    )
-
-    matching_spheres_file_name: str = "matching_spheres.sph"
-
-    box_file_name: str = "box"
-
-    ligand_matching_spheres_file_name: str = "xtal-lig.match.sph"
-
-    low_dielectric_spheres_file_name: str = "lowdielectric.sph"
-    low_dielectric_spheres_pdb_file_name: str = (
-        f"{low_dielectric_spheres_file_name}.pdb"
-    )
-
-    receptor_low_dielectric_pdb_file_name: str = "receptor.crg.lowdielectric.pdb"
-
-    charged_receptor_desolv_pdb_file_name: str = "rec.crg.lds.pdb"
-
-    vdw_file_name: str = "vdw.vdw"
-    vdw_bump_map_file_name: str = "vdw.bmp"
-
-    ligand_desolvation_heavy_file_name: str = "ligand.desolv.heavy"
-    ligand_desolvation_hydrogen_file_name: str = "ligand.desolv.hydrogen"
-
-    @property
-    def dock_file_identifier_to_dock_file_name_dict(self):
-        return {
-            "matching_spheres_file": self.matching_spheres_file_name,
-            "electrostatics_trim_phi_file": self.electrostatics_trim_phi_file_name,
-            "vdw_file": self.vdw_file_name,
-            "vdw_bump_map_file": self.vdw_bump_map_file_name,
-            "vdw_parameters_file": self.vdw_parameters_file_name,
-            "ligand_desolvation_heavy_file": self.ligand_desolvation_heavy_file_name,
-            "ligand_desolvation_hydrogen_file": self.ligand_desolvation_hydrogen_file_name,
-            "electrostatics_phi_size_file": self.electrostatics_phi_size_file_name,
-        }
-
-
 class BlasterFiles(object):
     """See: https://wiki.bkslab.org/index.php/Blastermaster_files"""
 
@@ -254,226 +230,13 @@ class BlasterFiles(object):
         working_dir,
     ):
         #
-        blaster_file_names = BlasterFileNames()
-
-        #
-        self.add_h_dict_file = BlasterFile(
-            path=os.path.join(working_dir.path, blaster_file_names.add_h_dict_file_name)
-        )
-        self.binding_site_residues_parameters_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.binding_site_residues_parameters_file_name,
-            )
-        )
-        self.molecular_surface_radii_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.molecular_surface_radii_file_name
-            )
-        )
-        self.electrostatics_charge_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.electrostatics_charge_file_name
-            )
-        )
-        self.electrostatics_radius_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.electrostatics_radius_file_name
-            )
-        )
-        self.electrostatics_delphi_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.electrostatics_delphi_file_name
-            )
-        )
-        self.vdw_parameters_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.vdw_parameters_file_name
-            )
-        )
-        self.vdw_protein_table_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.vdw_protein_table_file_name
-            )
-        )
-        self.residue_code_to_polar_h_yaml_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.residue_code_to_polar_h_yaml_file_name
-            )
-        )
-        self.receptor_file = BlasterFile(
-            path=os.path.join(working_dir.path, blaster_file_names.receptor_file_name)
-        )
-        self.receptor_most_occupied_residues_renamed_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.receptor_most_occupied_residues_renamed_file_name,
-            )
-        )
-        self.ligand_file = BlasterFile(
-            path=os.path.join(working_dir.path, blaster_file_names.ligand_file_name)
-        )
-        self.ligand_hetatm_renamed_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.ligand_hetatm_renamed_file_name
-            )
-        )
-        self.charged_receptor_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.charged_receptor_file_name
-            )
-        )
-        self.charged_receptor_deprotonated_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.charged_receptor_deprotonated_file_name,
-            )
-        )
-        self.binding_site_residues_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.binding_site_residues_file_name
-            )
-        )
-        self.molecular_surface_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.molecular_surface_file_name
-            )
-        )
-        self.all_spheres_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.all_spheres_file_name
-            )
-        )
-        self.electrostatics_phi_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.electrostatics_phi_file_name
-            )
-        )
-        self.electrostatics_pdb_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.electrostatics_pdb_file_name
-            )
-        )
-        self.electrostatics_trim_phi_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.electrostatics_trim_phi_file_name
-            )
-        )
-        self.electrostatics_phi_size_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.electrostatics_phi_size_file_name
-            )
-        )
-        self.thin_spheres_elec_molecular_surface_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.thin_spheres_elec_molecular_surface_file_name,
-            )
-        )
-        self.thin_spheres_desolv_molecular_surface_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.thin_spheres_desolv_molecular_surface_file_name,
-            )
-        )
-        self.thin_spheres_elec_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.thin_spheres_elec_file_name
-            )
-        )
-        self.thin_spheres_desolv_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.thin_spheres_desolv_file_name
-            )
-        )
-        self.close_spheres_elec_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.close_spheres_elec_file_name
-            )
-        )
-        self.close_spheres_desolv_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.close_spheres_desolv_file_name
-            )
-        )
-        self.close_spheres_elec_pdb_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.close_spheres_elec_pdb_file_name
-            )
-        )
-        self.close_spheres_desolv_pdb_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.close_spheres_desolv_pdb_file_name
-            )
-        )
-        self.matching_spheres_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.matching_spheres_file_name
-            )
-        )
-        self.box_file = BlasterFile(
-            path=os.path.join(working_dir.path, blaster_file_names.box_file_name)
-        )
-        self.ligand_matching_spheres_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.ligand_matching_spheres_file_name
-            )
-        )
-        self.low_dielectric_spheres_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.low_dielectric_spheres_file_name
-            )
-        )
-        self.low_dielectric_spheres_pdb_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.low_dielectric_spheres_pdb_file_name,
-            )
-        )
-        self.receptor_low_dielectric_pdb_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.receptor_low_dielectric_pdb_file_name,
-            )
-        )
-        self.charged_receptor_desolv_pdb_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.charged_receptor_desolv_pdb_file_name,
-            )
-        )
-        self.vdw_file = BlasterFile(
-            path=os.path.join(working_dir.path, blaster_file_names.vdw_file_name)
-        )
-        self.vdw_bump_map_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.vdw_bump_map_file_name
-            )
-        )
-        self.ligand_desolvation_heavy_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path, blaster_file_names.ligand_desolvation_heavy_file_name
-            )
-        )
-        self.ligand_desolvation_hydrogen_file = BlasterFile(
-            path=os.path.join(
-                working_dir.path,
-                blaster_file_names.ligand_desolvation_hydrogen_file_name,
-            )
-        )
+        for blaster_file_identifier, proper_blaster_file_name in BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT:
+            blaster_file = BlasterFile(path=os.path.join(working_dir.path, proper_blaster_file_name), identifier=blaster_file_identifier)
+            setattr(self, blaster_file_identifier, blaster_file)
 
     @property
     def dock_files(self):
-        return DockFiles(
-            matching_spheres_file=self.matching_spheres_file,
-            electrostatics_trim_phi_file=self.electrostatics_trim_phi_file,
-            vdw_file=self.vdw_file,
-            vdw_bump_map_file=self.vdw_bump_map_file,
-            vdw_parameters_file=self.vdw_parameters_file,
-            ligand_desolvation_heavy_file=self.ligand_desolvation_heavy_file,
-            ligand_desolvation_hydrogen_file=self.ligand_desolvation_hydrogen_file,
-            electrostatics_phi_size_file=self.electrostatics_phi_size_file,
-        )
+        return DockFiles(**{dock_file_identifier: getattr(self, dock_file_identifier) for dock_file_identifier in DOCK_FILE_IDENTIFIERS})
 
     def get_attribute_name_of_blaster_file_with_file_name(self, file_name):
         attributes = [
@@ -492,7 +255,7 @@ class BlasterFiles(object):
 
 
 @dataclass
-class DockFiles:
+class DockFiles:  # TODO: use DOCK_FILE_IDENTIFIERS to define args
     matching_spheres_file: BlasterFile
     electrostatics_trim_phi_file: BlasterFile
     vdw_file: BlasterFile
@@ -504,21 +267,37 @@ class DockFiles:
 
 
 class BlasterStep(object):
-    def __init__(self, step_dir):
+    def __init__(self, working_dir, infile_tuples, outfile_tuples, parameter_tuples, program_file_path=None):
         #
-        self.step_dir = step_dir
+        self.step_dir = self._get_step_dir(working_dir, outfile_tuples)
 
         #
-        self.program_file = None
         self._infiles = None
         self._outfiles = None
         self._parameters = None
+
+        #
+        self.infiles = self._process_infiles(infile_tuples)
+        self.outfiles = self._process_outfiles(outfile_tuples)
+        self.parameters = self._process_parameters(parameter_tuples)
+
+        #
+        if program_file_path:
+            self.program_file = ProgramFile(program_file_path)
+        else:
+            self.program_file = None
 
         #
         self.log_file = self._get_log_file()
 
     def __str__(self):
         return self.__class__.__name__
+
+    def _get_step_dir(self, working_dir, outfile_tuples):
+        class_name_snake_case = re.sub('(?<!^)(?=[A-Z])', '_', self.__str__()).lower()
+        comma_separated_outfile_names = ','.join([x[0].name for x in outfile_tuples])
+        dir_name = f"{class_name_snake_case}_outfiles={comma_separated_outfile_names}"
+        return Dir(path=os.path.join(working_dir.path, dir_name))
 
     @property
     def infiles(self):
@@ -532,20 +311,22 @@ class BlasterStep(object):
 
         self._infiles = infiles_named_tuple
 
-    def process_infiles(self, *infile_tuples, new_file_names_tuple=None):
+    def _process_infiles(self, *infile_tuples):
         step_infiles = []
-        for i, (infile, arg_name) in enumerate(infile_tuples):
+        for i, (infile, arg_name, new_file_name) in enumerate(infile_tuples):
             #
             validate_variable_type(infile, allowed_instance_types=(BlasterFile,))
             File.validate_path(infile.path)
+            validate_variable_type(arg_name, allowed_instance_types=(str,))
+            validate_variable_type(new_file_name, allowed_instance_types=(str, type(None),))
 
             #
             step_infile = deepcopy(infile)
 
             #
-            if new_file_names_tuple is not None:
+            if new_file_name is not None:
                 step_infile.path = os.path.join(
-                    self.step_dir.path, new_file_names_tuple[i]
+                    self.step_dir.path, new_file_name
                 )
             else:
                 step_infile.path = os.path.join(self.step_dir.path, infile.name)
@@ -560,7 +341,7 @@ class BlasterStep(object):
         )
 
         #
-        self.infiles = Infiles(*step_infiles)
+        return Infiles(*step_infiles)
 
     @property
     def outfiles(self):
@@ -574,20 +355,22 @@ class BlasterStep(object):
 
         self._outfiles = outfiles_named_tuple
 
-    def process_outfiles(self, *outfile_tuples, new_file_names_tuple=None):
+    def _process_outfiles(self, *outfile_tuples, new_file_names_tuple=None):
         step_outfiles = []
-        for i, (outfile, arg_name) in enumerate(outfile_tuples):
+        for i, (outfile, arg_name, new_file_name) in enumerate(outfile_tuples):
             #
             validate_variable_type(outfile, allowed_instance_types=(BlasterFile,))
             File.validate_path(outfile.path)
+            validate_variable_type(arg_name, allowed_instance_types=(str,))
+            validate_variable_type(new_file_name, allowed_instance_types=(str, type(None),))
 
             #
             step_outfile = deepcopy(outfile)
 
             #
-            if new_file_names_tuple is not None:
+            if new_file_name is not None:
                 step_outfile.path = os.path.join(
-                    self.step_dir.path, new_file_names_tuple[i]
+                    self.step_dir.path, new_file_name
                 )
             else:
                 step_outfile.path = os.path.join(self.step_dir.path, outfile.name)
@@ -602,7 +385,7 @@ class BlasterStep(object):
         )
 
         #
-        self.outfiles = Outfiles(*step_outfiles)
+        return Outfiles(*step_outfiles)
 
     @property
     def parameters(self):
@@ -616,11 +399,12 @@ class BlasterStep(object):
 
         self._parameters = parameters_named_tuple
 
-    def process_parameters(self, *parameter_tuples):
+    def _process_parameters(self, *parameter_tuples):
         step_parameters = []
         for parameter, arg_name in parameter_tuples:
             #
             validate_variable_type(parameter, allowed_instance_types=(Parameter,))
+            validate_variable_type(arg_name, allowed_instance_types=(str,))
 
             #
             step_parameter = deepcopy(parameter)
@@ -635,7 +419,7 @@ class BlasterStep(object):
         )
 
         #
-        self.parameters = Parameters(*step_parameters)
+        return Parameters(*step_parameters)
 
     @property
     def step_dir(self):

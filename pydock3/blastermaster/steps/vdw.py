@@ -1,10 +1,8 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import os
 import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile, File
+from pydock3.files import File
 
 
 #
@@ -25,7 +23,7 @@ class VDWScoringGridGenerationStep(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         protein_table_infile,
         vdw_parameters_infile,
         box_infile,
@@ -33,33 +31,21 @@ class VDWScoringGridGenerationStep(BlasterStep):
         vdw_outfile,
         bump_map_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(
-            path=ProgramFilePaths.CHEMGRID_PROGRAM_FILE_PATH
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (protein_table_infile, "protein_table_infile"),
+                (vdw_parameters_infile, "vdw_parameters_infile"),
+                (charged_receptor_infile, "charged_receptor_infile"),
+                (box_infile, "box_infile"),
+            ],
+            outfile_tuples=[
+                (vdw_outfile, "vdw_outfile", self.MandatoryFileNames.VDW_FILE),
+                (bump_map_outfile, "bump_map_outfile", self.MandatoryFileNames.VDW_BUMP_MAP_FILE),
+            ],
+            parameter_tuples=[],
+            program_file_path=ProgramFilePaths.CHEMGRID_PROGRAM_FILE_PATH,
         )
-
-        #
-        self.process_infiles(
-            (protein_table_infile, "protein_table_infile"),
-            (vdw_parameters_infile, "vdw_parameters_infile"),
-            (charged_receptor_infile, "charged_receptor_infile"),
-            (box_infile, "box_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (vdw_outfile, "vdw_outfile"),
-            (bump_map_outfile, "bump_map_outfile"),
-            new_file_names_tuple=(
-                self.MandatoryFileNames.VDW_FILE,
-                self.MandatoryFileNames.VDW_BUMP_MAP_FILE,
-            ),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

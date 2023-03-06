@@ -1,12 +1,9 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-# Trent E. Balius modified Sept 2013.
-
 import logging
 
 import yaml
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile, File
+from pydock3.files import File
 from pydock3.blastermaster import pdb
 
 
@@ -18,33 +15,27 @@ logger.setLevel(logging.DEBUG)
 class ReceptorProtonationStep(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_infile,
         add_h_dict_infile,
         residue_code_polar_h_yaml_infile,
         charged_receptor_outfile,
         reduce_options_parameter,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(path=ProgramFilePaths.REDUCE_PROGRAM_FILE_PATH)
-
-        #
-        self.process_infiles(
-            (receptor_infile, "receptor_infile"),
-            (add_h_dict_infile, "add_h_dict_infile"),
-            (residue_code_polar_h_yaml_infile, "residue_code_polar_h_yaml_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (charged_receptor_outfile, "charged_receptor_outfile"),
-        )
-
-        #
-        self.process_parameters(
-            (reduce_options_parameter, "reduce_options_parameter"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (receptor_infile, "receptor_infile", None),
+                (add_h_dict_infile, "add_h_dict_infile", None),
+                (residue_code_polar_h_yaml_infile, "residue_code_polar_h_yaml_infile", None),
+            ],
+            outfile_tuples=[
+                (charged_receptor_outfile, "charged_receptor_outfile", None),
+            ],
+            parameter_tuples=[
+                (reduce_options_parameter, "reduce_options_parameter"),
+            ],
+            program_file_path=ProgramFilePaths.REDUCE_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func

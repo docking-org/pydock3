@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import BlasterStep
@@ -14,27 +12,21 @@ logger.setLevel(logging.DEBUG)
 class LigandHetatmRenamingStep(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         ligand_infile,
         ligand_hetatm_renamed_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = None
-
-        #
-        self.process_infiles(
-            (ligand_infile, "ligand_infile"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (ligand_infile, "ligand_infile", None),
+            ],
+            outfile_tuples=[
+                (ligand_hetatm_renamed_outfile, "ligand_hetatm_renamed_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=None,
         )
-
-        #
-        self.process_outfiles(
-            (ligand_hetatm_renamed_outfile, "ligand_hetatm_renamed_outfile"),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

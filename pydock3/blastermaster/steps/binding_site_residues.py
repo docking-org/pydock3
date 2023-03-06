@@ -1,9 +1,6 @@
-# Ryan G. Coleman
-
 import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile
 
 #
 logger = logging.getLogger(__name__)
@@ -18,39 +15,25 @@ class BindingSiteResiduesSelectionStep(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_infile,
         ligand_infile,
         filt_parameters_infile,
         binding_site_residues_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(path=ProgramFilePaths.FILT_PROGRAM_FILE_PATH)
-
-        #
-        self.process_infiles(
-            (receptor_infile, "receptor_infile"),
-            (ligand_infile, "ligand_infile"),
-            (filt_parameters_infile, "filt_parameters_infile"),
-            new_file_names_tuple=(
-                self.MandatoryFileNames.RECEPTOR_FILE_NAME,
-                self.MandatoryFileNames.LIGAND_FILE_NAME,
-                filt_parameters_infile.name,
-            ),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (receptor_infile, "receptor_infile", self.MandatoryFileNames.RECEPTOR_FILE_NAME),
+                (ligand_infile, "ligand_infile", self.MandatoryFileNames.LIGAND_FILE_NAME),
+                (filt_parameters_infile, "filt_parameters_infile", None),
+            ],
+            outfile_tuples=[
+                (binding_site_residues_outfile, "binding_site_residues_outfile", self.MandatoryFileNames.BINDING_SITE_RESIDUES_FILE_NAME),
+            ],
+            parameter_tuples=[],
+            program_file_path=ProgramFilePaths.FILT_PROGRAM_FILE_PATH,
         )
-
-        #
-        self.process_outfiles(
-            (binding_site_residues_outfile, "binding_site_residues_outfile"),
-            new_file_names_tuple=(
-                self.MandatoryFileNames.BINDING_SITE_RESIDUES_FILE_NAME,
-            ),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

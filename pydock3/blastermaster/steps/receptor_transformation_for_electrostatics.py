@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import BlasterStep
@@ -13,32 +11,23 @@ logger.setLevel(logging.DEBUG)
 class ReceptorTransformationForElectrostatics(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         charged_receptor_infile,
         spheres_pdb_infile,
         receptor_low_dielectric_pdb_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = None
-
-        #
-        self.process_infiles(
-            (charged_receptor_infile, "charged_receptor_infile"),
-            (spheres_pdb_infile, "spheres_pdb_infile"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (charged_receptor_infile, "charged_receptor_infile"),
+                (spheres_pdb_infile, "spheres_pdb_infile"),
+            ],
+            outfile_tuples=[
+                (receptor_low_dielectric_pdb_outfile, "receptor_low_dielectric_pdb_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=None,
         )
-
-        #
-        self.process_outfiles(
-            (
-                receptor_low_dielectric_pdb_outfile,
-                "receptor_low_dielectric_pdb_outfile",
-            ),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

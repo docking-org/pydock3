@@ -1,9 +1,7 @@
-#################################################################################################################
-## Written by Trent Balius in the Shoichet Lab, UCSF in 2015
-#################################################################################################################
+from pydock3.util import get_hexdigest_of_persistent_md5_hash_of_tuple
 
 
-class Sphere:
+class Sphere(object):
     def __init__(self, index, X, Y, Z, radius, atomnum, critical_cluster, sphere_color):
         self.index = int(index)
         self.X = float(X)

@@ -24,7 +24,7 @@ covalent:
   residue_name: str()
   residue_atoms: str()
 
-indock:
+indock_file_generation:
   ligand_atom_file: str()
   output_file_prefix: str()
   match_method: int()

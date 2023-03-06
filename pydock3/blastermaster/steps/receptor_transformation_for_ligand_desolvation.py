@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import BlasterStep
@@ -13,30 +11,21 @@ logger.setLevel(logging.DEBUG)
 class ReceptorTransformationForLigandDesolvationNoThinSpheres(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         charged_receptor_pdb_infile,
         charged_receptor_desolv_pdb_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = None
-
-        #
-        self.process_infiles(
-            (charged_receptor_pdb_infile, "charged_receptor_pdb_infile"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (charged_receptor_pdb_infile, "charged_receptor_pdb_infile", None),
+            ],
+            outfile_tuples=[
+                (charged_receptor_desolv_pdb_outfile, "charged_receptor_desolv_pdb_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=None,
         )
-
-        #
-        self.process_outfiles(
-            (
-                charged_receptor_desolv_pdb_outfile,
-                "charged_receptor_desolv_pdb_outfile",
-            ),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):
@@ -49,32 +38,23 @@ class ReceptorTransformationForLigandDesolvationNoThinSpheres(BlasterStep):
 class ReceptorTransformationForLigandDesolvationYesThinSpheres(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         charged_receptor_pdb_infile,
         close_spheres_desolv_pdb_infile,
         charged_receptor_desolv_pdb_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = None
-
-        #
-        self.process_infiles(
-            (charged_receptor_pdb_infile, "charged_receptor_pdb_infile"),
-            (close_spheres_desolv_pdb_infile, "close_spheres_desolv_pdb_infile"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (charged_receptor_pdb_infile, "charged_receptor_pdb_infile", None),
+                (close_spheres_desolv_pdb_infile, "close_spheres_desolv_pdb_infile", None),
+            ],
+            outfile_tuples=[
+                (charged_receptor_desolv_pdb_outfile, "charged_receptor_desolv_pdb_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=None,
         )
-
-        #
-        self.process_outfiles(
-            (
-                charged_receptor_desolv_pdb_outfile,
-                "charged_receptor_desolv_pdb_outfile",
-            ),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

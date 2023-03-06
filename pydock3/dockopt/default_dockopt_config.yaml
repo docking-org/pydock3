@@ -3,7 +3,7 @@ definitions:
     - step: &step_1
         top_n: 1
         criterion: enrichment_score
-        dock_files_to_copy_from_previous_step:
+        dock_files_to_use_from_previous_component:
           matching_spheres_file: false
           electrostatics_trim_phi_file: false
           electrostatics_phi_size_file: false
@@ -41,7 +41,7 @@ definitions:
               use: true
               num_samples_per_matching_spheres_file: 10
               max_deviation_angstroms: 0.4
-          indock:
+          indock_file_generation:
             ligand_atom_file: split_database_index
             output_file_prefix: test.
             match_method: 2
@@ -99,7 +99,7 @@ definitions:
             max_strain: 3
     - step: &step_2
         <<: *step_1
-        dock_files_to_copy_from_previous_step:
+        dock_files_to_use_from_previous_component:
           matching_spheres_file: true
           electrostatics_trim_phi_file: true
           electrostatics_phi_size_file: true
@@ -146,7 +146,7 @@ definitions:
               max_deviation_angstroms: 0.4
     - step: &step_3
         <<: *step_1
-        dock_files_to_copy_from_previous_step:
+        dock_files_to_use_from_previous_component:
           matching_spheres_file: true
           electrostatics_trim_phi_file: true
           electrostatics_phi_size_file: true

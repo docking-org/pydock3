@@ -1,9 +1,7 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile, File
+from pydock3.files import File
 
 
 #
@@ -20,39 +18,25 @@ class MolecularSurfaceGenerationStep(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         charged_receptor_infile,
         binding_site_residues_infile,
         radii_infile,
         molecular_surface_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(path=ProgramFilePaths.DMS_PROGRAM_FILE_PATH)
-
-        #
-        self.process_infiles(
-            (charged_receptor_infile, "charged_receptor_infile"),
-            (binding_site_residues_infile, "binding_site_residues_infile"),
-            (
-                radii_infile,
-                "radii_infile",
-            ),  # dms reads the elements and radii from a file in the current directory called 'radii'.
-            new_file_names_tuple=(
-                charged_receptor_infile.name,
-                binding_site_residues_infile.name,
-                self.MandatoryFileNames.RADII_FILE_NAME,
-            ),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (charged_receptor_infile, "charged_receptor_infile", None),
+                (binding_site_residues_infile, "binding_site_residues_infile", None),
+                (radii_infile, "radii_infile", self.MandatoryFileNames.RADII_FILE_NAME), # dms reads the elements and radii from a file in the current directory called 'radii'
+            ],
+            outfile_tuples=[
+                (molecular_surface_outfile, "molecular_surface_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=ProgramFilePaths.DMS_PROGRAM_FILE_PATH,
         )
-
-        #
-        self.process_outfiles(
-            (molecular_surface_outfile, "molecular_surface_outfile"),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

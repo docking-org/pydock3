@@ -18,7 +18,7 @@ numerically_operative_multivalued_parameter:
 step:
   top_n: num()
   criterion: str()
-  dock_files_to_copy_from_previous_step:
+  dock_files_to_use_from_previous_component:
     matching_spheres_file: bool()
     electrostatics_trim_phi_file: bool()
     electrostatics_phi_size_file: bool()
@@ -56,7 +56,7 @@ step:
         use: bool()
         num_samples_per_matching_spheres_file: num()
         max_deviation_angstroms: num()
-    indock:
+    indock_file_generation:
       ligand_atom_file: any(str(), list(str()))
       output_file_prefix: any(str(), list(str()))
       match_method: any(int(), list(int()))

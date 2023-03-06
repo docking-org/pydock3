@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import traceback
+import hashlib
 
 
 #
@@ -21,6 +22,13 @@ def validate_variable_type(var, allowed_instance_types):
         raise Exception(
             f"Variable '{var}' must be an instance of one of allowed_instance_types={allowed_instance_types}. Type witnessed: {type(var)}"
         )
+
+
+def get_hexdigest_of_persistent_md5_hash_of_tuple(t: tuple) -> str:
+    m = hashlib.md5()
+    for s in t:
+        m.update(str(s).encode())
+    return m.hexdigest()
 
 
 def get_dataclass_as_dict(data_cls):

@@ -1,12 +1,3 @@
-# ryan g. coleman, ryangc@mail.med.upenn.edu
-# kim sharp lab
-# phi.py enables read/write of binary phi-maps from delphi
-# usage is import, then pass in filename to object creation
-# extensions written in bks lab, 2012, and by extensions i mean reading
-# phimap files written by a pgf, 32-bit version of delphi that is being
-# used in dockblaster, etc. these files are always big-endian despite any
-# claims by the OS to the contrary
-
 import struct
 import array
 import os

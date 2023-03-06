@@ -7,7 +7,7 @@ import pandas as pd
 from pydock3.files import Dir
 from pydock3.dockopt.criterion import criterion_dict
 if TYPE_CHECKING:
-    from pydock3.dockopt.results_manager import ResultsManager
+    from pydock3.dockopt.results import ResultsManager
 
 
 def add_timing_and_results_writing_to_run_method(_cls: object) -> object:

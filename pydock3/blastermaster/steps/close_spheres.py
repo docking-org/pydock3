@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import BlasterStep
@@ -13,7 +11,7 @@ logger.setLevel(logging.DEBUG)
 class CloseSpheresGenerationStep(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         ligand_infile,
         thin_spheres_infile,
         close_spheres_outfile,
@@ -21,27 +19,21 @@ class CloseSpheresGenerationStep(BlasterStep):
         penetration_parameter,
         distance_to_ligand_parameter,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = None
-
-        #
-        self.process_infiles(
-            (ligand_infile, "ligand_infile"),
-            (thin_spheres_infile, "thin_spheres_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (close_spheres_outfile, "close_spheres_outfile"),
-        )
-
-        #
-        self.process_parameters(
-            (distance_to_surface_parameter, "distance_to_surface_parameter,"),
-            (penetration_parameter, "penetration_parameter,"),
-            (distance_to_ligand_parameter, "distance_to_ligand_parameter,"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (ligand_infile, "ligand_infile", None),
+                (thin_spheres_infile, "thin_spheres_infile", None),
+            ],
+            outfile_tuples=[
+                (close_spheres_outfile, "close_spheres_outfile", None),
+            ],
+            parameter_tuples=[
+                (distance_to_surface_parameter, "distance_to_surface_parameter"),
+                (penetration_parameter, "penetration_parameter"),
+                (distance_to_ligand_parameter, "distance_to_ligand_parameter"),
+            ],
+            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func

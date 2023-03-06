@@ -1,11 +1,11 @@
 import logging
 import itertools
-from copy import deepcopy
 
 import oyaml as yaml
 import yamale
 
 from pydock3.files import File
+from pydock3.util import get_hexdigest_of_persistent_md5_hash_of_tuple
 
 
 #
@@ -17,6 +17,10 @@ class Parameter(object):
     def __init__(self, name, value):
         self.name = name
         self.value = value
+
+    @property
+    def hexdigest_of_persistent_md5_hash(self):
+        return get_hexdigest_of_persistent_md5_hash_of_tuple((self.name, self.value))
 
     def __bool__(self):
         if self.value:
@@ -31,9 +35,6 @@ class Parameter(object):
         if type(other) == type(self):
             return self.value == other.value
         return False
-
-    def __hash__(self):
-        return hash((self.name, self.value))
 
 
 class ParametersConfiguration:

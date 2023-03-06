@@ -1,9 +1,6 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile
 from pydock3.blastermaster import pdb
 
 
@@ -20,7 +17,7 @@ class MatchingSpheresGenerationStep(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         charged_receptor_infile,
         ligand_matching_spheres_infile,
         all_spheres_infile,
@@ -29,30 +26,22 @@ class MatchingSpheresGenerationStep(BlasterStep):
         covalent_residue_name_parameter,
         covalent_residue_num_parameter,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(
-            path=ProgramFilePaths.MAKESPHERES3_PROGRAM_FILE_PATH
-        )
-
-        #
-        self.process_infiles(
-            (charged_receptor_infile, "charged_receptor_infile"),
-            (ligand_matching_spheres_infile, "ligand_matching_spheres_infile"),
-            (all_spheres_infile, "all_spheres_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (matching_spheres_outfile, "matching_spheres_outfile"),
-        )
-
-        #
-        self.process_parameters(
-            (covalent_use_parameter, "covalent_use_parameter"),
-            (covalent_residue_name_parameter, "covalent_residue_name_parameter"),
-            (covalent_residue_num_parameter, "covalent_residue_num_parameter"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (charged_receptor_infile, "charged_receptor_infile", None),
+                (ligand_matching_spheres_infile, "ligand_matching_spheres_infile", None),
+                (all_spheres_infile, "all_spheres_infile", None),
+            ],
+            outfile_tuples=[
+                (matching_spheres_outfile, "matching_spheres_outfile", None),
+            ],
+            parameter_tuples=[
+                (covalent_use_parameter, "covalent_use_parameter"),
+                (covalent_residue_name_parameter, "covalent_residue_name_parameter"),
+                (covalent_residue_num_parameter, "covalent_residue_num_parameter"),
+            ],
+            program_file_path=ProgramFilePaths.MAKESPHERES3_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func

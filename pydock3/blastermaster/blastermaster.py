@@ -50,8 +50,7 @@ from pydock3.files import (
     IndockFile,
     INDOCK_FILE_NAME,
 )
-from pydock3.config import flatten_param_dict
-from pydock3.blastermaster.util import WorkingDir, BlasterFiles, BlasterFileNames
+from pydock3.blastermaster.util import BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT, WorkingDir, BlasterFiles
 from pydock3.blastermaster import __file__ as BLASTERMASTER_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 
@@ -69,13 +68,9 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     steps = []
 
     #
-    def _get_step_dir(dir_name):
-        return Dir(path=os.path.join(working_dir.path, dir_name))
-
-    #
     steps.append(
         ReceptorMostOccupiedResiduesRenamingStep(
-            step_dir=_get_step_dir("receptor_most_occupied_residues_renaming"),
+            working_dir=working_dir,
             receptor_infile=blaster_files.receptor_file,
             receptor_most_occupied_residues_renamed_outfile=blaster_files.receptor_most_occupied_residues_renamed_file,
         )
@@ -84,7 +79,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         ReceptorProtonationStep(
-            step_dir=_get_step_dir("receptor_protonation"),
+            working_dir=working_dir,
             receptor_infile=blaster_files.receptor_most_occupied_residues_renamed_file,
             add_h_dict_infile=blaster_files.add_h_dict_file,
             residue_code_polar_h_yaml_infile=blaster_files.residue_code_to_polar_h_yaml_file,
@@ -99,26 +94,20 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     if flat_param_dict["covalent.use"]:
         steps.append(
             ChargedReceptorDeprotonationStep(
-                step_dir=_get_step_dir("charged_receptor_deprotonation"),
+                working_dir=working_dir,
                 charged_receptor_infile=blaster_files.charged_receptor_file,
                 charged_receptor_deprotonated_outfile=blaster_files.charged_receptor_deprotonated_file,
                 covalent_residue_num_parameter=flat_param_dict["covalent.residue_num"],
-                covalent_residue_name_parameter=flat_param_dict[
-                    "covalent.residue_name"
-                ],
-                covalent_residue_atoms_parameter=flat_param_dict[
-                    "covalent.residue_atoms"
-                ],
+                covalent_residue_name_parameter=flat_param_dict["covalent.residue_name"],
+                covalent_residue_atoms_parameter=flat_param_dict["covalent.residue_atoms"],
             )
         )
-        blaster_files.charged_receptor_file = (
-            blaster_files.charged_receptor_deprotonated_file
-        )
+        blaster_files.charged_receptor_file = (blaster_files.charged_receptor_deprotonated_file)
 
     #
     steps.append(
         LigandHetatmRenamingStep(
-            step_dir=_get_step_dir("ligand_hetatm_renaming"),
+            working_dir=working_dir,
             ligand_infile=blaster_files.ligand_file,
             ligand_hetatm_renamed_outfile=blaster_files.ligand_hetatm_renamed_file,
         )
@@ -127,7 +116,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         BindingSiteResiduesSelectionStep(
-            step_dir=_get_step_dir("binding_site_residues_selection"),
+            working_dir=working_dir,
             receptor_infile=blaster_files.charged_receptor_file,
             ligand_infile=blaster_files.ligand_hetatm_renamed_file,
             filt_parameters_infile=blaster_files.binding_site_residues_parameters_file,
@@ -138,7 +127,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         MolecularSurfaceGenerationStep(
-            step_dir=_get_step_dir("molecular_surface_generation"),
+            working_dir=working_dir,
             charged_receptor_infile=blaster_files.charged_receptor_file,
             binding_site_residues_infile=blaster_files.binding_site_residues_file,
             radii_infile=blaster_files.molecular_surface_radii_file,
@@ -149,7 +138,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         BindingSiteSpheresGenerationStep(
-            step_dir=_get_step_dir("binding_site_spheres_generation"),
+            working_dir=working_dir,
             molecular_surface_infile=blaster_files.molecular_surface_file,
             spheres_outfile=blaster_files.all_spheres_file,
         )
@@ -158,7 +147,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         LigandPDBToSpheresConversionStep(
-            step_dir=_get_step_dir("ligand_pdb_to_spheres_conversion"),
+            working_dir=working_dir,
             pdb_infile=blaster_files.ligand_hetatm_renamed_file,
             sph_outfile=blaster_files.ligand_matching_spheres_file,
         )
@@ -167,7 +156,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         MatchingSpheresGenerationStep(
-            step_dir=_get_step_dir("matching_spheres_generation"),
+            working_dir=working_dir,
             charged_receptor_infile=blaster_files.charged_receptor_file,
             ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
             all_spheres_infile=blaster_files.all_spheres_file,
@@ -183,9 +172,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             MolecularSurfaceGenerationStep(
-                step_dir=_get_step_dir(
-                    "molecular_surface_generation_thin_spheres_elec"
-                ),
+                working_dir=working_dir,
                 charged_receptor_infile=blaster_files.charged_receptor_file,
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
@@ -196,7 +183,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             ThinSpheresGenerationStep(
-                step_dir=_get_step_dir("thin_spheres_generation_elec"),
+                working_dir=working_dir,
                 molecular_surface_infile=blaster_files.thin_spheres_elec_molecular_surface_file,
                 thin_spheres_outfile=blaster_files.thin_spheres_elec_file,
                 distance_to_surface_parameter=flat_param_dict[
@@ -209,7 +196,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             CloseSpheresGenerationStep(
-                step_dir=_get_step_dir("close_spheres_generation_elec"),
+                working_dir=working_dir,
                 ligand_infile=blaster_files.ligand_hetatm_renamed_file,
                 thin_spheres_infile=blaster_files.thin_spheres_elec_file,
                 close_spheres_outfile=blaster_files.close_spheres_elec_file,
@@ -226,7 +213,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             SpheresToPDBConversionStep(
-                step_dir=_get_step_dir("close_spheres_elec_to_pdb_conversion"),
+                working_dir=working_dir,
                 sph_infile=blaster_files.close_spheres_elec_file,
                 pdb_outfile=blaster_files.close_spheres_elec_pdb_file,
             )
@@ -239,7 +226,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             LowDielectricSpheresSelectionStep(
-                step_dir=_get_step_dir("low_dielectric_spheres_selection"),
+                working_dir=working_dir,
                 charged_receptor_infile=blaster_files.charged_receptor_file,
                 ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
                 all_spheres_infile=blaster_files.all_spheres_file,
@@ -250,7 +237,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             SpheresToPDBConversionStep(
-                step_dir=_get_step_dir("low_dielectric_spheres_to_pdb_conversion"),
+                working_dir=working_dir,
                 sph_infile=blaster_files.low_dielectric_spheres_file,
                 pdb_outfile=blaster_files.low_dielectric_spheres_pdb_file,
             )
@@ -266,9 +253,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             MolecularSurfaceGenerationStep(
-                step_dir=_get_step_dir(
-                    "molecular_surface_generation_thin_spheres_desolv"
-                ),
+                working_dir=working_dir,
                 charged_receptor_infile=blaster_files.charged_receptor_file,
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
@@ -279,7 +264,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             ThinSpheresGenerationStep(
-                step_dir=_get_step_dir("thin_spheres_generation_desolv"),
+                working_dir=working_dir,
                 molecular_surface_infile=blaster_files.thin_spheres_desolv_molecular_surface_file,
                 thin_spheres_outfile=blaster_files.thin_spheres_desolv_file,
                 distance_to_surface_parameter=flat_param_dict[
@@ -294,7 +279,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             CloseSpheresGenerationStep(
-                step_dir=_get_step_dir("close_spheres_generation_desolv"),
+                working_dir=working_dir,
                 ligand_infile=blaster_files.ligand_hetatm_renamed_file,
                 thin_spheres_infile=blaster_files.thin_spheres_desolv_file,
                 close_spheres_outfile=blaster_files.close_spheres_desolv_file,
@@ -313,7 +298,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         #
         steps.append(
             SpheresToPDBConversionStep(
-                step_dir=_get_step_dir("close_spheres_desolv_to_pdb_conversion"),
+                working_dir=working_dir,
                 sph_infile=blaster_files.close_spheres_desolv_file,
                 pdb_outfile=blaster_files.close_spheres_desolv_pdb_file,
             )
@@ -322,7 +307,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         BoxGenerationStep(
-            step_dir=_get_step_dir("box_generation"),
+            working_dir=working_dir,
             charged_receptor_infile=blaster_files.charged_receptor_file,
             ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
             box_outfile=blaster_files.box_file,
@@ -332,7 +317,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         ReceptorTransformationForElectrostatics(
-            step_dir=_get_step_dir("receptor_transformation_for_electrostatics"),
+            working_dir=working_dir,
             charged_receptor_infile=blaster_files.charged_receptor_file,
             spheres_pdb_infile=spheres_pdb_file_for_electrostatics,
             receptor_low_dielectric_pdb_outfile=blaster_files.receptor_low_dielectric_pdb_file,
@@ -343,7 +328,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     if flat_param_dict["thin_spheres_elec.use"]:
         steps.append(
             ElectrostaticsGridGenerationStepYesThinSpheres(
-                step_dir=_get_step_dir("electrostatics_grid_generation"),
+                working_dir=working_dir,
                 receptor_low_dielectric_pdb_infile=blaster_files.receptor_low_dielectric_pdb_file,
                 charge_infile=blaster_files.electrostatics_charge_file,
                 radius_infile=blaster_files.electrostatics_radius_file,
@@ -364,7 +349,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     else:
         steps.append(
             ElectrostaticsGridGenerationStepNoThinSpheres(
-                step_dir=_get_step_dir("electrostatics_grid_generation"),
+                working_dir=working_dir,
                 receptor_low_dielectric_pdb_infile=blaster_files.receptor_low_dielectric_pdb_file,
                 charge_infile=blaster_files.electrostatics_charge_file,
                 radius_infile=blaster_files.electrostatics_radius_file,
@@ -380,7 +365,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         VDWScoringGridGenerationStep(
-            step_dir=_get_step_dir("vdw_scoring_grid_generation"),
+            working_dir=working_dir,
             charged_receptor_infile=blaster_files.charged_receptor_file,
             vdw_parameters_infile=blaster_files.vdw_parameters_file,
             protein_table_infile=blaster_files.vdw_protein_table_file,
@@ -394,9 +379,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     if flat_param_dict["thin_spheres_desolv.use"]:
         steps.append(
             ReceptorTransformationForLigandDesolvationYesThinSpheres(
-                step_dir=_get_step_dir(
-                    "receptor_transformation_for_ligand_desolvation"
-                ),
+                working_dir=working_dir,
                 charged_receptor_pdb_infile=blaster_files.charged_receptor_file,
                 close_spheres_desolv_pdb_infile=blaster_files.close_spheres_desolv_pdb_file,
                 charged_receptor_desolv_pdb_outfile=blaster_files.charged_receptor_desolv_pdb_file,
@@ -405,9 +388,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     else:
         steps.append(
             ReceptorTransformationForLigandDesolvationNoThinSpheres(
-                step_dir=_get_step_dir(
-                    "receptor_transformation_for_ligand_desolvation"
-                ),
+                working_dir=working_dir,
                 charged_receptor_pdb_infile=blaster_files.charged_receptor_file,
                 charged_receptor_desolv_pdb_outfile=blaster_files.charged_receptor_desolv_pdb_file,
             )
@@ -416,7 +397,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         HydrogenAtomLigandDesolvationScoringGridGenerationStep(
-            step_dir=_get_step_dir("ligand_desolvation_hydrogen"),
+            working_dir=working_dir,
             box_infile=blaster_files.box_file,
             receptor_pdb_infile=blaster_files.charged_receptor_desolv_pdb_file,
             ligand_desolvation_outfile=blaster_files.ligand_desolvation_hydrogen_file,
@@ -436,7 +417,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
     #
     steps.append(
         HeavyAtomLigandDesolvationScoringGridGenerationStep(
-            step_dir=_get_step_dir("ligand_desolvation_heavy"),
+            working_dir=working_dir,
             box_infile=blaster_files.box_file,
             receptor_pdb_infile=blaster_files.charged_receptor_desolv_pdb_file,
             ligand_desolvation_outfile=blaster_files.ligand_desolvation_heavy_file,
@@ -475,7 +456,7 @@ class Blastermaster(Script):
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
         # create working dir & copy in blaster files
-        blaster_file_names = list(get_dataclass_as_dict(BlasterFileNames()).values())
+        blaster_file_names = list(BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.values())
         backup_blaster_file_paths = [
             os.path.join(self.DEFAULT_FILES_DIR_PATH, blaster_file_name)
             for blaster_file_name in blaster_file_names
@@ -1330,10 +1311,10 @@ class Blastermaster(Script):
                 if not nx.algorithms.isomorphism.is_isomorphic(self.blaster_targets_dag, blaster_targets_dag_previous_run):
                     raise Exception(
                         "Blaster targets graph for this run and blaster targets graph for previous run are not isomorphic!")
-                for node_name in self.blaster_targets_dag.nodes:
+                for node_id in self.blaster_targets_dag.nodes:
                     try:
-                        blaster_target_current_run = self.blaster_targets_dag.nodes[node_name]["blaster_target"]
-                        blaster_target_previous_run = blaster_targets_dag_previous_run.nodes[node_name]["blaster_target"]
+                        blaster_target_current_run = self.blaster_targets_dag.nodes[node_id]["blaster_target"]
+                        blaster_target_previous_run = blaster_targets_dag_previous_run.nodes[node_id]["blaster_target"]
                         assert type(blaster_target_current_run) == type(blaster_target_previous_run)
                     except:
                         raise Exception(
@@ -1342,16 +1323,16 @@ class Blastermaster(Script):
                 #
                 nodes_edited = []
                 nodes_deleted = []
-                for node_name in self.blaster_targets_dag.nodes:
-                    blaster_target_current_run = self.blaster_targets_dag.nodes[node_name]["blaster_target"]
-                    blaster_target_previous_run = blaster_targets_dag_previous_run.nodes[node_name]["blaster_target"]
+                for node_id in self.blaster_targets_dag.nodes:
+                    blaster_target_current_run = self.blaster_targets_dag.nodes[node_id]["blaster_target"]
+                    blaster_target_previous_run = blaster_targets_dag_previous_run.nodes[node_id]["blaster_target"]
                     if blaster_target_current_run.exists:
                         if blaster_target_previous_run.datetime_marked_complete_in_most_recent_job is not None:
                             if blaster_target_current_run.datetime_marked_complete_in_most_recent_job > blaster_target_previous_run.datetime_marked_complete_in_most_recent_job:
-                                nodes_edited.append(node_name)
+                                nodes_edited.append(node_id)
                     else:
                         if blaster_target_previous_run.datetime_marked_complete_in_most_recent_job is not None:
-                            nodes_deleted.append(node_name)
+                            nodes_deleted.append(node_id)
                 logger.info(f"Blaster targets edited since previous job: {nodes_edited}")
                 logger.info(f"Blaster targets deleted since previous job: {nodes_deleted}")
 
@@ -1359,24 +1340,24 @@ class Blastermaster(Script):
                 nodes_whose_non_edited_descendants_have_already_been_deleted = []
                 nodes_edited_set = set(nodes_edited)
 
-                def _delete_non_edited_descendants(node_name):
-                    if node_name in nodes_whose_non_edited_descendants_have_already_been_deleted:
+                def _delete_non_edited_descendants(node_id):
+                    if node_id in nodes_whose_non_edited_descendants_have_already_been_deleted:
                         return
 
-                    if node_name not in nodes_edited_set:
-                        if node_name in nodes_dependent_on_config_parameter_to_be_optimized:
+                    if node_id not in nodes_edited_set:
+                        if node_id in nodes_dependent_on_config_parameter_to_be_optimized:
                             self.sub_jobs_dir.delete()
-                        self.blaster_targets_dag.nodes[node_name]["blaster_target"].delete()
-                        nodes_whose_non_edited_descendants_have_already_been_deleted.append(node_name)
+                        self.blaster_targets_dag.nodes[node_id]["blaster_target"].delete()
+                        nodes_whose_non_edited_descendants_have_already_been_deleted.append(node_id)
 
-                    successors = list(self.blaster_targets_dag.successors(node_name))
+                    successors = list(self.blaster_targets_dag.successors(node_id))
                     if successors:
                         for successor in successors:
                             _delete_non_edited_descendants(successor)
 
                 #
-                for node_name in nodes_edited + nodes_deleted:
-                    _delete_non_edited_descendants(node_name)
+                for node_id in nodes_edited + nodes_deleted:
+                    _delete_non_edited_descendants(node_id)
 
             #
             if self.write_graph_image:

@@ -24,7 +24,7 @@ covalent:
   residue_name: CYS
   residue_atoms: CA,CB,SG
 
-indock:
+indock_file_generation:
   ligand_atom_file: split_database_index
   output_file_prefix: test.
   match_method: 2

@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import os
 import logging
 
@@ -29,7 +27,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_pdb_infile,
         box_infile,
         ligand_desolvation_outfile,
@@ -46,34 +44,23 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
             )
             raise
 
-        super().__init__(step_dir=step_dir)
-
         #
-        self.program_file = ProgramFile(path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH)
-
-        #
-        self.process_infiles(
-            (receptor_pdb_infile, "receptor_pdb_infile"),
-            (box_infile, "box_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (ligand_desolvation_outfile, "ligand_desolvation_outfile"),
-        )
-
-        #
-        self.process_parameters(
-            (thin_spheres_desolv_use_parameter, "thin_spheres_desolv_use_parameter"),
-            (
-                thin_spheres_desolv_distance_to_surface_parameter,
-                "thin_spheres_desolv_distance_to_surface_parameter",
-            ),
-            (
-                thin_spheres_desolv_penetration_parameter,
-                "thin_spheres_desolv_penetration_parameter",
-            ),
-            (other_radius_parameter, "other_radius_parameter"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (receptor_pdb_infile, "receptor_pdb_infile", None),
+                (box_infile, "box_infile", None),
+            ],
+            outfile_tuples=[
+                (ligand_desolvation_outfile, "ligand_desolvation_outfile", None),
+            ],
+            parameter_tuples=[
+                (thin_spheres_desolv_use_parameter, "thin_spheres_desolv_use_parameter"),
+                (thin_spheres_desolv_distance_to_surface_parameter, "thin_spheres_desolv_distance_to_surface_parameter"),
+                (thin_spheres_desolv_penetration_parameter, "thin_spheres_desolv_penetration_parameter"),
+                (other_radius_parameter, "other_radius_parameter"),
+            ],
+            program_file_path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH,
         )
 
         # misc.
@@ -122,7 +109,7 @@ class HydrogenAtomLigandDesolvationScoringGridGenerationStep(
 ):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_pdb_infile,
         box_infile,
         ligand_desolvation_outfile,
@@ -132,7 +119,7 @@ class HydrogenAtomLigandDesolvationScoringGridGenerationStep(
         other_radius_parameter,
     ):
         super().__init__(
-            step_dir=step_dir,
+            working_dir=working_dir,
             receptor_pdb_infile=receptor_pdb_infile,
             box_infile=box_infile,
             ligand_desolvation_outfile=ligand_desolvation_outfile,
@@ -149,7 +136,7 @@ class HeavyAtomLigandDesolvationScoringGridGenerationStep(
 ):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_pdb_infile,
         box_infile,
         ligand_desolvation_outfile,
@@ -159,7 +146,7 @@ class HeavyAtomLigandDesolvationScoringGridGenerationStep(
         other_radius_parameter,
     ):
         super().__init__(
-            step_dir=step_dir,
+            working_dir=working_dir,
             receptor_pdb_infile=receptor_pdb_infile,
             box_infile=box_infile,
             ligand_desolvation_outfile=ligand_desolvation_outfile,

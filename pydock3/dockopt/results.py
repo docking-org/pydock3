@@ -119,10 +119,10 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
                 os.path.join(dst_best_job_dir_path, "dockfiles"),
                 create=True
             )
-            docking_configuration_file_columns = [col for col in row.to_dict() if col.startswith("dockfiles.")]
-            for col in docking_configuration_file_columns:
+            dock_file_node_id_columns = [col for col in row.to_dict() if col.startswith("dockfiles.") and col.endswith(".node_id")]
+            for col in dock_file_node_id_columns:
                 best_job_dockfiles_dir.copy_in_file(
-                    os.path.join(pipeline_component.working_dir.path, row[col])
+                    pipeline_component.graph.nodes[row[col]]['blaster_file'].path
                 )
 
             #

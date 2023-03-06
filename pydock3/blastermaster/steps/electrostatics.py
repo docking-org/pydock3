@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import os
 import logging
 
@@ -35,7 +33,7 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_low_dielectric_pdb_infile,
         charge_infile,
         radius_infile,
@@ -48,30 +46,24 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
         use_receptor_box=False,
         extra_parameters=None,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH)
-
-        #
-        self.process_infiles(
-            (receptor_low_dielectric_pdb_infile, "receptor_low_dielectric_pdb_infile"),
-            (charge_infile, "charge_infile"),
-            (radius_infile, "radius_infile"),
-            (delphi_infile, "delphi_infile"),
-            (box_infile, "box_infile"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (receptor_low_dielectric_pdb_infile, "receptor_low_dielectric_pdb_infile", None),
+                (charge_infile, "charge_infile", None),
+                (radius_infile, "radius_infile", None),
+                (delphi_infile, "delphi_infile", None),
+                (box_infile, "box_infile", None),
+            ],
+            outfile_tuples=[
+                (electrostatics_phi_outfile, "electrostatics_phi_outfile", None),
+                (electrostatics_pdb_outfile, "electrostatics_pdb_outfile", None),
+                (electrostatics_trim_phi_outfile, "electrostatics_trim_phi_outfile", None),
+                (electrostatics_phi_size_outfile, "electrostatics_phi_size_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH,
         )
-
-        #
-        self.process_outfiles(
-            (electrostatics_phi_outfile, "electrostatics_phi_outfile"),
-            (electrostatics_pdb_outfile, "electrostatics_pdb_outfile"),
-            (electrostatics_trim_phi_outfile, "electrostatics_trim_phi_outfile"),
-            (electrostatics_phi_size_outfile, "electrostatics_phi_size_outfile"),
-        )
-
-        #
-        self.process_parameters()
 
         # misc.
         self.use_receptor_box = use_receptor_box
@@ -141,7 +133,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_low_dielectric_pdb_infile,
         charge_infile,
         radius_infile,
@@ -156,38 +148,26 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
         use_receptor_box=False,
         extra_parameters=None,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH)
-
-        #
-        self.process_infiles(
-            (receptor_low_dielectric_pdb_infile, "receptor_low_dielectric_pdb_infile"),
-            (charge_infile, "charge_infile"),
-            (radius_infile, "radius_infile"),
-            (delphi_infile, "delphi_infile"),
-            (box_infile, "box_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (electrostatics_phi_outfile, "electrostatics_phi_outfile"),
-            (electrostatics_pdb_outfile, "electrostatics_pdb_outfile"),
-            (electrostatics_trim_phi_outfile, "electrostatics_trim_phi_outfile"),
-            (electrostatics_phi_size_outfile, "electrostatics_phi_size_outfile"),
-        )
-
-        #
-        self.process_parameters(
-            (
-                thin_spheres_elec_distance_to_ligand_parameter,
-                "thin_spheres_elec_distance_to_ligand_parameter",
-            ),
-            (
-                thin_spheres_elec_penetration_parameter,
-                "thin_spheres_elec_penetration_parameter",
-            ),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (receptor_low_dielectric_pdb_infile, "receptor_low_dielectric_pdb_infile", None),
+                (charge_infile, "charge_infile", None),
+                (radius_infile, "radius_infile", None),
+                (delphi_infile, "delphi_infile", None),
+                (box_infile, "box_infile", None),
+            ],
+            outfile_tuples=[
+                (electrostatics_phi_outfile, "electrostatics_phi_outfile", None),
+                (electrostatics_pdb_outfile, "electrostatics_pdb_outfile", None),
+                (electrostatics_trim_phi_outfile, "electrostatics_trim_phi_outfile", None),
+                (electrostatics_phi_size_outfile, "electrostatics_phi_size_outfile", None),
+            ],
+            parameter_tuples=[
+                (thin_spheres_elec_distance_to_ligand_parameter, "thin_spheres_elec_distance_to_ligand_parameter"),
+                (thin_spheres_elec_penetration_parameter, "thin_spheres_elec_penetration_parameter"),
+            ],
+            program_file_path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH,
         )
 
         # misc.

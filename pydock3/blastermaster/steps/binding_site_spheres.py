@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import os
 import logging
 
@@ -21,27 +19,21 @@ class BindingSiteSpheresGenerationStep(BlasterStep):
 
     def __init__(
         self,
-        step_dir,
+        working_dir,
         molecular_surface_infile,
         spheres_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(path=ProgramFilePaths.SPHGEN_PROGRAM_FILE_PATH)
-
-        #
-        self.process_infiles(
-            (molecular_surface_infile, "molecular_surface_infile"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (molecular_surface_infile, "molecular_surface_infile", None),
+            ],
+            outfile_tuples=[
+                (spheres_outfile, "spheres_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=ProgramFilePaths.SPHGEN_PROGRAM_FILE_PATH,
         )
-
-        #
-        self.process_outfiles(
-            (spheres_outfile, "spheres_outfile"),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

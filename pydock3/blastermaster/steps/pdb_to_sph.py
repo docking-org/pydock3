@@ -1,9 +1,6 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile
 
 
 #
@@ -14,29 +11,21 @@ logger.setLevel(logging.DEBUG)
 class LigandPDBToSpheresConversionStep(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         pdb_infile,
         sph_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = ProgramFile(
-            path=ProgramFilePaths.PDBTOSPH_PROGRAM_FILE_PATH
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (pdb_infile, "pdb_infile", None),
+            ],
+            outfile_tuples=[
+                (sph_outfile, "sph_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=ProgramFilePaths.PDBTOSPH_PROGRAM_FILE_PATH,
         )
-
-        #
-        self.process_infiles(
-            (pdb_infile, "pdb_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (sph_outfile, "sph_outfile"),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):

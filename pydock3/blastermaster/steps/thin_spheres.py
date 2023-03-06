@@ -1,5 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-
 import logging
 
 from pydock3.blastermaster.util import BlasterStep
@@ -13,31 +11,25 @@ logger.setLevel(logging.DEBUG)
 class ThinSpheresGenerationStep(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         molecular_surface_infile,
         thin_spheres_outfile,
         distance_to_surface_parameter,
         penetration_parameter,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = None
-
-        #
-        self.process_infiles(
-            (molecular_surface_infile, "molecular_surface_infile"),
-        )
-
-        #
-        self.process_outfiles(
-            (thin_spheres_outfile, "thin_spheres_outfile"),
-        )
-
-        #
-        self.process_parameters(
-            (distance_to_surface_parameter, "distance_to_surface_parameter"),
-            (penetration_parameter, "penetration_parameter"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (molecular_surface_infile, "molecular_surface_infile", None),
+            ],
+            outfile_tuples=[
+                (thin_spheres_outfile, "thin_spheres_outfile", None),
+            ],
+            parameter_tuples=[
+                (distance_to_surface_parameter, "distance_to_surface_parameter"),
+                (penetration_parameter, "penetration_parameter"),
+            ],
+            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func

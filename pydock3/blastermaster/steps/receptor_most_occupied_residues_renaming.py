@@ -1,6 +1,3 @@
-# Ryan G. Coleman, Brian K. Shoichet Lab
-# Trent E. Balius modified Sept 2013.
-
 import logging
 
 from pydock3.blastermaster.util import BlasterStep
@@ -15,30 +12,21 @@ logger.setLevel(logging.DEBUG)
 class ReceptorMostOccupiedResiduesRenamingStep(BlasterStep):
     def __init__(
         self,
-        step_dir,
+        working_dir,
         receptor_infile,
         receptor_most_occupied_residues_renamed_outfile,
     ):
-        super().__init__(step_dir=step_dir)
-
-        #
-        self.program_file = None
-
-        #
-        self.process_infiles(
-            (receptor_infile, "receptor_infile"),
+        super().__init__(
+            working_dir=working_dir,
+            infile_tuples=[
+                (receptor_infile, "receptor_infile", None),
+            ],
+            outfile_tuples=[
+                (receptor_most_occupied_residues_renamed_outfile, "receptor_most_occupied_residues_renamed_outfile", None),
+            ],
+            parameter_tuples=[],
+            program_file_path=None,
         )
-
-        #
-        self.process_outfiles(
-            (
-                receptor_most_occupied_residues_renamed_outfile,
-                "receptor_most_occupied_residues_renamed_outfile",
-            ),
-        )
-
-        #
-        self.process_parameters()
 
     @BlasterStep.handle_run_func
     def run(self):
