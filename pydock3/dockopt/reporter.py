@@ -11,13 +11,10 @@ import seaborn as sns
 
 from pydock3.files import File
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
+from pydock3.dockopt.util import RETRODOCK_JOB_ID_COLUMN_NAME
 from pydock3.dockopt.criterion import criterion_dict
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
-
-
-#
-RETRODOCK_JOB_ID_COLUMN_NAME = "retrodock_job_id"
 
 #
 METRICS = list(criterion_dict.keys())
@@ -53,7 +50,7 @@ class PDFReporter(Reporter):
             fig = plt.figure(figsize=(11.0, 8.5))
 
             # write box plot for data grouped by runnable sequence identifier
-            if "pipeline_component_id" in df.columns:
+            if "component_id" in df.columns:
                 # TODO
                 pass
 

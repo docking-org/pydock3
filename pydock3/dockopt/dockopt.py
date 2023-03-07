@@ -29,6 +29,7 @@ from pydock3.util import (
     validate_variable_type,
     get_hexdigest_of_persistent_md5_hash_of_tuple,
 )
+from pydock3.dockopt.util import WORKING_DIR_NAME, RETRODOCK_JOBS_DIR_NAME, RESULTS_CSV_FILE_NAME, BEST_RETRODOCK_JOBS_DIR_NAME, RETRODOCK_JOB_ID_COLUMN_NAME
 from pydock3.config import (
     Parameter,
     flatten_and_parameter_cast_param_dict,
@@ -37,11 +38,11 @@ from pydock3.config import (
 from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
 from pydock3.dockopt.config import DockoptParametersConfiguration
 from pydock3.files import (
+    INDOCK_FILE_NAME,
     Dir,
     File,
     IndockFile,
     OutdockFile,
-    INDOCK_FILE_NAME,
 )
 from pydock3.blastermaster.util import (
     BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT,
@@ -57,8 +58,8 @@ from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float, ROC_PLOT_FILE_NAME
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
-from pydock3.dockopt.results import BEST_RETRODOCK_JOBS_DIR_NAME, RESULTS_CSV_FILE_NAME, ResultsManager, DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
-from pydock3.dockopt.reporter import Reporter, RETRODOCK_JOB_ID_COLUMN_NAME
+from pydock3.dockopt.results import ResultsManager, DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
+from pydock3.dockopt.reporter import Reporter
 from pydock3.dockopt.criterion import EnrichmentScore, Criterion
 from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, PipelineComponentSequenceIteration
 from pydock3.dockopt.parameters import DockoptComponentParametersManager
@@ -267,8 +268,6 @@ class Dockopt(Script):
 
 
 class DockoptStep(PipelineComponent):
-    WORKING_DIR_NAME = "working"
-    RETRODOCK_JOBS_DIR_NAME = "retrodock_jobs"
 
     def __init__(
             self,
@@ -305,7 +304,7 @@ class DockoptStep(PipelineComponent):
         ]  # ^
         # TODO: remove need to copy these blaster files in for every step
         self.working_dir = WorkingDir(
-            path=os.path.join(self.dir.path, self.WORKING_DIR_NAME),
+            path=os.path.join(self.dir.path, WORKING_DIR_NAME),
             create=True,
             reset=False,
             files_to_copy_in=blaster_files_to_copy_in,
@@ -314,7 +313,7 @@ class DockoptStep(PipelineComponent):
             new_backup_file_names=new_backup_file_names,
         )
         self.retrodock_jobs_dir = Dir(
-            path=os.path.join(self.dir.path, self.RETRODOCK_JOBS_DIR_NAME),
+            path=os.path.join(self.dir.path, RETRODOCK_JOBS_DIR_NAME),
             create=True,
             reset=False,
         )
@@ -373,139 +372,181 @@ class DockoptStep(PipelineComponent):
         #
         graph = nx.DiGraph()
 
-        # for recording combinations of dock files
-        partial_dock_file_identifier_to_node_id_dicts = []
-        if last_component_completed is not None:
+        #
+        last_component_docking_configurations = []
+        if last_component_completed is not None and any(list(dock_files_to_use_from_previous_component.values())):
             for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
-                dock_file_identifier_to_node_id_dict = {}
+                dc = DockingConfiguration.from_dict(row.to_dict())
                 for dock_file_identifier, should_be_used in dock_files_to_use_from_previous_component.items():
                     if should_be_used:
                         #
-                        dock_file_node_id = row.to_dict()[f"dockfiles.{dock_file_identifier}.node_id"]
-                        dock_file_identifier_to_node_id_dict[dock_file_identifier] = dock_file_node_id
+                        dock_file_node_id = getattr(dc.dock_file_coordinates, dock_file_identifier).node_id
                         dock_file_lineage_subgraph = self._get_dock_file_lineage_subgraph(
                             graph=last_component_completed.graph,
                             dock_file_node_id=dock_file_node_id,
                         )
                         graph = nx.compose(graph, dock_file_lineage_subgraph)
-                partial_dock_file_identifier_to_node_id_dicts.append(dock_file_identifier_to_node_id_dict)
+                last_component_docking_configurations.append(dc)
 
         #
-        dock_files_generation_dict_and_nodes_tuples = []
         dock_file_identifier_counter_dict = collections.defaultdict(int)
         dock_file_node_id_to_numerical_suffix_dict = {}
         blaster_files = BlasterFiles(working_dir=self.working_dir)
-        for dock_files_generation_flat_param_dict in dock_files_generation_flat_param_dicts:
-            # get config for get_blaster_steps
-            # each value in dict must be an instance of Parameter
-            steps = get_blaster_steps(
-                blaster_files=blaster_files,
-                flat_param_dict=dock_files_generation_flat_param_dict,
-                working_dir=self.working_dir,
-            )
+        partial_dock_file_nodes_combination_dicts = []
+        if any([not x for x in dock_files_to_use_from_previous_component.values()]):
+            for dock_files_generation_flat_param_dict in dock_files_generation_flat_param_dicts:
+                # get config for get_blaster_steps
+                # each value in dict must be an instance of Parameter
+                steps = get_blaster_steps(
+                    blaster_files=blaster_files,
+                    flat_param_dict=dock_files_generation_flat_param_dict,
+                    working_dir=self.working_dir,
+                )
 
-            # form subgraph for this dock_files_generation_param_dict from the blaster steps it defines
-            subgraph = self._get_graph_from_all_steps_in_order(self.component_id, steps)
+                # form subgraph for this dock_files_generation_param_dict from the blaster steps it defines
+                subgraph = self._get_graph_from_all_steps_in_order(self.component_id, steps)
 
-            #
-            dock_file_identifier_to_node_id_dict = {}
-            for dock_file_identifier, should_be_used in dock_files_to_use_from_previous_component.items():
-                step_hash_to_edges_dict = collections.defaultdict(list)
-                step_hash_to_step_class_instance_dict = {}
-                if not should_be_used:  # need to create during this dockopt step, so add to graph
-                    #
-                    dock_file_node_id = self._get_blaster_file_node_with_blaster_file_identifier(dock_file_identifier, subgraph)
-                    dock_file_identifier_to_node_id_dict[dock_file_identifier] = dock_file_node_id
-                    dock_file_lineage_subgraph = self._get_dock_file_lineage_subgraph(
-                        graph=subgraph,
-                        dock_file_node_id=dock_file_node_id,
-                    ).copy()
-
-                    #
-                    new_dock_file_lineage_subgraph = deepcopy(dock_file_lineage_subgraph)
-                    for node_id in self._get_blaster_file_nodes(dock_file_lineage_subgraph):
-                        if node_id not in dock_file_node_id_to_numerical_suffix_dict:
-                            blaster_file_identifier = dock_file_lineage_subgraph.nodes[node_id]['blaster_file'].identifier
-                            dock_file_node_id_to_numerical_suffix_dict[node_id] = dock_file_identifier_counter_dict[blaster_file_identifier] + 1
-                            dock_file_identifier_counter_dict[blaster_file_identifier] += 1
-                        new_blaster_file = deepcopy(dock_file_lineage_subgraph.nodes[node_id]['blaster_file'])
-                        new_blaster_file.path = f"{new_blaster_file.path}_{dock_file_node_id_to_numerical_suffix_dict[node_id]}"
-                        new_dock_file_lineage_subgraph.nodes[node_id]['blaster_file'] = new_blaster_file
-                    dock_file_lineage_subgraph = new_dock_file_lineage_subgraph
-
-                    #
-                    for u, v, data in dock_file_lineage_subgraph.edges(data=True):
-                        step_hash_to_edges_dict[data["step_hash"]].append((u, v))
-                        step_hash_to_step_class_instance_dict[data["step_hash"]] = data["step_instance"]
-
-                    #
-                    for step_hash, edges in step_hash_to_edges_dict.items():
+                #
+                dock_file_identifier_to_node_id_dict = {}
+                partial_dock_file_nodes_combination_dict = {}
+                for dock_file_identifier, should_be_used in dock_files_to_use_from_previous_component.items():
+                    step_hash_to_edges_dict = collections.defaultdict(list)
+                    step_hash_to_step_class_instance_dict = {}
+                    if not should_be_used:  # need to create during this dockopt step, so add to graph
                         #
-                        kwargs = {"working_dir": self.working_dir}
-                        for (parent_node, child_node) in edges:
-                            edge_data_dict = dock_file_lineage_subgraph.get_edge_data(parent_node, child_node)
-                            parent_node_data_dict = dock_file_lineage_subgraph.nodes[parent_node]
-                            child_node_data_dict = dock_file_lineage_subgraph.nodes[child_node]
-                            parent_node_step_var_name = edge_data_dict["parent_node_step_var_name"]
-                            child_node_step_var_name = edge_data_dict["child_node_step_var_name"]
-                            if "blaster_file" in parent_node_data_dict:
-                                kwargs[parent_node_step_var_name] = parent_node_data_dict[
-                                    "blaster_file"
-                                ]
-                            if "parameter" in parent_node_data_dict:
-                                kwargs[parent_node_step_var_name] = parent_node_data_dict[
-                                    "parameter"
-                                ]
-                            if "blaster_file" in child_node_data_dict:
-                                kwargs[child_node_step_var_name] = child_node_data_dict[
-                                    "blaster_file"
-                                ]
-                            if "parameter" in child_node_data_dict:
-                                kwargs[child_node_step_var_name] = child_node_data_dict["parameter"]
+                        dock_file_node_id = self._get_blaster_file_node_with_blaster_file_identifier(dock_file_identifier, subgraph)
+                        partial_dock_file_nodes_combination_dict[dock_file_identifier] = dock_file_node_id
+                        dock_file_identifier_to_node_id_dict[dock_file_identifier] = dock_file_node_id
+                        dock_file_lineage_subgraph = self._get_dock_file_lineage_subgraph(
+                            graph=subgraph,
+                            dock_file_node_id=dock_file_node_id,
+                        )
 
                         #
-                        step_class = dock_file_lineage_subgraph.get_edge_data(*edges[0])["step_class"]  # first edge is fine since all edges have same step class
-                        step_hash_to_step_class_instance_dict[step_hash] = step_class(**kwargs)
+                        new_dock_file_lineage_subgraph = deepcopy(dock_file_lineage_subgraph)
+                        for node_id in self._get_blaster_file_nodes(dock_file_lineage_subgraph):
+                            if node_id not in dock_file_node_id_to_numerical_suffix_dict:
+                                blaster_file_identifier = dock_file_lineage_subgraph.nodes[node_id]['blaster_file'].identifier
+                                dock_file_node_id_to_numerical_suffix_dict[node_id] = dock_file_identifier_counter_dict[blaster_file_identifier] + 1
+                                dock_file_identifier_counter_dict[blaster_file_identifier] += 1
+                            new_blaster_file = deepcopy(dock_file_lineage_subgraph.nodes[node_id]['blaster_file'])
+                            new_blaster_file.path = f"{new_blaster_file.path}_{dock_file_node_id_to_numerical_suffix_dict[node_id]}"
+                            new_dock_file_lineage_subgraph.nodes[node_id]['blaster_file'] = new_blaster_file
+                        dock_file_lineage_subgraph = new_dock_file_lineage_subgraph
 
                         #
-                        for parent_node, child_node in edges:
-                            dock_file_lineage_subgraph.get_edge_data(parent_node, child_node)[
-                                "step_instance"
-                            ] = step_hash_to_step_class_instance_dict[step_hash]
+                        for u, v, data in dock_file_lineage_subgraph.edges(data=True):
+                            step_hash_to_edges_dict[data["step_hash"]].append((u, v))
+                            step_hash_to_step_class_instance_dict[data["step_hash"]] = data["step_instance"]
 
-                    #
-                    graph = nx.compose(graph, new_dock_file_lineage_subgraph)
+                        #
+                        for step_hash, edges in step_hash_to_edges_dict.items():
+                            #
+                            kwargs = {"working_dir": self.working_dir}
+                            for (parent_node, child_node) in edges:
+                                edge_data_dict = dock_file_lineage_subgraph.get_edge_data(parent_node, child_node)
+                                parent_node_data_dict = dock_file_lineage_subgraph.nodes[parent_node]
+                                child_node_data_dict = dock_file_lineage_subgraph.nodes[child_node]
+                                parent_node_step_var_name = edge_data_dict["parent_node_step_var_name"]
+                                child_node_step_var_name = edge_data_dict["child_node_step_var_name"]
+                                if "blaster_file" in parent_node_data_dict:
+                                    kwargs[parent_node_step_var_name] = parent_node_data_dict[
+                                        "blaster_file"
+                                    ]
+                                if "parameter" in parent_node_data_dict:
+                                    kwargs[parent_node_step_var_name] = parent_node_data_dict[
+                                        "parameter"
+                                    ]
+                                if "blaster_file" in child_node_data_dict:
+                                    kwargs[child_node_step_var_name] = child_node_data_dict[
+                                        "blaster_file"
+                                    ]
+                                if "parameter" in child_node_data_dict:
+                                    kwargs[child_node_step_var_name] = child_node_data_dict["parameter"]
 
-            #
-            if partial_dock_file_identifier_to_node_id_dicts:
-                for partial_dock_file_identifier_to_node_id_dict in partial_dock_file_identifier_to_node_id_dicts:
-                    dock_file_nodes_tuple = DockFileNodesTuple(**{**partial_dock_file_identifier_to_node_id_dict, **dock_file_identifier_to_node_id_dict})  # complement + complement = complete
-                    dock_files_generation_dict_and_nodes_tuples.append((dock_files_generation_flat_param_dict, dock_file_nodes_tuple))
-            else:
-                dock_file_nodes_tuple = DockFileNodesTuple(**dock_file_identifier_to_node_id_dict)  # use dock file nodes from this step only
-                dock_files_generation_dict_and_nodes_tuples.append((dock_files_generation_flat_param_dict, dock_file_nodes_tuple))
+                            #
+                            step_class = dock_file_lineage_subgraph.get_edge_data(*edges[0])["step_class"]  # first edge is fine since all edges have same step class
+                            step_hash_to_step_class_instance_dict[step_hash] = step_class(**kwargs)
+
+                            #
+                            for parent_node, child_node in edges:
+                                dock_file_lineage_subgraph.get_edge_data(parent_node, child_node)[
+                                    "step_instance"
+                                ] = step_hash_to_step_class_instance_dict[step_hash]
+
+                        #
+                        graph = nx.compose(graph, new_dock_file_lineage_subgraph)
+
+                #
+                partial_dock_file_nodes_combination_dicts.append(partial_dock_file_nodes_combination_dict)
+
+        #
+        dummy_dc_kwargs = {
+            'component_id': self.component_id,
+            'configuration_num': None,
+            'dock_executable_path': None,
+            'dock_files_generation_flat_param_dict': None,
+            'dock_files_modification_flat_param_dict': None,
+            'indock_file_generation_flat_param_dict': None,
+            'dock_file_coordinates': None,
+            'indock_file_coordinate': None,
+        }
+
+        #
+        dc_kwargs_so_far = []
+        if last_component_docking_configurations:
+            for last_component_dc, partial_dock_file_nodes_combination_dict in product(last_component_docking_configurations, partial_dock_file_nodes_combination_dicts):
+                dock_file_coordinates_kwargs = {  # complement + complement = complete
+                    **{identifier: DockFileCoordinate(
+                        component_id=self.component_id,
+                        file_name=graph.nodes[node_id]['blaster_file'].name,
+                        node_id=node_id,
+                    ) for identifier, node_id in partial_dock_file_nodes_combination_dict.items()},
+                    **{identifier: coord for identifier, coord in last_component_dc.dock_file_coordinates._asdict().items() if identifier not in partial_dock_file_nodes_combination_dict},
+                }
+                dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
+                partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
+                partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
+                partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
+                dc_kwargs_so_far.append(partial_dc_kwargs)
+        else:
+            dock_file_coordinates_kwargs = {
+                **{identifier: DockFileCoordinate(
+                    component_id=self.component_id,
+                    file_name=graph.nodes[node_id]['blaster_file'].name,
+                    node_id=node_id,
+                ) for identifier, node_id in partial_dock_file_nodes_combination_dict.items()},
+            }
+            dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
+            partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
+            partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
+            partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
+            dc_kwargs_so_far.append(partial_dc_kwargs)
 
         # matching spheres perturbation
-        if dock_files_modification_flat_param_dicts[0][  # this should always hold
-            "matching_spheres_perturbation.use"
-        ].value:
-            #
-            unique_matching_spheres_file_nodes = list(set([x[1].matching_spheres_file for x in dock_files_generation_dict_and_nodes_tuples]))
-
-            #
-            perturbed_node_to_modification_dicts_index_dict = {}
-            matching_spheres_node_to_perturbed_nodes_dict = collections.defaultdict(list)
-            for dock_files_generation_dict, dock_file_nodes_tuple in dock_files_generation_dict_and_nodes_tuples:
+        new_dc_kwargs_so_far = []
+        for modification_dicts_index, dock_files_modification_flat_param_dict in enumerate(dock_files_modification_flat_param_dicts):
+            if dock_files_modification_flat_param_dict[  # this should always hold
+                "matching_spheres_perturbation.use"
+            ].value:
                 #
-                for modification_dicts_index, dock_files_modification_flat_param_dict in enumerate(dock_files_modification_flat_param_dicts):
-                    matching_spheres_blaster_file = graph.nodes[dock_file_nodes_tuple.matching_spheres_file]['blaster_file']
-                    for i in range(
-                        int(
-                            dock_files_modification_flat_param_dict[
-                                "matching_spheres_perturbation.num_samples_per_matching_spheres_file"
-                            ].value
-                        )
-                    ):
+                unique_matching_spheres_file_nodes = list(
+                    set([x[1].matching_spheres_file for x in dock_files_generation_dict_and_nodes_tuples]))
+
+                #
+                matching_spheres_node_to_perturbed_nodes_dict = collections.defaultdict(list)
+
+                #
+                for i in range(
+                    int(
+                        dock_files_modification_flat_param_dict[
+                            "matching_spheres_perturbation.num_samples_per_matching_spheres_file"
+                        ].value
+                    )
+                ):
+                    for matching_spheres_file_node in unique_matching_spheres_file_nodes:
+                        #
+                        matching_spheres_blaster_file = graph.nodes[matching_spheres_file_node]['blaster_file']
                         max_deviation_angstroms = int(
                             dock_files_modification_flat_param_dict[
                                 "matching_spheres_perturbation.max_deviation_angstroms"
@@ -547,7 +588,7 @@ class DockoptStep(PipelineComponent):
                         outfile_step_var_name, = list(step.outfiles._asdict().keys())
                         parameter_step_var_name, = list(step.parameters._asdict().keys())
                         graph.add_edge(
-                            dock_file_nodes_tuple.matching_spheres_file,
+                            matching_spheres_file_node,
                             outfile_hash,
                             step_class=step.__class__,
                             original_step_dir_name=step.step_dir.name,
@@ -570,54 +611,55 @@ class DockoptStep(PipelineComponent):
                         )
 
                         #
-                        matching_spheres_node_to_perturbed_nodes_dict[dock_file_nodes_tuple.matching_spheres_file].append(outfile_hash)
-                        perturbed_node_to_modification_dicts_index_dict[outfile_hash] = modification_dicts_index
+                        matching_spheres_node_to_perturbed_nodes_dict[matching_spheres_file_node].append(outfile_hash)
 
-            #
-            partial_docking_configuration_tuples = []
-            for dock_files_generation_dict_and_nodes_tuple in dock_files_generation_dict_and_nodes_tuples:
-                matching_spheres_file_node_id = dock_files_generation_dict_and_nodes_tuple[1].matching_spheres_file
-                for perturbed_file_node_id in matching_spheres_node_to_perturbed_nodes_dict[matching_spheres_file_node_id]:
-                    #
-                    dock_files_generation_dict, dock_file_nodes_tuple = deepcopy(dock_files_generation_dict_and_nodes_tuple)
-                    kwargs = {**{dock_file_identifier: getattr(dock_file_nodes_tuple, dock_file_identifier) for dock_file_identifier in DOCK_FILE_IDENTIFIERS}, **{'matching_spheres_file': perturbed_file_node_id}}
-                    new_dock_file_nodes_tuple = DockFileNodesTuple(**kwargs)
-                    dock_files_modification_dict = dock_files_modification_flat_param_dicts[perturbed_node_to_modification_dicts_index_dict[perturbed_file_node_id]]
-                    partial_docking_configuration_tuple = (
-                        dock_files_generation_dict,
-                        dock_files_modification_dict,
-                        new_dock_file_nodes_tuple,
-                    )
-                    partial_docking_configuration_tuples.append(partial_docking_configuration_tuple)
-        else:
-            partial_docking_configuration_tuples = []
-            for dock_files_generation_dict_and_nodes_tuple in dock_files_generation_dict_and_nodes_tuples:
-                dock_files_generation_dict, dock_file_nodes_tuple = deepcopy(dock_files_generation_dict_and_nodes_tuple)
-                dock_files_modification_dict = dock_files_modification_flat_param_dicts[0]  # this should always hold (see above, same comment)
-                partial_docking_configuration_tuple = (
-                    dock_files_generation_dict,
-                    dock_files_modification_dict,
-                    dock_file_nodes_tuple,
-                )
-                partial_docking_configuration_tuples.append(partial_docking_configuration_tuple)
+                #
+                for partial_dc_kwargs in dc_kwargs_so_far:
+                    dock_file_coordinates = partial_dc_kwargs['dock_file_coordinates']
+                    for perturbed_file_node_id in matching_spheres_node_to_perturbed_nodes_dict[dock_file_coordinates.matching_spheres_file.node_id]:
+                        new_partial_dc_kwargs = deepcopy(partial_dc_kwargs)
+
+                        #
+                        new_dock_file_coordinates = deepcopy(dock_file_coordinates)
+                        new_dock_file_coordinates.matching_spheres_file = DockFileCoordinate(
+                            component_id=self.component_id,
+                            file_name=graph.nodes[node_id].name,
+                            node_id=perturbed_file_node_id,
+                        )
+                        new_partial_dc_kwargs['dock_file_coordinates'] = new_dock_file_coordinates
+
+                        #
+                        partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
+
+                        #
+                        new_dc_kwargs_so_far.append(new_partial_dc_kwargs)
+            else:
+                for partial_dc_kwargs in dc_kwargs_so_far:
+                    partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
+                new_dc_kwargs_so_far = partial_dc_kwargs
+        dc_kwargs_so_far = new_dc_kwargs_so_far
+
         #
         docking_configurations = []
-        for dock_files_generation_flat_param_dict, dock_files_modification_flat_param_dict, dock_file_nodes_tuple in partial_docking_configuration_tuples:
-            for dock_executable_path in dock_executable_paths:
-                for indock_file_generation_flat_param_dict in indock_file_generation_flat_param_dicts:
-                    configuration_num = len(docking_configurations) + 1
-                    docking_configuration = DockingConfiguration(
-                        component_id=self.component_id,
-                        configuration_num=configuration_num,
-                        dock_executable_path=dock_executable_path,
-                        dock_files_generation_flat_param_dict=dock_files_generation_flat_param_dict,
-                        dock_files_modification_flat_param_dict=dock_files_modification_flat_param_dict,
-                        indock_file_generation_flat_param_dict=indock_file_generation_flat_param_dict,
-                        dock_file_nodes_tuple=dock_file_nodes_tuple,
-                        dock_files=DockFiles(**{dock_file_identifier: graph.nodes[node_id]['blaster_file'] for dock_file_identifier, node_id in dock_file_nodes_tuple._asdict().items()}),
-                        indock_file=IndockFile(path=os.path.join(self.working_dir.path, f"{INDOCK_FILE_NAME}_{configuration_num}")),
-                    )
-                    docking_configurations.append(docking_configuration)
+        for partial_dc_kwargs, dock_executable_path, indock_file_generation_flat_param_dict in itertools.product(dc_kwargs_so_far, dock_executable_paths, indock_file_generation_flat_param_dicts):
+            configuration_num = len(docking_configurations) + 1
+            docking_configuration = DockingConfiguration(
+                component_id=self.component_id,
+                configuration_num=configuration_num,
+                dock_executable_path=dock_executable_path,
+                dock_files_generation_flat_param_dict=partial_dc_kwargs['dock_files_generation_flat_param_dict'],
+                dock_files_modification_flat_param_dict=partial_dc_kwargs['dock_files_modification_flat_param_dict'],
+                indock_file_generation_flat_param_dict=indock_file_generation_flat_param_dict,
+                dock_file_coordinates=partial_dc_kwargs['dock_file_coordinates'],
+                indock_file_coordinate=IndockFileCoordinate(
+                    component_id=self.component_id,
+                    file_name=f"{INDOCK_FILE_NAME}_{configuration_num}",
+                ),
+            )
+            docking_configurations.append(docking_configuration)
+
+        #
+        self.docking_configurations = docking_configurations
 
         # validate that there are no cycles (i.e. that it is a directed acyclic graph)
         if not nx.is_directed_acyclic_graph(graph):
@@ -628,9 +670,6 @@ class DockoptStep(PipelineComponent):
         logger.debug(
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
         )
-
-        #
-        self.docking_configurations = docking_configurations
 
     def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
         if component_run_func_arg_set.actives_tgz_file_path is not None:
@@ -804,7 +843,8 @@ class DockoptStep(PipelineComponent):
                 logger.debug("done.")
 
             #
-            data_dict['pipeline_component_id'] = self.component_id
+            data_dict['component_id'] = self.component_id
+            data_dict['configuration_num'] = docking_configuration.configuration_num
 
             # save data_dict for this job
             data_dicts.append(data_dict)
@@ -986,16 +1026,21 @@ class DockoptStep(PipelineComponent):
         return matching_blaster_file_node
 
     @staticmethod
-    def _get_start_nodes(g: nx.classes.digraph.DiGraph) -> List[BlasterFile]:
-        start_nodes = []
-        for node_id, node_data in g.nodes.items():
-            if g.in_degree(node_id) == 0:
-                start_nodes.append(node_id)
-        return start_nodes
-
-    @staticmethod
     def _get_dock_file_nodes_tuple(g: nx.classes.digraph.DiGraph) -> List[str]:
         return DockFileNodesTuple(**{dock_file_identifier: DockoptStep._get_blaster_file_node_with_blaster_file_identifier(dock_file_identifier, g) for dock_file_identifier in DOCK_FILE_IDENTIFIERS})
+
+    @staticmethod
+    def _get_param_dict_for_dock_files(graph: nx.classes.digraph.DiGraph, dock_file_coordinates: DockFileCoordinates) -> dict:
+        dock_file_node_ids = [coord.node_id for coord in dock_file_coordinates]
+        node_ids = [node_id for dock_file_node_id in dock_file_node_ids for node_id in nx.ancestors(graph, dock_file_node_id)]
+        node_ids = list(set(node_ids))
+        d = {}
+        for node_id in node_ids:
+            if graph.nodes[node_id].get('parameter'):
+                parameter = graph.nodes[node_id]['parameter']
+                d[parameter.name] = parameter.value
+
+        return d
 
     @staticmethod
     def _run_unrun_steps_needed_to_create_this_blaster_file_node(
