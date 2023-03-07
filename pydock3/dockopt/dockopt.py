@@ -61,9 +61,9 @@ from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results import ResultsManager, DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
 from pydock3.dockopt.reporter import Reporter
 from pydock3.dockopt.criterion import EnrichmentScore, Criterion
-from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, PipelineComponentSequenceIteration
+from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, PipelineComponentSequenceIteration, Pipeline
 from pydock3.dockopt.parameters import DockoptComponentParametersManager
-from pydock3.dockopt.docking_configuration import DockFileNodesTuple, DockingConfiguration
+from pydock3.dockopt.docking_configuration import DockingConfiguration, DockFileCoordinates, DockFileCoordinate, IndockFileCoordinate
 from pydock3.dockopt.dock_files_modification.matching_spheres_perturbation import MatchingSpheresPerturbationStep
 
 #
@@ -258,10 +258,9 @@ class Dockopt(Script):
         ]
 
         #
-        pipeline = DockoptStepSequenceIteration(
+        pipeline = DockoptPipeline(
             **config.param_dict["pipeline"],
-            component_id=File.get_file_name_of_file(job_dir_path),
-            dir_path=job_dir_path,
+            job_dir_path=job_dir_path,
             blaster_files_to_copy_in=blaster_files_to_copy_in,
         )
         pipeline.run(component_run_func_arg_set=component_run_func_arg_set)
@@ -271,8 +270,8 @@ class DockoptStep(PipelineComponent):
 
     def __init__(
             self,
+            job_dir_path: str,
             component_id: str,
-            dir_path: str,
             criterion: str,
             top_n: int,
             parameters: Iterable[dict],
@@ -281,8 +280,8 @@ class DockoptStep(PipelineComponent):
             last_component_completed: Union[PipelineComponent, None] = None,
     ):
         super().__init__(
+            job_dir_path=job_dir_path,
             component_id=component_id,
-            dir_path=dir_path,
             criterion=criterion,
             top_n=top_n,
             results_manager=DockoptStepResultsManager(RESULTS_CSV_FILE_NAME),
@@ -304,7 +303,7 @@ class DockoptStep(PipelineComponent):
         ]  # ^
         # TODO: remove need to copy these blaster files in for every step
         self.working_dir = WorkingDir(
-            path=os.path.join(self.dir.path, WORKING_DIR_NAME),
+            path=os.path.join(self.component_dir.path, WORKING_DIR_NAME),
             create=True,
             reset=False,
             files_to_copy_in=blaster_files_to_copy_in,
@@ -313,14 +312,14 @@ class DockoptStep(PipelineComponent):
             new_backup_file_names=new_backup_file_names,
         )
         self.retrodock_jobs_dir = Dir(
-            path=os.path.join(self.dir.path, RETRODOCK_JOBS_DIR_NAME),
+            path=os.path.join(self.component_dir.path, RETRODOCK_JOBS_DIR_NAME),
             create=True,
             reset=False,
         )
 
         #
         self.best_retrodock_jobs_dir = Dir(
-            path=os.path.join(self.dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
+            path=os.path.join(self.component_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
             reset=True,
         )
@@ -328,7 +327,7 @@ class DockoptStep(PipelineComponent):
         #
         self.actives_tgz_file = None  # set at beginning of .run()  # TODO: make non-class var
         self.decoys_tgz_file = None  # set at beginning of .run()  # TODO: make non-class var
-        
+
         #
         if isinstance(parameters["dock_executable_path"], list):
             dock_executable_paths = []
@@ -495,20 +494,27 @@ class DockoptStep(PipelineComponent):
         #
         dc_kwargs_so_far = []
         if last_component_docking_configurations:
-            for last_component_dc, partial_dock_file_nodes_combination_dict in product(last_component_docking_configurations, partial_dock_file_nodes_combination_dicts):
-                dock_file_coordinates_kwargs = {  # complement + complement = complete
-                    **{identifier: DockFileCoordinate(
-                        component_id=self.component_id,
-                        file_name=graph.nodes[node_id]['blaster_file'].name,
-                        node_id=node_id,
-                    ) for identifier, node_id in partial_dock_file_nodes_combination_dict.items()},
-                    **{identifier: coord for identifier, coord in last_component_dc.dock_file_coordinates._asdict().items() if identifier not in partial_dock_file_nodes_combination_dict},
-                }
-                dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
-                partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
-                partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
-                partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
-                dc_kwargs_so_far.append(partial_dc_kwargs)
+            if partial_dock_file_nodes_combination_dicts:
+                for last_component_dc, partial_dock_file_nodes_combination_dict in itertools.product(last_component_docking_configurations, partial_dock_file_nodes_combination_dicts):
+                    dock_file_coordinates_kwargs = {  # complement + complement = complete
+                        **{identifier: DockFileCoordinate(
+                            component_id=self.component_id,
+                            file_name=graph.nodes[node_id]['blaster_file'].name,
+                            node_id=node_id,
+                        ) for identifier, node_id in partial_dock_file_nodes_combination_dict.items()},
+                        **{identifier: coord for identifier, coord in last_component_dc.dock_file_coordinates._asdict().items() if identifier not in partial_dock_file_nodes_combination_dict},
+                    }
+                    dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
+                    partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
+                    partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
+                    partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
+                    dc_kwargs_so_far.append(partial_dc_kwargs)
+            else:
+                for last_component_dc in last_component_docking_configurations:
+                    partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
+                    partial_dc_kwargs['dock_file_coordinates'] = deepcopy(last_component_dc.dock_file_coordinates)
+                    partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, last_component_dc.dock_file_coordinates)
+                    dc_kwargs_so_far.append(partial_dc_kwargs)
         else:
             dock_file_coordinates_kwargs = {
                 **{identifier: DockFileCoordinate(
@@ -524,19 +530,14 @@ class DockoptStep(PipelineComponent):
             dc_kwargs_so_far.append(partial_dc_kwargs)
 
         # matching spheres perturbation
+        unique_matching_spheres_file_nodes = list(set([partial_dc_kwargs['dock_file_coordinates'].matching_spheres_file.node_id for partial_dc_kwargs in dc_kwargs_so_far]))
         new_dc_kwargs_so_far = []
-        for modification_dicts_index, dock_files_modification_flat_param_dict in enumerate(dock_files_modification_flat_param_dicts):
+        for dock_files_modification_flat_param_dict in dock_files_modification_flat_param_dicts:
             if dock_files_modification_flat_param_dict[  # this should always hold
                 "matching_spheres_perturbation.use"
             ].value:
                 #
-                unique_matching_spheres_file_nodes = list(
-                    set([x[1].matching_spheres_file for x in dock_files_generation_dict_and_nodes_tuples]))
-
-                #
                 matching_spheres_node_to_perturbed_nodes_dict = collections.defaultdict(list)
-
-                #
                 for i in range(
                     int(
                         dock_files_modification_flat_param_dict[
@@ -547,7 +548,7 @@ class DockoptStep(PipelineComponent):
                     for matching_spheres_file_node in unique_matching_spheres_file_nodes:
                         #
                         matching_spheres_blaster_file = graph.nodes[matching_spheres_file_node]['blaster_file']
-                        max_deviation_angstroms = int(
+                        max_deviation_angstroms = float(
                             dock_files_modification_flat_param_dict[
                                 "matching_spheres_perturbation.max_deviation_angstroms"
                             ].value
@@ -569,11 +570,11 @@ class DockoptStep(PipelineComponent):
                         )
 
                         # get step hash from infile hashes, step dir, parameters, and outfiles
-                        step_hash = DockoptStep._get_step_hash(component_id, step)
+                        step_hash = DockoptStep._get_step_hash(self.component_id, step)
 
                         # add outfile node
                         outfile, = list(step.outfiles._asdict().values())
-                        outfile_hash = DockoptStep._get_outfile_hash(component_id, outfile, step_hash)
+                        outfile_hash = DockoptStep._get_outfile_hash(self.component_id, outfile, step_hash)
                         graph.add_node(
                             outfile_hash,
                             blaster_file=deepcopy(outfile.original_file_in_working_dir),
@@ -620,16 +621,16 @@ class DockoptStep(PipelineComponent):
                         new_partial_dc_kwargs = deepcopy(partial_dc_kwargs)
 
                         #
-                        new_dock_file_coordinates = deepcopy(dock_file_coordinates)
-                        new_dock_file_coordinates.matching_spheres_file = DockFileCoordinate(
+                        new_dock_file_coordinates_kwargs = {**dock_file_coordinates._asdict()}
+                        new_dock_file_coordinates_kwargs['matching_spheres_file'] = DockFileCoordinate(
                             component_id=self.component_id,
-                            file_name=graph.nodes[node_id].name,
+                            file_name=graph.nodes[perturbed_file_node_id]['blaster_file'].name,
                             node_id=perturbed_file_node_id,
                         )
-                        new_partial_dc_kwargs['dock_file_coordinates'] = new_dock_file_coordinates
+                        new_partial_dc_kwargs['dock_file_coordinates'] = DockFileCoordinates(**new_dock_file_coordinates_kwargs)
 
                         #
-                        partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
+                        new_partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
 
                         #
                         new_dc_kwargs_so_far.append(new_partial_dc_kwargs)
@@ -687,24 +688,26 @@ class DockoptStep(PipelineComponent):
             # make dock files
             for dock_file_identifier in DOCK_FILE_IDENTIFIERS:
                 self._run_unrun_steps_needed_to_create_this_blaster_file_node(
-                    getattr(docking_configuration.dock_file_nodes_tuple, dock_file_identifier), self.graph
+                    getattr(docking_configuration.dock_file_coordinates, dock_file_identifier).node_id, self.graph
                 )
 
             # make indock file now that dock files exist
-            docking_configuration.indock_file.write(docking_configuration.dock_files, docking_configuration.full_flat_parameters_dict)
+            indock_file = docking_configuration.get_indock_file(self.job_dir.path)
+            indock_file.write(docking_configuration.get_dock_files(self.job_dir.path), docking_configuration.full_flat_parameters_dict)
         logger.info("done.")
 
         #
-        job_hash = get_hexdigest_of_persistent_md5_hash_of_tuple(tuple(sorted([docking_configuration.hexdigest_of_persistent_md5_hash for docking_configuration in self.docking_configurations])))
-        with open(os.path.join(self.dir.path, "job_hash_hexdigest.md5"), "w") as f:
-            f.write(f"{job_hash}\n")
+        step_hash = get_hexdigest_of_persistent_md5_hash_of_tuple(tuple(sorted([docking_configuration.hexdigest_of_persistent_md5_hash for docking_configuration in self.docking_configurations])))
+        with open(os.path.join(self.component_dir.path, "step_hash_hexdigest.md5"), "w") as f:
+            f.write(f"{step_hash}\n")
 
         #
-        array_job_docking_configurations_file_path = os.path.join(self.dir.path, "array_job_docking_configurations.txt")
+        array_job_docking_configurations_file_path = os.path.join(self.component_dir.path, "array_job_docking_configurations.txt")
         with open(array_job_docking_configurations_file_path, 'w') as f:
             for docking_configuration in self.docking_configurations:
-                dockfile_paths_str = " ".join([self.graph.nodes[getattr(docking_configuration.dock_file_nodes_tuple, dock_file_identifier)]['blaster_file'].path for dock_file_identifier in DOCK_FILE_IDENTIFIERS])
-                indock_file_path_str = docking_configuration.indock_file.path
+                dock_files = docking_configuration.get_dock_files(self.job_dir.path)
+                dockfile_paths_str = " ".join([getattr(dock_files, identifier).path for identifier in DOCK_FILE_IDENTIFIERS])
+                indock_file_path_str = docking_configuration.get_indock_file(self.job_dir.path).path
                 f.write(f"{docking_configuration.configuration_num} {indock_file_path_str} {dockfile_paths_str} {docking_configuration.dock_executable_path}\n")
 
         #
@@ -721,7 +724,7 @@ class DockoptStep(PipelineComponent):
             ('decoys', False, component_run_func_arg_set.decoys_tgz_file_path),
         ]:
             array_job = ArrayDockingJob(
-                name=f"dockopt_job_{job_hash}_{sub_dir_name}",
+                name=f"dockopt_step_{step_hash}_{sub_dir_name}",
                 job_dir=Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name)),
                 input_molecules_tgz_file_path=input_molecules_tgz_file_path,
                 job_scheduler=component_run_func_arg_set.scheduler,
@@ -821,19 +824,8 @@ class DockoptStep(PipelineComponent):
                 subset=["db2_file_path"], keep="first", ignore_index=True
             )
 
-            # make data dict for this job (will be used to make dataframe for results of all jobs)
-            data_dict = {f"parameters.{key}": value for key, value in docking_configuration.full_flat_parameters_dict.items()}
-            data_dict[RETRODOCK_JOB_ID_COLUMN_NAME] = str(docking_configuration.configuration_num)
-
-            #
-            for dock_file_identifier in DOCK_FILE_IDENTIFIERS:
-                dock_file_node_id = getattr(docking_configuration.dock_file_nodes_tuple, dock_file_identifier)
-                dock_file = self.graph.nodes[dock_file_node_id]['blaster_file']
-                data_dict[f"dockfiles.{dock_file_identifier}.name"] = dock_file.name
-                data_dict[f"dockfiles.{dock_file_identifier}.node_id"] = dock_file_node_id
-
-            #
-            data_dict["dockfiles.indock_file.name"] = docking_configuration.indock_file.name
+            # make data dict for this configuration num
+            data_dict = docking_configuration.to_dict()
 
             # get ROC and calculate enrichment score of this job's docking set-up
             if isinstance(self.criterion, EnrichmentScore):
@@ -841,10 +833,6 @@ class DockoptStep(PipelineComponent):
                 booleans = df["is_active"]
                 data_dict[self.criterion.name] = self.criterion.calculate(booleans)
                 logger.debug("done.")
-
-            #
-            data_dict['component_id'] = self.component_id
-            data_dict['configuration_num'] = docking_configuration.configuration_num
 
             # save data_dict for this job
             data_dicts.append(data_dict)
@@ -925,10 +913,10 @@ class DockoptStep(PipelineComponent):
             infiles_dict_items_list = sorted(step.infiles._asdict().items())
             outfiles_dict_items_list = sorted(step.outfiles._asdict().items())
             parameters_dict_items_list = sorted(step.parameters._asdict().items())
-    
+
             # get step hash from infile hashes, step dir, parameters, and outfiles
             step_hash = DockoptStep._get_step_hash(component_id, step)
-    
+
             # add infile nodes
             for infile in step.infiles:
                 if DockoptStep._get_blaster_file_node_with_same_file_name(infile.original_file_in_working_dir.name, graph) is not None:
@@ -939,7 +927,7 @@ class DockoptStep(PipelineComponent):
                     blaster_file_hash_dict[(component_id, infile.original_file_in_working_dir.name)],
                     blaster_file=deepcopy(infile.original_file_in_working_dir),
                 )
-    
+
             # add outfile nodes
             for outfile_step_var_name, outfile in outfiles_dict_items_list:
                 if DockoptStep._get_blaster_file_node_with_same_file_name(
@@ -954,11 +942,11 @@ class DockoptStep(PipelineComponent):
                     blaster_file_hash_dict[(component_id, outfile.original_file_in_working_dir.name)],
                     blaster_file=deepcopy(outfile.original_file_in_working_dir),
                 )
-    
+
             # add parameter nodes
             for parameter in step.parameters:
                 graph.add_node(parameter.hexdigest_of_persistent_md5_hash, parameter=deepcopy(parameter))
-    
+
             # connect each infile node to every outfile node
             for (infile_step_var_name, infile), (outfile_step_var_name, outfile) in itertools.product(
                 infiles_dict_items_list, outfiles_dict_items_list
@@ -973,7 +961,7 @@ class DockoptStep(PipelineComponent):
                     parent_node_step_var_name=infile_step_var_name,
                     child_node_step_var_name=outfile_step_var_name,
                 )
-    
+
             # connect each parameter node to every outfile nodes
             for (parameter_step_var_name, parameter), (outfile_step_var_name, outfile) in itertools.product(
                 parameters_dict_items_list, outfiles_dict_items_list
@@ -988,13 +976,13 @@ class DockoptStep(PipelineComponent):
                     parent_node_step_var_name=parameter_step_var_name,
                     child_node_step_var_name=outfile_step_var_name,
                 )
-    
+
         return graph
 
     @staticmethod
     def _get_blaster_file_nodes(g: nx.classes.digraph.DiGraph) -> str:
         return [node_id for node_id, node_data in g.nodes.items() if g.nodes[node_id].get("blaster_file")]
-    
+
     @staticmethod
     def _get_blaster_file_node_with_blaster_file_identifier(
         blaster_file_identifier: str,
@@ -1024,10 +1012,6 @@ class DockoptStep(PipelineComponent):
         matching_blaster_file_node, = matching_blaster_file_nodes
 
         return matching_blaster_file_node
-
-    @staticmethod
-    def _get_dock_file_nodes_tuple(g: nx.classes.digraph.DiGraph) -> List[str]:
-        return DockFileNodesTuple(**{dock_file_identifier: DockoptStep._get_blaster_file_node_with_blaster_file_identifier(dock_file_identifier, g) for dock_file_identifier in DOCK_FILE_IDENTIFIERS})
 
     @staticmethod
     def _get_param_dict_for_dock_files(graph: nx.classes.digraph.DiGraph, dock_file_coordinates: DockFileCoordinates) -> dict:
@@ -1067,8 +1051,8 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
 
     def __init__(
         self,
+        job_dir_path: str,
         component_id: str,
-        dir_path: str,
         criterion: str,
         top_n: int,
         components: Iterable[dict],
@@ -1077,8 +1061,8 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
         **kwargs  # TODO: make this unnecessary
     ):
         super().__init__(
+            job_dir_path=job_dir_path,
             component_id=component_id,
-            dir_path=dir_path,
             criterion=criterion,
             top_n=top_n,
             results_manager=DockoptStepSequenceIterationResultsManager(RESULTS_CSV_FILE_NAME),
@@ -1091,10 +1075,13 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
 
         #
         self.best_retrodock_jobs_dir = Dir(
-            path=os.path.join(self.dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
+            path=os.path.join(self.component_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
             reset=True,
         )
+
+        #
+        self.graph = nx.DiGraph()
 
     def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
         df = pd.DataFrame()
@@ -1122,12 +1109,13 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             )
 
             #
-            kwargs = {**parameters_manager.parameters_dict, **{
+            kwargs = {
+                **parameters_manager.parameters_dict,
                 'component_id': f"{self.component_id}.{component_num}",
-                'dir_path': os.path.join(self.dir.path, str(component_num)),
+                'job_dir_path': self.job_dir.path,
                 'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
                 'last_component_completed': last_component_completed_in_sequence,
-            }}
+            }
 
             #
             component = component_class(**kwargs)
@@ -1142,6 +1130,9 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             #
             last_component_completed_in_sequence = component
 
+            # TODO: make sure this is memory efficient
+            self.graph = nx.compose(self.graph, last_component_completed_in_sequence.graph)
+
         return df
 
 
@@ -1149,8 +1140,8 @@ class DockoptStepSequence(PipelineComponentSequence):
 
     def __init__(
         self,
+        job_dir_path: str,
         component_id: str,
-        dir_path: str,
         criterion: str,
         top_n: int,
         components: Iterable[dict],
@@ -1163,8 +1154,8 @@ class DockoptStepSequence(PipelineComponentSequence):
         **kwargs  # TODO: make this unnecessary
     ):
         super().__init__(
+            job_dir_path=job_dir_path,
             component_id=component_id,
-            dir_path=dir_path,
             criterion=criterion,
             top_n=top_n,
             results_manager=DockoptStepSequenceResultsManager(RESULTS_CSV_FILE_NAME),
@@ -1181,10 +1172,13 @@ class DockoptStepSequence(PipelineComponentSequence):
 
         #
         self.best_retrodock_jobs_dir = Dir(
-            path=os.path.join(self.dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
+            path=os.path.join(self.component_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
             reset=True,
         )
+
+        #
+        self.graph = nx.DiGraph()
 
     def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
         df = pd.DataFrame()
@@ -1206,7 +1200,7 @@ class DockoptStepSequence(PipelineComponentSequence):
             #
             component = DockoptStepSequenceIteration(
                 component_id=f"{self.component_id}.iter={iteration_num}",
-                dir_path=os.path.join(self.dir.path, f"iter={iteration_num}"),
+                job_dir_path=self.job_dir.path,
                 criterion=component_criterion,
                 top_n=component_top_n,
                 components=self.components,
@@ -1224,6 +1218,9 @@ class DockoptStepSequence(PipelineComponentSequence):
             #
             last_component_completed_in_sequence = component
 
+            # TODO: make sure this is memory efficient
+            self.graph = nx.compose(self.graph, last_component_completed_in_sequence.graph)
+
             #
             best_criterion_value_witnessed_this_iteration = df_component[component.criterion.name].max()
             if best_criterion_value_witnessed_this_iteration <= best_criterion_value_witnessed:
@@ -1233,5 +1230,92 @@ class DockoptStepSequence(PipelineComponentSequence):
                     num_iterations_left_with_no_improvement -= 1
             else:
                 best_criterion_value_witnessed = best_criterion_value_witnessed_this_iteration
+
+        return df
+
+
+class DockoptPipeline(Pipeline):
+    def __init__(
+            self,
+            job_dir_path: str,
+            criterion: str,
+            top_n: int,
+            components: Iterable[dict],
+            blaster_files_to_copy_in: Iterable[BlasterFile],
+            last_component_completed: Union[PipelineComponent, None] = None,
+            **kwargs  # TODO: make this unnecessary
+    ):
+        super().__init__(
+            job_dir_path=job_dir_path,
+            criterion=criterion,
+            top_n=top_n,
+            results_manager=DockoptStepSequenceIterationResultsManager(RESULTS_CSV_FILE_NAME),
+            components=components,
+        )
+
+        #
+        self.blaster_files_to_copy_in = blaster_files_to_copy_in
+        self.last_component_completed = last_component_completed
+
+        #
+        self.best_retrodock_jobs_dir = Dir(
+            path=os.path.join(self.job_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
+            create=True,
+            reset=True,
+        )
+
+        #
+        self.graph = nx.DiGraph()
+
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
+        df = pd.DataFrame()
+        best_criterion_value_witnessed = -float('inf')
+        last_component_completed_in_sequence = self.last_component_completed
+        for i, component_identifier_dict in enumerate(self.components):
+            #
+            component_num = i + 1
+
+            #
+            if "step" in component_identifier_dict:
+                component_identifier = "step"
+                component_class = DockoptStep
+            elif "sequence" in component_identifier_dict:
+                component_identifier = "sequence"
+                component_class = DockoptStepSequence
+            else:
+                raise Exception(
+                    f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {component_identifier_dict}")
+
+            #
+            component_parameters_dict = deepcopy(component_identifier_dict[component_identifier])
+            parameters_manager = DockoptComponentParametersManager(
+                parameters_dict=component_parameters_dict,
+                last_component_completed=last_component_completed_in_sequence,
+            )
+
+            #
+            kwargs = {
+                **parameters_manager.parameters_dict,
+                'component_id': str(component_num),
+                'job_dir_path': self.job_dir.path,
+                'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
+                'last_component_completed': last_component_completed_in_sequence,
+            }
+
+            #
+            component = component_class(**kwargs)
+
+            #
+            component.run(component_run_func_arg_set)
+
+            #
+            df_component = component.load_results_dataframe()
+            df = pd.concat([df, df_component], ignore_index=True)
+
+            #
+            last_component_completed_in_sequence = component
+
+            # TODO: make sure this is memory efficient
+            self.graph = nx.compose(self.graph, last_component_completed_in_sequence.graph)
 
         return df

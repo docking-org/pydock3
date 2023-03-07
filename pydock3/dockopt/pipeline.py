@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn, Iterable, Tuple
 from datetime import datetime
+import os
 
 import pandas as pd
 
@@ -27,18 +28,16 @@ def add_timing_and_results_writing_to_run_method(_cls: object) -> object:
     return _cls
 
 
-class PipelineComponent(object):
+class PipelineObject(object):
     def __init__(
             self,
-            component_id: str,
-            dir_path: str,
+            job_dir_path: str,
             criterion: str,
             top_n: int,
             results_manager: ResultsManager,
     ):
         #
-        self.component_id = component_id
-        self.dir = Dir(dir_path)
+        self.job_dir = Dir(job_dir_path)
         self.top_n = top_n
         self.results_manager = results_manager
 
@@ -51,9 +50,6 @@ class PipelineComponent(object):
         #
         self.started_utc = None  # set by add_timing_and_reporting_to_run_method() decorator; see .__init_subclass__()
         self.finished_utc = None  # set by add_timing_and_reporting_to_run_method() decorator; see .__init_subclass__()
-
-        #
-        # TODO: create directory
 
     def __init_subclass__(cls, **kwargs):
         return add_timing_and_results_writing_to_run_method(_cls=cls)
@@ -68,11 +64,38 @@ class PipelineComponent(object):
         return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name)
 
 
+class PipelineComponent(PipelineObject):
+    def __init__(
+            self,
+            component_id: str,
+            job_dir_path: str,
+            criterion: str,
+            top_n: int,
+            results_manager: ResultsManager,
+    ):
+        super().__init__(
+            job_dir_path=job_dir_path,
+            criterion=criterion,
+            top_n=top_n,
+            results_manager=results_manager,
+        )
+
+        #
+        self.component_id = component_id
+
+    def run(self, *args, **kwargs) -> NoReturn:
+        raise NotImplementedError
+
+    @property
+    def component_dir(self):
+        return Dir(os.path.join(self.job_dir.path, *self.component_id.split('.')))
+
+
 class PipelineComponentSequenceIteration(PipelineComponent):
     def __init__(
         self,
         component_id: str,
-        dir_path: str,
+        job_dir_path: str,
         criterion: str,
         top_n: int,
         results_manager: ResultsManager,
@@ -80,7 +103,7 @@ class PipelineComponentSequenceIteration(PipelineComponent):
     ):
         super().__init__(
             component_id=component_id,
-            dir_path=dir_path,
+            job_dir_path=job_dir_path,
             criterion=criterion,
             top_n=top_n,
             results_manager=results_manager,
@@ -97,7 +120,7 @@ class PipelineComponentSequence(PipelineComponent):
     def __init__(
         self,
         component_id: str,
-        dir_path: str,
+        job_dir_path: str,
         criterion: str,
         top_n: int,
         results_manager: ResultsManager,
@@ -109,7 +132,7 @@ class PipelineComponentSequence(PipelineComponent):
     ):
         super().__init__(
             component_id=component_id,
-            dir_path=dir_path,
+            job_dir_path=job_dir_path,
             criterion=criterion,
             top_n=top_n,
             results_manager=results_manager,
@@ -121,6 +144,29 @@ class PipelineComponentSequence(PipelineComponent):
         self.max_iterations_with_no_improvement = max_iterations_with_no_improvement
         self.inter_iteration_criterion = inter_iteration_criterion
         self.inter_iteration_top_n = inter_iteration_top_n
+
+    def run(self, *arg, **kwargs) -> NoReturn:
+        raise NotImplementedError
+
+
+class Pipeline(PipelineObject):
+    def __init__(
+        self,
+        job_dir_path: str,
+        criterion: str,
+        top_n: int,
+        results_manager: ResultsManager,
+        components: Iterable[dict],
+    ):
+        super().__init__(
+            job_dir_path=job_dir_path,
+            criterion=criterion,
+            top_n=top_n,
+            results_manager=results_manager,
+        )
+
+        #
+        self.components = components
 
     def run(self, *arg, **kwargs) -> NoReturn:
         raise NotImplementedError

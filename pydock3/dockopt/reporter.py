@@ -45,7 +45,7 @@ class PDFReporter(Reporter):
 
         df = pipeline_component.load_results_dataframe()
 
-        with PdfPages(os.path.join(pipeline_component.dir.path, self.report_file_name)) as f:
+        with PdfPages(os.path.join(pipeline_component.component_dir.path, self.report_file_name)) as f:
             #
             fig = plt.figure(figsize=(11.0, 8.5))
 

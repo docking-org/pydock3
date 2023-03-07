@@ -26,7 +26,7 @@ class DockoptComponentParametersManager(ParametersManager):
         #
         if last_component_completed is not None:
             for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
-                nested_target_keys_and_value_tuples = self._load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.')
+                nested_target_keys_and_value_tuples = self._load_nested_target_keys_and_value_tuples_from_dataframe_row(row, identifier_prefix='parameters.', include_prefix=True)
                 for nested_target_keys, value in nested_target_keys_and_value_tuples:
                     parameters_dict = self._get_parameters_dict_with_next_step_reference_value_replaced(parameters_dict, nested_target_keys, new_ref=value, old_ref='^')
 
@@ -74,11 +74,14 @@ class DockoptComponentParametersManager(ParametersManager):
         return traverse(deepcopy(parameters_dict))
 
     @staticmethod
-    def _load_nested_target_keys_and_value_tuples_from_dataframe_row(row: pd.Series, identifier_prefix: str = 'parameters.') -> List[Tuple[List[str], Union[float, str]]]:
+    def _load_nested_target_keys_and_value_tuples_from_dataframe_row(row: pd.Series, identifier_prefix: str = 'parameters.', include_prefix: bool = False) -> List[Tuple[List[str], Union[float, str]]]:
         """Loads the parameters in a dataframe row according to the column names."""
 
         dic = row.to_dict()
         nested_target_keys_and_value_tuples = [(key.split('.'), value) for key, value in dic.items() if key.startswith(identifier_prefix)]
+
+        if not include_prefix:
+            nested_target_keys_and_value_tuples = [(x[0][1:], x[1]) for x in nested_target_keys_and_value_tuples]
 
         return nested_target_keys_and_value_tuples
 

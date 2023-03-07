@@ -11,7 +11,7 @@ import seaborn as sns
 from joypy import joyplot
 
 from pydock3.files import Dir
-from pydock3.util import BEST_RETRODOCK_JOBS_DIR_NAME, RESULTS_CSV_FILE_NAME
+from pydock3.dockopt.util import BEST_RETRODOCK_JOBS_DIR_NAME
 from pydock3.dockopt.roc import ROC
 from pydock3.dockopt.reporter import PDFReporter, RETRODOCK_JOB_ID_COLUMN_NAME
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
@@ -65,12 +65,12 @@ class DockoptPipelineComponentResultsManager(ResultsManager):
         pipeline_component: PipelineComponent,
         results_dataframe: pd.core.frame.DataFrame,
     ) -> None:
-        results_dataframe.to_csv(os.path.join(pipeline_component.dir.path, self.results_file_name))
+        results_dataframe.to_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
         self.save_best_retrodock_jobs(pipeline_component)
         self.write_report(pipeline_component)
 
     def load_results(self, pipeline_component: PipelineComponent) -> pd.core.frame.DataFrame:
-        df = pd.read_csv(os.path.join(pipeline_component.dir.path, self.results_file_name))
+        df = pd.read_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
         df = df.loc[
             :, ~df.columns.str.contains("^Unnamed")
         ]  # remove useless index column
