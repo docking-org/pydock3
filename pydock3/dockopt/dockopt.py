@@ -530,13 +530,14 @@ class DockoptStep(PipelineComponent):
             dc_kwargs_so_far.append(partial_dc_kwargs)
 
         #
-        dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs(dc_kwargs_so_far)
+        dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(dc_kwargs_so_far)
 
         # matching spheres perturbation
         unique_matching_spheres_file_nodes = list(set([partial_dc_kwargs['dock_file_coordinates'].matching_spheres_file.node_id for partial_dc_kwargs in dc_kwargs_so_far]))
         new_dc_kwargs_so_far = []
+        num_files_perturbed_so_far = 0
         for dock_files_modification_flat_param_dict in dock_files_modification_flat_param_dicts:
-            if dock_files_modification_flat_param_dict[  # this should always hold
+            if dock_files_modification_flat_param_dict[ 
                 "matching_spheres_perturbation.use"
             ].value:
                 #
@@ -562,7 +563,7 @@ class DockoptStep(PipelineComponent):
                         )
                         perturbed_matching_spheres_file_path = os.path.join(
                             self.working_dir.path,
-                            f"{matching_spheres_blaster_file.name}_{i+1}"  # file name will grow with number of perturbations
+                            f"{BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT[matching_spheres_blaster_file.identifier]}_p{num_files_perturbed_so_far+1}"  # 'p' for perturbed
                         )
                         perturbed_matching_spheres_file = BlasterFile(perturbed_matching_spheres_file_path, identifier="matching_spheres_file")
                         step = MatchingSpheresPerturbationStep(
@@ -571,6 +572,7 @@ class DockoptStep(PipelineComponent):
                             perturbed_matching_spheres_outfile=perturbed_matching_spheres_file,
                             max_deviation_angstroms_parameter=max_deviation_angstroms_parameter,
                         )
+                        num_files_perturbed_so_far += 1
 
                         # get step hash from infile hashes, step dir, parameters, and outfiles
                         step_hash = DockoptStep._get_step_hash(self.component_id, step)
@@ -633,7 +635,7 @@ class DockoptStep(PipelineComponent):
                 for partial_dc_kwargs in dc_kwargs_so_far:
                     partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
                 new_dc_kwargs_so_far = partial_dc_kwargs
-        dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs(new_dc_kwargs_so_far)
+        dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
 
         #
         new_dc_kwargs_so_far = []
@@ -654,7 +656,7 @@ class DockoptStep(PipelineComponent):
                 ),
             }
             new_dc_kwargs_so_far.append(new_partial_dc_kwargs)
-        all_dc_kwargs = self._get_unique_docking_configuration_kwargs(new_dc_kwargs_so_far)
+        all_dc_kwargs = self._get_unique_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
 
         #
         self.docking_configurations = [DockingConfiguration(**dc_kwargs) for dc_kwargs in all_dc_kwargs]
@@ -669,7 +671,7 @@ class DockoptStep(PipelineComponent):
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
         )
         
-    def _get_unique_docking_configuration_kwargs(self, dc_kwargs_list):
+    def _get_unique_docking_configuration_kwargs_sorted(self, dc_kwargs_list):
         new_dc_kwargs = []
         hashes = []
         for dc_kwargs in dc_kwargs_list:
@@ -678,7 +680,10 @@ class DockoptStep(PipelineComponent):
                 new_dc_kwargs.append(dc_kwargs)
                 hashes.append(hash)
 
-        return new_dc_kwargs
+        #
+        new_dc_kwargs_sorted, hashes_sorted = zip(*sorted(zip(new_dc_kwargs, hashes), key=lambda x: x[1]))
+
+        return new_dc_kwargs_sorted
 
     def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
         if component_run_func_arg_set.actives_tgz_file_path is not None:
