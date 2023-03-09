@@ -2,7 +2,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn
 import os
 import shutil
+import glob
 import logging
+from dataclasses import fields
 
 import numpy as np
 import pandas as pd
@@ -12,8 +14,9 @@ from joypy import joyplot
 
 from pydock3.files import Dir
 from pydock3.dockopt.util import BEST_RETRODOCK_JOBS_DIR_NAME
+from pydock3.dockopt.docking_configuration import DockingConfiguration
 from pydock3.dockopt.roc import ROC
-from pydock3.dockopt.reporter import PDFReporter, RETRODOCK_JOB_ID_COLUMN_NAME
+from pydock3.dockopt.reporter import PDFReporter
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
@@ -98,9 +101,23 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             f"Copying top {pipeline_component.top_n} retrodock jobs to {pipeline_component.best_retrodock_jobs_dir.path}"
         )
         for i, row in pipeline_component.get_top_results_dataframe().iterrows():
-            src_retrodock_job_actives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "actives", str(row[RETRODOCK_JOB_ID_COLUMN_NAME]))
-            src_retrodock_job_decoys_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "decoys", str(row[RETRODOCK_JOB_ID_COLUMN_NAME]))
-            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={row['component_id']}_job={row[RETRODOCK_JOB_ID_COLUMN_NAME]}")
+            #
+            dc = DockingConfiguration.from_dict(row.to_dict())
+
+            # copy docking configuration files to best jobs dir
+            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={dc.component_id}_conf={dc.configuration_num}")
+            best_job_dockfiles_dir = Dir(
+                os.path.join(dst_best_job_dir_path, "dockfiles"),
+                create=True
+            )
+            dock_files = dc.get_dock_files(pipeline_component.pipeline_dir.path)
+            for field in fields(dock_files):
+                best_job_dockfiles_dir.copy_in_file(getattr(dock_files, field.name).path)
+            best_job_dockfiles_dir.copy_in_file(dc.get_indock_file(pipeline_component.pipeline_dir.path).path)
+
+            #
+            src_retrodock_job_actives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "actives", str(dc.configuration_num))
+            src_retrodock_job_decoys_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "decoys", str(dc.configuration_num))
             shutil.copytree(
                 src_retrodock_job_actives_dir_path,
                 os.path.join(dst_best_job_dir_path, "actives"),
@@ -109,17 +126,6 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
                 src_retrodock_job_decoys_dir_path,
                 os.path.join(dst_best_job_dir_path, "decoys"),
             )
-
-            # copy docking configuration files to best jobs dir
-            best_job_dockfiles_dir = Dir(
-                os.path.join(dst_best_job_dir_path, "dockfiles"),
-                create=True
-            )
-            dock_file_node_id_columns = [col for col in row.to_dict() if col.startswith("dockfiles.") and col.endswith(".node_id")]
-            for col in dock_file_node_id_columns:
-                best_job_dockfiles_dir.copy_in_file(
-                    pipeline_component.graph.nodes[row[col]]['blaster_file'].path
-                )
 
             #
             df_best_job = (
@@ -159,7 +165,7 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             # ridge plot for energy terms
             # TODO: get this from Retrodock instead
             pivot_rows = []
-            for i, row in df_best_job.iterrows():
+            for i, best_job_row in df_best_job.iterrows():
                 for col in [
                     "total_energy",
                     "electrostatic_energy",
@@ -168,12 +174,12 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
                     "apolar_desolvation_energy",
                 ]:
                     pivot_row = {"energy_term": col}
-                    if row["is_active"] == 1:
-                        pivot_row["active"] = str_to_float(row[col])
+                    if best_job_row["is_active"] == 1:
+                        pivot_row["active"] = str_to_float(best_job_row[col])
                         pivot_row["decoy"] = np.nan
                     else:
                         pivot_row["active"] = np.nan
-                        pivot_row["decoy"] = str_to_float(row[col])
+                        pivot_row["decoy"] = str_to_float(best_job_row[col])
                     pivot_rows.append(pivot_row)
             df_best_job_pivot = pd.DataFrame(pivot_rows)
             fig, ax = joyplot(
@@ -222,12 +228,14 @@ class DockoptStepSequenceIterationResultsManager(DockoptPipelineComponentResults
         )
         for i, row in pipeline_component.get_top_results_dataframe().iterrows():
             #
-            component_relative_id = pipeline_component.component_id.lstrip(f"{row['component_id']}.")
-            component_relative_dir_path = "/".join(component_relative_id.split("."))
+            dc = DockingConfiguration.from_dict(row.to_dict())
 
             #
-            src_best_job_dir_path = os.path.join(component_relative_dir_path, BEST_RETRODOCK_JOBS_DIR_NAME)
-            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={row['component_id']}_job={row[RETRODOCK_JOB_ID_COLUMN_NAME]}")
+            src_best_job_dir_path, = tuple(glob.glob(os.path.join(pipeline_component.pipeline_dir.path, *dc.component_id.split('.'), BEST_RETRODOCK_JOBS_DIR_NAME, f"rank=*_step={dc.component_id}_conf={dc.configuration_num}")))
+            dst_best_job_dir_path = os.path.join(
+                pipeline_component.best_retrodock_jobs_dir.path,
+                f"rank={i + 1}_step={dc.component_id}_conf={dc.configuration_num}",
+            )
             shutil.copytree(
                 src_best_job_dir_path,
                 dst_best_job_dir_path,
@@ -249,12 +257,14 @@ class DockoptStepSequenceResultsManager(DockoptPipelineComponentResultsManager):
         )
         for i, row in pipeline_component.get_top_results_dataframe().iterrows():
             #
-            component_relative_id = pipeline_component.component_id.lstrip(f"{row['component_id']}.")
-            component_relative_dir_path = "/".join(component_relative_id.split("."))
+            dc = DockingConfiguration.from_dict(row.to_dict())
 
             #
-            src_best_job_dir_path = os.path.join(component_relative_dir_path, BEST_RETRODOCK_JOBS_DIR_NAME)
-            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i + 1}_step={row['component_id']}_job={row[RETRODOCK_JOB_ID_COLUMN_NAME]}")
+            src_best_job_dir_path, = tuple(glob.glob(os.path.join(pipeline_component.pipeline_dir.path, *dc.component_id.split('.'), BEST_RETRODOCK_JOBS_DIR_NAME, f"rank=*_step={dc.component_id}_conf={dc.configuration_num}")))
+            dst_best_job_dir_path = os.path.join(
+                pipeline_component.best_retrodock_jobs_dir.path,
+                f"rank={i + 1}_step={dc.component_id}_conf={dc.configuration_num}",
+            )
             shutil.copytree(
                 src_best_job_dir_path,
                 dst_best_job_dir_path,

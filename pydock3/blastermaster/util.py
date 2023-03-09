@@ -5,7 +5,7 @@ import collections
 from copy import deepcopy
 from datetime import datetime
 from functools import wraps
-from dataclasses import dataclass
+from dataclasses import make_dataclass
 
 from pydock3.util import validate_variable_type, system_call
 from pydock3.config import Parameter
@@ -260,16 +260,7 @@ class BlasterFiles(object):
         )
 
 
-@dataclass
-class DockFiles:  # TODO: use DOCK_FILE_IDENTIFIERS to define args
-    matching_spheres_file: BlasterFile
-    electrostatics_trim_phi_file: BlasterFile
-    vdw_file: BlasterFile
-    vdw_bump_map_file: BlasterFile
-    vdw_parameters_file: BlasterFile
-    ligand_desolvation_heavy_file: BlasterFile
-    ligand_desolvation_hydrogen_file: BlasterFile
-    electrostatics_phi_size_file: BlasterFile
+DockFiles = make_dataclass("DockFiles", [(identifier, BlasterFile) for identifier in DOCK_FILE_IDENTIFIERS])
 
 
 class BlasterStep(object):

@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-import collections
+from dataclasses import dataclass, make_dataclass, fields, asdict
 import itertools
 import os
 
@@ -11,11 +10,18 @@ from pydock3.dockopt.util import WORKING_DIR_NAME
 
 
 #
-DockFileCoordinate = collections.namedtuple("DockFileCoordinate", "component_id file_name node_id")
-IndockFileCoordinate = collections.namedtuple("IndockFileCoordinate", "component_id file_name")
+DockFileCoordinate = make_dataclass("DockFileCoordinate", [
+    ("component_id", str),
+    ("file_name", str),
+    ("node_id", str),
+])
+IndockFileCoordinate = make_dataclass("IndockFileCoordinate", [
+    ("component_id", str),
+    ("file_name", str),
+])
 
 #
-DockFileCoordinates = collections.namedtuple("DockFileCoordinates", " ".join(DOCK_FILE_IDENTIFIERS))
+DockFileCoordinates = make_dataclass("DockFileCoordinates", [(identifier, DockFileCoordinate) for identifier in DOCK_FILE_IDENTIFIERS])
 
 
 @dataclass
@@ -29,41 +35,50 @@ class DockingConfiguration:
     dock_file_coordinates: DockFileCoordinates
     indock_file_coordinate: IndockFileCoordinate
 
-    @property
-    def full_flat_parameters_dict(self):
+    @staticmethod
+    def get_full_flat_parameters_dict(dock_executable_path, dock_files_generation_flat_param_dict, dock_files_modification_flat_param_dict, indock_file_generation_flat_param_dict, **kwargs):
         flat_param_dict = {}
-        flat_param_dict["dock_executable_path"] = self.dock_executable_path
+        flat_param_dict["dock_executable_path"] = dock_executable_path
         flat_param_dict.update(
             {
                 f"dock_files_generation.{key}": value
-                for key, value in self.dock_files_generation_flat_param_dict.items()
+                for key, value in dock_files_generation_flat_param_dict.items()
             }
         )
         flat_param_dict.update(
             {
                 f"dock_files_modification.{key}": value
-                for key, value in self.dock_files_modification_flat_param_dict.items()
+                for key, value in dock_files_modification_flat_param_dict.items()
             }
         )
         flat_param_dict.update(
             {
                 f"indock_file_generation.{key}": value
-                for key, value in self.indock_file_generation_flat_param_dict.items()
+                for key, value in indock_file_generation_flat_param_dict.items()
             }
         )
 
         return flat_param_dict
 
     @property
-    def hexdigest_of_persistent_md5_hash(self):
+    def full_flat_parameters_dict(self):
+        return self.get_full_flat_parameters_dict(self.dock_executable_path, self.dock_files_generation_flat_param_dict, self.dock_files_modification_flat_param_dict, self.indock_file_generation_flat_param_dict)
+
+    @staticmethod
+    def get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs):
         parameters_dict_items_interleaved_sorted_by_key_tuple = tuple(
             itertools.chain.from_iterable(
-                sorted(list(zip(*list(zip(*self.full_flat_parameters_dict.items())))), key=lambda x: x[0])
+                sorted(list(zip(*list(zip(*DockingConfiguration.get_full_flat_parameters_dict(**dc_kwargs).items())))), key=lambda x: x[0])
             )
         )
 
         # order matters, so use DOCK_FILE_IDENTIFIERS
-        return get_hexdigest_of_persistent_md5_hash_of_tuple(tuple([coordinate.node_id for dock_file_identifier, coordinate in self.dock_file_coordinates._asdict().items()] + [parameters_dict_items_interleaved_sorted_by_key_tuple]))
+        return get_hexdigest_of_persistent_md5_hash_of_tuple(tuple([getattr(dc_kwargs['dock_file_coordinates'], field.name).node_id for field in fields(dc_kwargs['dock_file_coordinates'])] + [parameters_dict_items_interleaved_sorted_by_key_tuple]))
+
+
+    @property
+    def hexdigest_of_persistent_md5_hash(self):
+        return self.get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs({field.name: getattr(self, field.name) for field in fields(self)})
 
     def to_dict(self):
         d = {
@@ -71,8 +86,9 @@ class DockingConfiguration:
             'configuration_num': self.configuration_num,
             **{f"parameters.{key}": value for key, value in self.full_flat_parameters_dict.items()},
         }
-        for dock_file_identifier, dock_file_coordinate in self.dock_file_coordinates._asdict().items():
-            identifier_str = f"dock_files.{dock_file_identifier}"
+        for field in fields(self.dock_file_coordinates):
+            dock_file_coordinate = getattr(self.dock_file_coordinates, field.name)
+            identifier_str = f"dock_files.{field.name}"
             d[f"{identifier_str}.component_id"] = dock_file_coordinate.component_id
             d[f"{identifier_str}.file_name"] = dock_file_coordinate.file_name
             d[f"{identifier_str}.node_id"] = dock_file_coordinate.node_id
@@ -85,11 +101,11 @@ class DockingConfiguration:
     def from_dict(d):
         dock_file_coordinates = DockFileCoordinates(**{
             dock_file_identifier: DockFileCoordinate(**{
-                field: str(d[f"dock_files.{dock_file_identifier}.{field}"])
-                for field in DockFileCoordinate._fields
+                field.name: str(d[f"dock_files.{dock_file_identifier}.{field.name}"])
+                for field in fields(DockFileCoordinate)
             }) for dock_file_identifier in DOCK_FILE_IDENTIFIERS
         })
-        indock_file_coordinate = IndockFileCoordinate(**{field: str(d[f"indock_file.{field}"]) for field in IndockFileCoordinate._fields})
+        indock_file_coordinate = IndockFileCoordinate(**{field.name: str(d[f"indock_file.{field.name}"]) for field in fields(IndockFileCoordinate)})
         dock_files_generation_flat_param_dict = {key: value for key, value in d.items() if key.startswith('parameters.dock_files_generation')}
         dock_files_modification_flat_param_dict = {key: value for key, value in d.items() if key.startswith('parameters.dock_files_modification')}
         indock_file_generation_flat_param_dict = {key: value for key, value in d.items() if key.startswith('parameters.indock_file_generation')}
@@ -104,9 +120,9 @@ class DockingConfiguration:
             indock_file_coordinate=indock_file_coordinate,
         )
 
-    def get_dock_files(self, job_dir_path):
-        kwargs = {dock_file_identifier: BlasterFile(os.path.join(job_dir_path, *coordinate.component_id.split('.'), WORKING_DIR_NAME, coordinate.file_name), identifier=dock_file_identifier) for dock_file_identifier, coordinate in self.dock_file_coordinates._asdict().items()}
+    def get_dock_files(self, pipeline_dir_path):
+        kwargs = {field.name: BlasterFile(os.path.join(pipeline_dir_path, *getattr(self.dock_file_coordinates, field.name).component_id.split('.'), WORKING_DIR_NAME, getattr(self.dock_file_coordinates, field.name).file_name), identifier=field.name) for field in fields(self.dock_file_coordinates)}
         return DockFiles(**kwargs)
 
-    def get_indock_file(self, job_dir_path):
-        return IndockFile(os.path.join(job_dir_path, *self.indock_file_coordinate.component_id.split('.'), WORKING_DIR_NAME, self.indock_file_coordinate.file_name))
+    def get_indock_file(self, pipeline_dir_path):
+        return IndockFile(os.path.join(pipeline_dir_path, *self.indock_file_coordinate.component_id.split('.'), WORKING_DIR_NAME, self.indock_file_coordinate.file_name))

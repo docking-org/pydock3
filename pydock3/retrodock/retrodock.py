@@ -2,7 +2,7 @@ import os
 import logging
 from uuid import uuid4
 import time
-from dataclasses import fields
+from dataclasses import fields, astuple
 
 import numpy as np
 import pandas as pd
@@ -136,7 +136,7 @@ class Retrodock(Script):
         dock_files = BlasterFiles(dock_files_dir).dock_files
 
         #
-        dock_files_required = [getattr(dock_files, dock_file_field.name) for dock_file_field in fields(dock_files)]  # if dock_file_field.name != "electrostatics_phi_size_file"]
+        dock_files_required = [dock_file.name for dock_file in astuple(dock_files)]  # if dock_file_field.name != "electrostatics_phi_size_file"]
         docking_configuration_file_names_required = [os.path.join(dock_files_dir.name, dock_file.name) for dock_file in dock_files_required] + [self.INDOCK_FILE_NAME]
         docking_configuration_file_names_not_detected = [file_name for file_name in docking_configuration_file_names_required if not File.file_exists(file_name)]
         if len(docking_configuration_file_names_not_detected) > 0:
@@ -256,7 +256,7 @@ class Retrodock(Script):
         array_job_docking_configurations_file_path = os.path.join(job_dir.path, "array_job_docking_configurations.txt")
         with open(array_job_docking_configurations_file_path, 'w') as f:
             retrodock_job_num = 1
-            dockfile_paths_str = " ".join([getattr(dock_files, dock_file_field_name).path for dock_file_field_name in sorted([field.name for field in fields(dock_files)])])
+            dockfile_paths_str = " ".join([dock_file.path for dock_file in astuple(dock_files)])
             f.write(f"{retrodock_job_num} {indock_file.path} {dockfile_paths_str} {dock_executable_path}\n")
 
         #

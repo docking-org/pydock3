@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, NoReturn, Iterable, Tuple
+from typing import TYPE_CHECKING, NoReturn, Iterable, Union
 from datetime import datetime
 import os
 
@@ -28,16 +28,18 @@ def add_timing_and_results_writing_to_run_method(_cls: object) -> object:
     return _cls
 
 
-class PipelineObject(object):
+class PipelineComponent(object):
     def __init__(
             self,
-            job_dir_path: str,
+            pipeline_dir_path: str,
+            component_id: Union[str, None],
             criterion: str,
             top_n: int,
             results_manager: ResultsManager,
     ):
         #
-        self.job_dir = Dir(job_dir_path)
+        self.pipeline_dir = Dir(pipeline_dir_path)
+        self.component_id = component_id
         self.top_n = top_n
         self.results_manager = results_manager
 
@@ -54,6 +56,13 @@ class PipelineObject(object):
     def __init_subclass__(cls, **kwargs):
         return add_timing_and_results_writing_to_run_method(_cls=cls)
 
+    @property
+    def component_dir(self):
+        if self.component_id is None:  # component is pipeline
+            return self.pipeline_dir
+        else:
+            return Dir(os.path.join(self.pipeline_dir.path, *self.component_id.split('.')))
+
     def run(self, *args, **kwargs) -> NoReturn:
         raise NotImplementedError
 
@@ -64,46 +73,19 @@ class PipelineObject(object):
         return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name)
 
 
-class PipelineComponent(PipelineObject):
+class PipelineComponentSequenceIteration(PipelineComponent):
     def __init__(
             self,
+            pipeline_dir_path: str,
             component_id: str,
-            job_dir_path: str,
             criterion: str,
             top_n: int,
             results_manager: ResultsManager,
+            components: Iterable[dict],
     ):
         super().__init__(
-            job_dir_path=job_dir_path,
-            criterion=criterion,
-            top_n=top_n,
-            results_manager=results_manager,
-        )
-
-        #
-        self.component_id = component_id
-
-    def run(self, *args, **kwargs) -> NoReturn:
-        raise NotImplementedError
-
-    @property
-    def component_dir(self):
-        return Dir(os.path.join(self.job_dir.path, *self.component_id.split('.')))
-
-
-class PipelineComponentSequenceIteration(PipelineComponent):
-    def __init__(
-        self,
-        component_id: str,
-        job_dir_path: str,
-        criterion: str,
-        top_n: int,
-        results_manager: ResultsManager,
-        components: Iterable[dict],
-    ):
-        super().__init__(
+            pipeline_dir_path=pipeline_dir_path,
             component_id=component_id,
-            job_dir_path=job_dir_path,
             criterion=criterion,
             top_n=top_n,
             results_manager=results_manager,
@@ -118,21 +100,21 @@ class PipelineComponentSequenceIteration(PipelineComponent):
 
 class PipelineComponentSequence(PipelineComponent):
     def __init__(
-        self,
-        component_id: str,
-        job_dir_path: str,
-        criterion: str,
-        top_n: int,
-        results_manager: ResultsManager,
-        components: Iterable[dict],
-        num_repetitions: int,
-        max_iterations_with_no_improvement: int,
-        inter_iteration_criterion: str,
-        inter_iteration_top_n: int,
+            self,
+            pipeline_dir_path: str,
+            component_id: str,
+            criterion: str,
+            top_n: int,
+            results_manager: ResultsManager,
+            components: Iterable[dict],
+            num_repetitions: int,
+            max_iterations_with_no_improvement: int,
+            inter_iteration_criterion: str,
+            inter_iteration_top_n: int,
     ):
         super().__init__(
+            pipeline_dir_path=pipeline_dir_path,
             component_id=component_id,
-            job_dir_path=job_dir_path,
             criterion=criterion,
             top_n=top_n,
             results_manager=results_manager,
@@ -149,17 +131,18 @@ class PipelineComponentSequence(PipelineComponent):
         raise NotImplementedError
 
 
-class Pipeline(PipelineObject):
+class Pipeline(PipelineComponent):
     def __init__(
-        self,
-        job_dir_path: str,
-        criterion: str,
-        top_n: int,
-        results_manager: ResultsManager,
-        components: Iterable[dict],
+            self,
+            pipeline_dir_path: str,
+            criterion: str,
+            top_n: int,
+            results_manager: ResultsManager,
+            components: Iterable[dict],
     ):
         super().__init__(
-            job_dir_path=job_dir_path,
+            pipeline_dir_path=pipeline_dir_path,
+            component_id=None,
             criterion=criterion,
             top_n=top_n,
             results_manager=results_manager,

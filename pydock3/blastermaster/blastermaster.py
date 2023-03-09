@@ -1,5 +1,5 @@
 import os
-from dataclasses import fields
+from dataclasses import fields, astuple
 import logging
 
 from pydock3.blastermaster.steps.receptor_most_occupied_residues_renaming import (
@@ -552,8 +552,7 @@ class Blastermaster(Script):
 
         # copy dock files to dock files directory
         logger.info("Copying dock files to dock files directory...")
-        for dock_file_field in fields(blaster_files.dock_files):
-            dock_file = getattr(blaster_files.dock_files, dock_file_field.name)
+        for dock_file in astuple(blaster_files.dock_files):
             File.copy_file(
                 dock_file.path, os.path.join(dock_files_dir.path, dock_file.name)
             )
