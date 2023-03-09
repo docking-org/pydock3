@@ -1,4 +1,5 @@
-from typing import Union, Iterable, List, Tuple
+from typing import Union, Iterable, List, Tuple, Callable, Any, TypeVar
+from typing_extensions import ParamSpec
 import itertools
 import os
 import shutil
@@ -23,6 +24,9 @@ from joypy import joyplot
 
 
 from pydock3.util import (
+    T,
+    P,
+    filter_kwargs_for_callable,
     Script,
     CleanExit,
     get_dataclass_as_dict,
@@ -102,16 +106,16 @@ class Dockopt(Script):
         os.path.dirname(DOCKOPT_INIT_FILE_PATH), "default_dockopt_config.yaml"
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         #
         self.job_dir = None  # assigned in .init()
 
     @staticmethod
-    def handle_run_func(run_func):
+    def handle_run_func(run_func: Callable[P, T]) -> Callable[P, T]:
         @wraps(run_func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self, *args: P.args, **kwargs: P.kwargs):
             with CleanExit():
                 logger.info(f"Running {self.__class__.__name__}")
                 run_func(self, *args, **kwargs)
@@ -171,12 +175,12 @@ class Dockopt(Script):
         self,
         scheduler: str,
         job_dir_path: str = ".",
-        config_file_path: str = None,
-        actives_tgz_file_path: str = None,
-        decoys_tgz_file_path: str = None,
+        config_file_path: Union[str, None] = None,
+        actives_tgz_file_path: Union[str, None] = None,
+        decoys_tgz_file_path: Union[str, None] = None,
         retrodock_job_max_reattempts: int = 0,
-        retrodock_job_timeout_minutes: str = None,
-        max_scheduler_jobs_running_at_a_time: str = None,  # TODO
+        retrodock_job_timeout_minutes: Union[str, None] = None,
+        max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
         export_decoy_poses: bool = False,  # TODO
     ) -> None:
         # validate args
@@ -267,7 +271,6 @@ class Dockopt(Script):
 
 
 class DockoptStep(PipelineComponent):
-
     def __init__(
             self,
             pipeline_dir_path: str,
@@ -278,7 +281,7 @@ class DockoptStep(PipelineComponent):
             dock_files_to_use_from_previous_component: dict,
             blaster_files_to_copy_in: Iterable[BlasterFile],
             last_component_completed: Union[PipelineComponent, None] = None,
-    ):
+    ) -> None:
         super().__init__(
             pipeline_dir_path=pipeline_dir_path,
             component_id=component_id,
@@ -465,7 +468,7 @@ class DockoptStep(PipelineComponent):
 
                             #
                             step_class = dock_file_lineage_subgraph.get_edge_data(*edges[0])["step_class"]  # first edge is fine since all edges have same step class
-                            step_hash_to_step_class_instance_dict[step_hash] = step_class(**kwargs)
+                            step_hash_to_step_class_instance_dict[step_hash] = step_class(**filter_kwargs_for_callable(kwargs, step_class))
 
                             #
                             for parent_node, child_node in edges:
@@ -671,7 +674,7 @@ class DockoptStep(PipelineComponent):
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
         )
         
-    def _get_unique_docking_configuration_kwargs_sorted(self, dc_kwargs_list):
+    def _get_unique_docking_configuration_kwargs_sorted(self, dc_kwargs_list: List[dict]) -> List[dict]:
         new_dc_kwargs = []
         hashes = []
         for dc_kwargs in dc_kwargs_list:
@@ -685,7 +688,7 @@ class DockoptStep(PipelineComponent):
 
         return new_dc_kwargs_sorted
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
         if component_run_func_arg_set.actives_tgz_file_path is not None:
             self.actives_tgz_file = File(path=component_run_func_arg_set.actives_tgz_file_path)
         else:
@@ -724,10 +727,10 @@ class DockoptStep(PipelineComponent):
                 f.write(f"{dc.configuration_num} {indock_file_path_str} {dockfile_paths_str} {dc.dock_executable_path}\n")
 
         #
-        def get_actives_outdock_file_path_for_configuration_num(configuration_num):
+        def get_actives_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
             return os.path.join(self.retrodock_jobs_dir.path, 'actives', str(configuration_num), 'OUTDOCK.0')
 
-        def get_decoys_outdock_file_path_for_configuration_num(configuration_num):
+        def get_decoys_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
             return os.path.join(self.retrodock_jobs_dir.path, 'decoys', str(configuration_num), 'OUTDOCK.0')
 
         # submit retrodock jobs (one for actives, one for decoys)
@@ -866,7 +869,7 @@ class DockoptStep(PipelineComponent):
         return df
 
     @staticmethod
-    def _get_dock_file_lineage_subgraph(graph, dock_file_node_id):
+    def _get_dock_file_lineage_subgraph(graph: nx.DiGraph, dock_file_node_id: str) -> nx.DiGraph:
         """Gets the subgraph representing the steps necessary to produce the desired dock file"""
 
         node_ids = [dock_file_node_id] + list(nx.ancestors(graph, dock_file_node_id))
@@ -883,15 +886,15 @@ class DockoptStep(PipelineComponent):
         return graph.subgraph(node_ids)
 
     @staticmethod
-    def _get_infile_hash(component_id, infile):
+    def _get_infile_hash(component_id: str, infile: BlasterFile) -> str:
         return get_hexdigest_of_persistent_md5_hash_of_tuple((component_id, infile.original_file_in_working_dir.name))
 
     @staticmethod
-    def _get_outfile_hash(component_id, outfile, step_hash):
+    def _get_outfile_hash(component_id: str, outfile: BlasterFile, step_hash: str) -> str:
         return get_hexdigest_of_persistent_md5_hash_of_tuple((component_id, outfile.original_file_in_working_dir.name, step_hash))
 
     @staticmethod
-    def _get_step_hash(component_id, step):
+    def _get_step_hash(component_id: str, step: BlasterStep) -> str:
         #
         infiles_dict_items_list = sorted(step.infiles._asdict().items())
         outfiles_dict_items_list = sorted(step.outfiles._asdict().items())
@@ -917,7 +920,7 @@ class DockoptStep(PipelineComponent):
         )
 
     @staticmethod
-    def _get_graph_from_all_steps_in_order(component_id: str, steps: List[BlasterStep]):
+    def _get_graph_from_all_steps_in_order(component_id: str, steps: List[BlasterStep]) -> nx.DiGraph:
         #
         graph = nx.DiGraph()
         blaster_file_hash_dict = {}
@@ -993,13 +996,13 @@ class DockoptStep(PipelineComponent):
         return graph
 
     @staticmethod
-    def _get_blaster_file_nodes(g: nx.classes.digraph.DiGraph) -> str:
+    def _get_blaster_file_nodes(g: nx.DiGraph) -> str:
         return [node_id for node_id, node_data in g.nodes.items() if g.nodes[node_id].get("blaster_file")]
 
     @staticmethod
     def _get_blaster_file_node_with_blaster_file_identifier(
         blaster_file_identifier: str,
-        g: nx.classes.digraph.DiGraph,
+        g: nx.DiGraph,
     ) -> str:
         blaster_file_node_ids = DockoptStep._get_blaster_file_nodes(g)
         if len(blaster_file_node_ids) == 0:
@@ -1014,7 +1017,7 @@ class DockoptStep(PipelineComponent):
     @staticmethod
     def _get_blaster_file_node_with_same_file_name(
         file_name: str,
-        g: nx.classes.digraph.DiGraph,
+        g: nx.DiGraph,
     ) -> BlasterFile:
         blaster_file_node_ids = DockoptStep._get_blaster_file_nodes(g)
         if len(blaster_file_node_ids) == 0:
@@ -1027,7 +1030,7 @@ class DockoptStep(PipelineComponent):
         return matching_blaster_file_node
 
     @staticmethod
-    def _get_param_dict_for_dock_files(graph: nx.classes.digraph.DiGraph, dock_file_coordinates: DockFileCoordinates) -> dict:
+    def _get_param_dict_for_dock_files(graph: nx.DiGraph, dock_file_coordinates: DockFileCoordinates) -> dict:
         dock_file_node_ids = [getattr(dock_file_coordinates, field.name).node_id for field in fields(dock_file_coordinates)]
         node_ids = [node_id for dock_file_node_id in dock_file_node_ids for node_id in nx.ancestors(graph, dock_file_node_id)]
         node_ids = list(set(node_ids))
@@ -1042,8 +1045,8 @@ class DockoptStep(PipelineComponent):
     @staticmethod
     def _run_unrun_steps_needed_to_create_this_blaster_file_node(
         blaster_file_node: str,
-        g: nx.classes.digraph.DiGraph,
-    ):
+        g: nx.DiGraph,
+    ) -> None:
         if g.nodes[blaster_file_node].get("blaster_file") is not None:
             blaster_file = g.nodes[blaster_file_node]['blaster_file']
             if not blaster_file.exists:
@@ -1071,8 +1074,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
         components: Iterable[dict],
         blaster_files_to_copy_in: Iterable[BlasterFile],
         last_component_completed: Union[PipelineComponent, None] = None,
-        **kwargs  # TODO: make this unnecessary
-    ):
+    ) -> None:
         super().__init__(
             pipeline_dir_path=pipeline_dir_path,
             component_id=component_id,
@@ -1096,7 +1098,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
         #
         self.graph = nx.DiGraph()
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1122,18 +1124,14 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             )
 
             #
-            kwargs = {
+            kwargs = filter_kwargs_for_callable({
                 **parameters_manager.parameters_dict,
                 'component_id': f"{self.component_id}.{component_num}",
                 'pipeline_dir_path': self.pipeline_dir.path,
                 'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
                 'last_component_completed': last_component_completed_in_sequence,
-            }
-
-            #
+            }, component_class)
             component = component_class(**kwargs)
-
-            #
             component.run(component_run_func_arg_set)
 
             #
@@ -1150,7 +1148,6 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
 
 
 class DockoptStepSequence(PipelineComponentSequence):
-
     def __init__(
         self,
         pipeline_dir_path: str,
@@ -1164,8 +1161,7 @@ class DockoptStepSequence(PipelineComponentSequence):
         inter_iteration_top_n: int,
         blaster_files_to_copy_in: Iterable[BlasterFile],
         last_component_completed: Union[PipelineComponent, None] = None,
-        **kwargs  # TODO: make this unnecessary
-    ):
+    ) -> None:
         super().__init__(
             pipeline_dir_path=pipeline_dir_path,
             component_id=component_id,
@@ -1193,7 +1189,7 @@ class DockoptStepSequence(PipelineComponentSequence):
         #
         self.graph = nx.DiGraph()
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1220,8 +1216,6 @@ class DockoptStepSequence(PipelineComponentSequence):
                 blaster_files_to_copy_in=self.blaster_files_to_copy_in,
                 last_component_completed=last_component_completed_in_sequence,
             )
-
-            #
             component.run(component_run_func_arg_set)
 
             #
@@ -1256,8 +1250,7 @@ class DockoptPipeline(Pipeline):
             components: Iterable[dict],
             blaster_files_to_copy_in: Iterable[BlasterFile],
             last_component_completed: Union[PipelineComponent, None] = None,
-            **kwargs  # TODO: make this unnecessary
-    ):
+    ) -> None:
         super().__init__(
             pipeline_dir_path=pipeline_dir_path,
             criterion=criterion,
@@ -1280,7 +1273,7 @@ class DockoptPipeline(Pipeline):
         #
         self.graph = nx.DiGraph()
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.core.frame.DataFrame:
+    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1307,18 +1300,14 @@ class DockoptPipeline(Pipeline):
             )
 
             #
-            kwargs = {
+            kwargs = filter_kwargs_for_callable({
                 **parameters_manager.parameters_dict,
                 'component_id': str(component_num),
                 'pipeline_dir_path': self.pipeline_dir.path,
                 'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
                 'last_component_completed': last_component_completed_in_sequence,
-            }
-
-            #
+            }, component_class)
             component = component_class(**kwargs)
-
-            #
             component.run(component_run_func_arg_set)
 
             #

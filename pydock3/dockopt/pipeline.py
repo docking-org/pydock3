@@ -66,10 +66,10 @@ class PipelineComponent(object):
     def run(self, *args, **kwargs) -> NoReturn:
         raise NotImplementedError
 
-    def load_results_dataframe(self) -> pd.core.frame.DataFrame:
+    def load_results_dataframe(self) -> pd.DataFrame:
         return self.results_manager.load_results(self)
 
-    def get_top_results_dataframe(self) -> pd.core.frame.DataFrame:
+    def get_top_results_dataframe(self) -> pd.DataFrame:
         return self.load_results_dataframe().nlargest(self.top_n, self.criterion.name)
 
 

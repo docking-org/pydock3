@@ -1,3 +1,5 @@
+from typing import TypeVar, Callable
+from typing_extensions import ParamSpec
 from dataclasses import fields
 import subprocess
 import logging
@@ -5,6 +7,7 @@ import os
 import sys
 import traceback
 import hashlib
+import inspect
 
 
 #
@@ -15,6 +18,10 @@ logger.setLevel(logging.DEBUG)
 logging_formatter = logging.Formatter(
     "%(asctime)s;%(levelname)s;%(message)s", "%Y-%m-%d %H:%M:%S"
 )
+
+#
+T = TypeVar('T')  # generic type for type hinting
+P = ParamSpec('P')  # generic parameters spec for type hinting
 
 
 def validate_variable_type(var, allowed_instance_types):
@@ -101,3 +108,7 @@ class CleanExit(object):
             logger.debug(str(exc_value))
             return True
         return exc_type is None
+
+
+def filter_kwargs_for_callable(d: dict, callable: Callable[P, T]) -> dict:
+    return {k: v for k, v in d.items() if k in inspect.getfullargspec(callable).args}

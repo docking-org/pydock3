@@ -4,7 +4,7 @@ import os
 
 from pydock3.files import IndockFile
 from pydock3.blastermaster.util import BlasterFile
-from pydock3.util import get_hexdigest_of_persistent_md5_hash_of_tuple
+from pydock3.util import get_hexdigest_of_persistent_md5_hash_of_tuple, filter_kwargs_for_callable
 from pydock3.blastermaster.util import DOCK_FILE_IDENTIFIERS, DockFiles
 from pydock3.dockopt.util import WORKING_DIR_NAME
 
@@ -36,7 +36,7 @@ class DockingConfiguration:
     indock_file_coordinate: IndockFileCoordinate
 
     @staticmethod
-    def get_full_flat_parameters_dict(dock_executable_path, dock_files_generation_flat_param_dict, dock_files_modification_flat_param_dict, indock_file_generation_flat_param_dict, **kwargs):
+    def get_full_flat_parameters_dict(dock_executable_path, dock_files_generation_flat_param_dict, dock_files_modification_flat_param_dict, indock_file_generation_flat_param_dict):
         flat_param_dict = {}
         flat_param_dict["dock_executable_path"] = dock_executable_path
         flat_param_dict.update(
@@ -66,9 +66,10 @@ class DockingConfiguration:
 
     @staticmethod
     def get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs):
+        filtered_kwargs = filter_kwargs_for_callable(dc_kwargs, DockingConfiguration.get_full_flat_parameters_dict)
         parameters_dict_items_interleaved_sorted_by_key_tuple = tuple(
             itertools.chain.from_iterable(
-                sorted(list(zip(*list(zip(*DockingConfiguration.get_full_flat_parameters_dict(**dc_kwargs).items())))), key=lambda x: x[0])
+                sorted(list(zip(*list(zip(*DockingConfiguration.get_full_flat_parameters_dict(**filtered_kwargs).items())))), key=lambda x: x[0])
             )
         )
 

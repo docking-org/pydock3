@@ -48,7 +48,7 @@ class ResultsManager(object):
     def write_results(
         self,
         pipeline_component: PipelineComponent,
-        results_dataframe: pd.core.frame.DataFrame,
+        results_dataframe: pd.DataFrame,
     ) -> NoReturn:
         raise NotImplementedError
 
@@ -66,13 +66,13 @@ class DockoptPipelineComponentResultsManager(ResultsManager):
     def write_results(
         self,
         pipeline_component: PipelineComponent,
-        results_dataframe: pd.core.frame.DataFrame,
+        results_dataframe: pd.DataFrame,
     ) -> None:
         results_dataframe.to_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
         self.save_best_retrodock_jobs(pipeline_component)
         self.write_report(pipeline_component)
 
-    def load_results(self, pipeline_component: PipelineComponent) -> pd.core.frame.DataFrame:
+    def load_results(self, pipeline_component: PipelineComponent) -> pd.DataFrame:
         df = pd.read_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
         df = df.loc[
             :, ~df.columns.str.contains("^Unnamed")
