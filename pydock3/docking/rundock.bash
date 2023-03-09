@@ -81,6 +81,8 @@ chmod -R 777 $OUTPUT
 
 # copy dockfiles
 awk "\$1==${TASK_ID}{for (j=2; j<=NF; j++) print \$j}" "$ARRAY_JOB_DOCKING_CONFIGURATIONS" | xargs -I {} cp {} "$DOCKFILES_TEMP"
+echo "dockfiles: "
+ls $DOCKFILES_TEMP
 
 # get dock executable path from array job docking configurations file (dockexec is last column)
 DOCKEXEC=$(awk -v var="$TASK_ID" '$1 == var {print $NF}' "$ARRAY_JOB_DOCKING_CONFIGURATIONS")
