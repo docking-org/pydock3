@@ -55,7 +55,7 @@ step:
       matching_spheres_perturbation:
         use: any(regex('^[\^]$'), bool(), list(bool()))
         num_samples_per_matching_spheres_file: num()
-        max_deviation_angstroms: any(regex('^[\^]$'), num())
+        max_deviation_angstroms: any(regex('^[\^]$'), num(), list(num))
     indock_file_generation:
       ligand_atom_file: any(regex('^[\^]$'), str(), list(str()))
       output_file_prefix: any(regex('^[\^]$'), str(), list(str()))
