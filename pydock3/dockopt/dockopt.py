@@ -774,24 +774,27 @@ class DockoptStep(PipelineComponent):
                     0.01
                 )  # sleep for a bit
                 if any([(not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.is_running) for array_job in array_jobs]):
-                    # task must have timed out / failed for one or both jobs
-                    logger.warning(
-                        f"Failure / time out witnessed for task {docking_configuration.configuration_num}"
-                    )
-                    if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] > component_run_func_arg_set.retrodock_job_max_reattempts:
+                    sleep(3)  # wait a bit and check again
+                    if any([(not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (
+                    not array_job.is_running) for array_job in array_jobs]):
+                        # task must have timed out / failed for one or both jobs
                         logger.warning(
-                            f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
+                            f"Failure / time out witnessed for task {docking_configuration.configuration_num}"
                         )
-                        continue  # move on to next in queue without re-attempting failed task
+                        if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] > component_run_func_arg_set.retrodock_job_max_reattempts:
+                            logger.warning(
+                                f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
+                            )
+                            continue  # move on to next in queue without re-attempting failed task
 
-                    for array_job in array_jobs:
-                        if not array_job.task_is_complete(str(docking_configuration.configuration_num)):
-                            array_job.submit_task(
-                                str(docking_configuration.configuration_num),
-                                job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
-                                skip_if_complete=False,
-                            )  # re-attempt relevant job(s) for incomplete task
-                    configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
+                        for array_job in array_jobs:
+                            if not array_job.task_is_complete(str(docking_configuration.configuration_num)):
+                                array_job.submit_task(
+                                    str(docking_configuration.configuration_num),
+                                    job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
+                                    skip_if_complete=False,
+                                )  # re-attempt relevant job(s) for incomplete task
+                        configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
 
                 docking_configurations_processing_queue.append(
                     docking_configuration
