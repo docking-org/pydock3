@@ -95,15 +95,9 @@ class Dir(FileSystemEntity):
     def create(self, reset=False):
         """#TODO"""
         if reset:
-            if os.path.exists(self.path):
-                shutil.rmtree(self.path)
-                while os.path.isdir(self.path):
-                    pass
-                pathlib.Path(self.path).mkdir(parents=True)
-                logger.info(f"Reset directory {self}.")
-            else:
-                pathlib.Path(self.path).mkdir(parents=True)
-                logger.info(f"Created directory {self}.")
+            self.delete()
+            pathlib.Path(self.path).mkdir(parents=True)
+            logger.info(f"Reset directory {self}.")
         else:
             if os.path.exists(self.path):
                 logger.debug(
@@ -116,7 +110,7 @@ class Dir(FileSystemEntity):
     def delete(self):
         if os.path.exists(self.path):
             shutil.rmtree(self.path, ignore_errors=True)
-            while os.path.isdir(self.path):
+            while os.path.isdir(self.path):  # TODO: hmmm. is this valid?
                 pass
             logger.info(f"Deleted directory {self}.")
 
