@@ -488,6 +488,12 @@ class Dockopt(Script):
             files_to_copy_in=blaster_file_names_in_cwd,
             backup_files_to_copy_in=backup_blaster_file_paths,
         )
+	
+	# ad hoc detection of rec.crg.pdb (you're welcome Olivier) 
+        rec_crg_file_name_in_cwd  = 'rec.crg.pdb'
+        if os.path.isfile(rec_crg_file_name_in_cwd):
+            working_dir.copy_in_file(rec_crg_file_name_in_cwd, dst_file_name='rec.crg.pdb_1')
+        
 
         # copy in actives and decoys TGZ files
         tgz_files = [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]
