@@ -61,6 +61,9 @@ class DockoptComponentParametersManager(ParametersManager):
                             # replace old ref with new ref
                             if nested_target['reference_value'] == old_ref:
                                 obj = set_nested_dict_item(obj, nested_target_keys + ['reference_value'], new_ref)
+                    else:
+                        if nested_target['reference_value'] == old_ref:
+                            obj = set_nested_dict_item(obj, nested_target_keys, new_ref)
                 except:
                     for key, value in obj.items():
                         obj[key] = traverse(value)
