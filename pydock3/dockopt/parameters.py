@@ -56,17 +56,18 @@ class DockoptComponentParametersManager(ParametersManager):
             if isinstance(obj, dict):
                 try:
                     nested_target = get_nested_dict_item(obj, nested_target_keys)
-                    if isinstance(nested_target, dict):
-                        if 'reference_value' in nested_target and 'arguments' in nested_target and 'operator' in nested_target:  # numerical operator detected
-                            # replace old ref with new ref
-                            if nested_target['reference_value'] == old_ref:
-                                obj = set_nested_dict_item(obj, nested_target_keys + ['reference_value'], new_ref)
-                    else:
-                        if nested_target['reference_value'] == old_ref:
-                            obj = set_nested_dict_item(obj, nested_target_keys, new_ref)
-                except:
+                except KeyError:
                     for key, value in obj.items():
                         obj[key] = traverse(value)
+                    return obj
+                if isinstance(nested_target, dict):
+                    if 'reference_value' in nested_target and 'arguments' in nested_target and 'operator' in nested_target:  # numerical operator detected
+                        # replace old ref with new ref
+                        if nested_target['reference_value'] == old_ref:
+                            obj = set_nested_dict_item(obj, nested_target_keys + ['reference_value'], new_ref)
+                else:
+                    if nested_target == old_ref:
+                        obj = set_nested_dict_item(obj, nested_target_keys, new_ref)
                 return obj
             elif isinstance(obj, list):  # obj is sequence
                 obj[0] = traverse(obj[0])  # only change next step to be run, which will be found in the first element
