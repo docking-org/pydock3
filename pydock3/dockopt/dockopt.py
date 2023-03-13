@@ -637,7 +637,7 @@ class DockoptStep(PipelineComponent):
             else:
                 for partial_dc_kwargs in dc_kwargs_so_far:
                     partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
-                new_dc_kwargs_so_far = partial_dc_kwargs
+                new_dc_kwargs_so_far = dc_kwargs_so_far
         dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
 
         #
