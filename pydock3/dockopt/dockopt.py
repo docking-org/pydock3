@@ -1,3 +1,4 @@
+import uuid
 from typing import Union, Iterable, List, Tuple, Callable, Any, TypeVar
 from typing_extensions import ParamSpec
 import itertools
@@ -718,9 +719,9 @@ class DockoptStep(PipelineComponent):
         logger.info("done.")
 
         #
-        step_hash = get_hexdigest_of_persistent_md5_hash_of_tuple(tuple(sorted([dc.hexdigest_of_persistent_md5_hash for dc in self.docking_configurations])))
-        with open(os.path.join(self.component_dir.path, "step_hash_hexdigest.md5"), "w") as f:
-            f.write(f"{step_hash}\n")
+        temp_step_id = uuid.uuid4()
+        with open(os.path.join(self.component_dir.path, "temp_step_id"), "w") as f:
+            f.write(f"{temp_step_id}\n")
 
         #
         array_job_docking_configurations_file_path = os.path.join(self.component_dir.path, "array_job_docking_configurations.txt")
@@ -745,7 +746,7 @@ class DockoptStep(PipelineComponent):
             ('decoys', False, component_run_func_arg_set.decoys_tgz_file_path),
         ]:
             array_job = ArrayDockingJob(
-                name=f"dockopt_step_{step_hash}_{sub_dir_name}",
+                name=f"dockopt_step_{temp_step_id}_{sub_dir_name}",
                 job_dir=Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name)),
                 input_molecules_tgz_file_path=input_molecules_tgz_file_path,
                 job_scheduler=component_run_func_arg_set.scheduler,
