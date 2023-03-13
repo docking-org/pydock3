@@ -105,17 +105,15 @@ def flatten_and_parameter_cast_param_dict(d, key_prefix=""):
     return new_d
 
 
-def get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(
-    multivalued_param_dict,
-):
+def get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(multivalued_param_dict):
     #
-    keys, multivalues = zip(*flatten_param_dict(multivalued_param_dict).items())
+    keys, multivalues = zip(*sorted(flatten_param_dict(multivalued_param_dict).items(), key=lambda item: item[0]))  # sort by keys
 
     #
     new_multivalues = []
     for multivalue in multivalues:
         if isinstance(multivalue, list):
-            new_multivalues.append(multivalue)  # is multivalue
+            new_multivalues.append(sorted(multivalue))  # is multivalue, sort it
         else:
             new_multivalues.append([multivalue])  # is univalue, so cast as multivalue
     multivalues = new_multivalues

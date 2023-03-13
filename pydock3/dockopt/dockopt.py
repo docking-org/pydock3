@@ -37,7 +37,7 @@ from pydock3.dockopt.util import WORKING_DIR_NAME, RETRODOCK_JOBS_DIR_NAME, RESU
 from pydock3.config import (
     Parameter,
     flatten_and_parameter_cast_param_dict,
-    get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict,
+    get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict,
 )
 from pydock3.blastermaster.blastermaster import BlasterFiles, get_blaster_steps
 from pydock3.dockopt.config import DockoptParametersConfiguration
@@ -346,13 +346,13 @@ class DockoptStep(PipelineComponent):
                 dock_executable_paths = [parameters["dock_executable_path"]]
 
         #
-        dock_files_generation_flat_param_dicts = get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["dock_files_generation"])
-        dock_files_modification_flat_param_dicts = get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["dock_files_modification"])
-        indock_file_generation_flat_param_dicts = get_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["indock_file_generation"])
+        sorted_dock_files_generation_flat_param_dicts = get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["dock_files_generation"])
+        sorted_dock_files_modification_flat_param_dicts = get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["dock_files_modification"])
+        sorted_indock_file_generation_flat_param_dicts = get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["indock_file_generation"])
 
         # TODO: same thing happens in DockingConfiguration(). Maybe abstract this into another object?
         param_dict_hashes = []
-        for p_dict in dock_files_generation_flat_param_dicts:
+        for p_dict in sorted_dock_files_generation_flat_param_dicts:
             p_dict_items_interleaved_sorted_by_key_tuple = tuple(
                 itertools.chain.from_iterable(
                     sorted(list(zip(*list(zip(*p_dict.items())))), key=lambda x: x[0])
@@ -363,10 +363,10 @@ class DockoptStep(PipelineComponent):
                     p_dict_items_interleaved_sorted_by_key_tuple
                 )
             )
-        dock_files_generation_flat_param_dicts = [
+        sorted_dock_files_generation_flat_param_dicts = [
             x
             for x, y in sorted(
-                zip(dock_files_generation_flat_param_dicts, param_dict_hashes),
+                zip(sorted_dock_files_generation_flat_param_dicts, param_dict_hashes),
                 key=lambda pair: pair[1],
             )
         ]
@@ -396,7 +396,7 @@ class DockoptStep(PipelineComponent):
         blaster_files = BlasterFiles(working_dir=self.working_dir)
         partial_dock_file_nodes_combination_dicts = []
         if any([not x for x in dock_files_to_use_from_previous_component.values()]):
-            for dock_files_generation_flat_param_dict in dock_files_generation_flat_param_dicts:
+            for dock_files_generation_flat_param_dict in sorted_dock_files_generation_flat_param_dicts:
                 # get config for get_blaster_steps
                 # each value in dict must be an instance of Parameter
                 steps = get_blaster_steps(
@@ -536,10 +536,10 @@ class DockoptStep(PipelineComponent):
         dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(dc_kwargs_so_far)
 
         # matching spheres perturbation
-        unique_matching_spheres_file_nodes = list(set([partial_dc_kwargs['dock_file_coordinates'].matching_spheres_file.node_id for partial_dc_kwargs in dc_kwargs_so_far]))
+        sorted_unique_matching_spheres_file_nodes = sorted(list(set([partial_dc_kwargs['dock_file_coordinates'].matching_spheres_file.node_id for partial_dc_kwargs in dc_kwargs_so_far])))
         new_dc_kwargs_so_far = []
         num_files_perturbed_so_far = 0
-        for dock_files_modification_flat_param_dict in dock_files_modification_flat_param_dicts:
+        for dock_files_modification_flat_param_dict in sorted_dock_files_modification_flat_param_dicts:
             if dock_files_modification_flat_param_dict[ 
                 "matching_spheres_perturbation.use"
             ].value:
@@ -552,7 +552,7 @@ class DockoptStep(PipelineComponent):
                         ].value
                     )
                 ):
-                    for matching_spheres_file_node in unique_matching_spheres_file_nodes:
+                    for matching_spheres_file_node in sorted_unique_matching_spheres_file_nodes:
                         #
                         matching_spheres_blaster_file = graph.nodes[matching_spheres_file_node]['blaster_file']
                         max_deviation_angstroms = float(
@@ -642,7 +642,7 @@ class DockoptStep(PipelineComponent):
 
         #
         new_dc_kwargs_so_far = []
-        for i, (partial_dc_kwargs, dock_executable_path, indock_file_generation_flat_param_dict) in enumerate(itertools.product(dc_kwargs_so_far, dock_executable_paths, indock_file_generation_flat_param_dicts)):
+        for i, (partial_dc_kwargs, dock_executable_path, indock_file_generation_flat_param_dict) in enumerate(itertools.product(dc_kwargs_so_far, dock_executable_paths, sorted_indock_file_generation_flat_param_dicts)):
             configuration_num = i + 1
             new_partial_dc_kwargs = deepcopy(partial_dc_kwargs)
             new_partial_dc_kwargs = {
