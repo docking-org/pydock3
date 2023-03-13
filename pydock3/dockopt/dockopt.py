@@ -337,7 +337,7 @@ class DockoptStep(PipelineComponent):
 
         #
         if isinstance(parameters["dock_executable_path"], list):
-            dock_executable_paths = [dock_executable_path for dock_executable_path in parameters["dock_executable_path"].value]
+            dock_executable_paths = [dock_executable_path for dock_executable_path in parameters["dock_executable_path"]]
         else:
             dock_executable_paths = [parameters["dock_executable_path"]]
 
@@ -537,7 +537,7 @@ class DockoptStep(PipelineComponent):
         new_dc_kwargs_so_far = []
         num_files_perturbed_so_far = 0
         for dock_files_modification_flat_param_dict in sorted_dock_files_modification_flat_param_dicts:
-            if dock_files_modification_flat_param_dict[ 
+            if dock_files_modification_flat_param_dict[
                 "matching_spheres_perturbation.use"
             ].value:
                 #
@@ -671,7 +671,7 @@ class DockoptStep(PipelineComponent):
         logger.debug(
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
         )
-        
+
     def _get_unique_partial_docking_configuration_kwargs_sorted(self, dc_kwargs_list: List[dict]) -> List[dict]:
         new_dc_kwargs = []
         hashes = []
