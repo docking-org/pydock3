@@ -46,7 +46,7 @@ class DockoptComponentParametersManager(ParametersManager):
             if parameters_dict["parameters"]["dock_executable_path"] is None:
                 new_dock_executable_path_value = DOCK3_EXECUTABLE_PATH
             else:
-                new_dock_executable_path_value = parameters_dict["dock_executable_path"]
+                new_dock_executable_path_value = parameters_dict["parameters"]["dock_executable_path"]
         parameters_dict["parameters"]["dock_executable_path"] = new_dock_executable_path_value
 
         #
