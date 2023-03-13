@@ -37,7 +37,7 @@ class DockoptComponentParametersManager(ParametersManager):
         #
         if isinstance(parameters_dict["parameters"]["dock_executable_path"], list):
             new_dock_executable_path_value = []
-            for dock_executable_path in parameters_dict["parameters"]["dock_executable_path"].value:
+            for dock_executable_path in parameters_dict["parameters"]["dock_executable_path"]:
                 if dock_executable_path is None:
                     new_dock_executable_path_value.append(DOCK3_EXECUTABLE_PATH)
                 else:
