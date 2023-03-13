@@ -638,9 +638,10 @@ class DockoptStep(PipelineComponent):
                         new_partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
                         new_dc_kwargs_so_far.append(new_partial_dc_kwargs)
             else:
-                for partial_dc_kwargs in dc_kwargs_so_far:
+                temp_dc_kwargs_so_far = deepcopy(dc_kwargs_so_far)
+                for partial_dc_kwargs in temp_dc_kwargs_so_far:
                     partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
-                new_dc_kwargs_so_far = dc_kwargs_so_far
+                new_dc_kwargs_so_far += temp_dc_kwargs_so_far
         dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
 
         #
