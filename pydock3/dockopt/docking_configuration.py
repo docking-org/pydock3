@@ -73,9 +73,7 @@ class DockingConfiguration:
             )
         )
 
-        # order matters, so use DOCK_FILE_IDENTIFIERS
         return get_hexdigest_of_persistent_md5_hash_of_tuple(tuple([getattr(dc_kwargs['dock_file_coordinates'], field.name).node_id for field in fields(dc_kwargs['dock_file_coordinates'])] + [parameters_dict_items_interleaved_sorted_by_key_tuple]))
-
 
     @property
     def hexdigest_of_persistent_md5_hash(self):
