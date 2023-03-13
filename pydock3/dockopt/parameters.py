@@ -35,19 +35,19 @@ class DockoptComponentParametersManager(ParametersManager):
         parameters_dict = self._get_parameters_dict_with_next_step_numerical_operators_applied(parameters_dict)
 
         #
-        if isinstance(parameters_dict["parameters.dock_executable_path"], list):
+        if isinstance(parameters_dict["parameters"]["dock_executable_path"], list):
             new_dock_executable_path_value = []
-            for dock_executable_path in parameters_dict["parameters.dock_executable_path"].value:
+            for dock_executable_path in parameters_dict["parameters"]["dock_executable_path"].value:
                 if dock_executable_path is None:
                     new_dock_executable_path_value.append(DOCK3_EXECUTABLE_PATH)
                 else:
                     new_dock_executable_path_value.append(dock_executable_path)
         else:
-            if parameters_dict["parameters.dock_executable_path"] is None:
+            if parameters_dict["parameters"]["dock_executable_path"] is None:
                 new_dock_executable_path_value = DOCK3_EXECUTABLE_PATH
             else:
-                new_dock_executable_path_value = parameters_dict["parameters.dock_executable_path"]
-        parameters_dict["parameters.dock_executable_path"] = new_dock_executable_path_value
+                new_dock_executable_path_value = parameters_dict["dock_executable_path"]
+        parameters_dict["parameters"]["dock_executable_path"] = new_dock_executable_path_value
 
         #
         super().__init__(parameters_dict)
