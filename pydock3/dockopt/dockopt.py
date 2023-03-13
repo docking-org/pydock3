@@ -481,13 +481,6 @@ class DockoptStep(PipelineComponent):
         #
         dummy_dc_kwargs = {
             'component_id': self.component_id,
-            'configuration_num': None,
-            'dock_executable_path': None,
-            'dock_files_generation_flat_param_dict': {},
-            'dock_files_modification_flat_param_dict': {},
-            'indock_file_generation_flat_param_dict': {},
-            'dock_file_coordinates': None,
-            'indock_file_coordinate': None,
         }
 
         #
