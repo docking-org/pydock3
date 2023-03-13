@@ -522,18 +522,19 @@ class DockoptStep(PipelineComponent):
                     partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, last_component_dc.dock_file_coordinates)
                     dc_kwargs_so_far.append(partial_dc_kwargs)
         else:
-            dock_file_coordinates_kwargs = {
-                **{identifier: DockFileCoordinate(
-                    component_id=self.component_id,
-                    file_name=graph.nodes[node_id]['blaster_file'].name,
-                    node_id=node_id,
-                ) for identifier, node_id in partial_dock_file_nodes_combination_dict.items()},
-            }
-            dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
-            partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
-            partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
-            partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
-            dc_kwargs_so_far.append(partial_dc_kwargs)
+            for partial_dock_file_nodes_combination_dict in partial_dock_file_nodes_combination_dicts:
+                dock_file_coordinates_kwargs = {
+                    **{identifier: DockFileCoordinate(
+                        component_id=self.component_id,
+                        file_name=graph.nodes[node_id]['blaster_file'].name,
+                        node_id=node_id,
+                    ) for identifier, node_id in partial_dock_file_nodes_combination_dict.items()},
+                }
+                dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
+                partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
+                partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
+                partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
+                dc_kwargs_so_far.append(partial_dc_kwargs)
 
         #
         dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(dc_kwargs_so_far)
