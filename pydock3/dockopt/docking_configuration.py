@@ -37,61 +37,85 @@ class DockingConfiguration:
     indock_file_coordinate: IndockFileCoordinate
 
     @staticmethod
-    def get_full_flat_parameters_dict(dock_executable_path, dock_files_generation_flat_param_dict, dock_files_modification_flat_param_dict, indock_file_generation_flat_param_dict):
-        flat_param_dict = {}
-        flat_param_dict["dock_executable_path"] = dock_executable_path
-        flat_param_dict.update(
-            {
+    def get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs, partial_okay=False):
+        #
+        try:
+            dock_files_generation_dict = dc_kwargs['dock_files_generation']
+            flat_dock_files_generation_dict = {
                 f"dock_files_generation.{key}": value
-                for key, value in dock_files_generation_flat_param_dict.items()
+                for key, value in dock_files_generation_dict.items()
             }
-        )
-        flat_param_dict.update(
-            {
-                f"dock_files_modification.{key}": value
-                for key, value in dock_files_modification_flat_param_dict.items()
-            }
-        )
-        flat_param_dict.update(
-            {
-                f"indock_file_generation.{key}": value
-                for key, value in indock_file_generation_flat_param_dict.items()
-            }
-        )
-
-        return flat_param_dict
-
-    @property
-    def full_flat_parameters_dict(self):
-        return self.get_full_flat_parameters_dict(self.dock_executable_path, self.dock_files_generation_flat_param_dict, self.dock_files_modification_flat_param_dict, self.indock_file_generation_flat_param_dict)
-
-    @staticmethod
-    def get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs):
-        #
-        filtered_kwargs = filter_kwargs_for_callable(dc_kwargs, DockingConfiguration.get_full_flat_parameters_dict)
-        full_flat_parameters_dict = DockingConfiguration.get_full_flat_parameters_dict(**filtered_kwargs)
-
-        #
-        flat_parameters_dict_no_dock_exec_path = {key: value for key, value in full_flat_parameters_dict.items() if key != "dock_executable_path"}
-
-        #
-        parameters_dict_items_interleaved_sorted_by_key_tuple = tuple(
-            itertools.chain.from_iterable(
-                sorted(list(zip(*list(zip(*flat_parameters_dict_no_dock_exec_path.items())))), key=lambda x: x[0])
+            flat_dock_files_generation_dict_items_interleaved_sorted_by_key_tuple = tuple(
+                itertools.chain.from_iterable(
+                    sorted(list(zip(*list(zip(*flat_dock_files_generation_dict.items())))), key=lambda x: x[0])
+                )
             )
+        except KeyError:
+            if not partial_okay:
+                raise Exception(f"Key `dock_files_generation` not found in dict: {dc_kwargs}")
+            flat_dock_files_generation_dict_items_interleaved_sorted_by_key_tuple = tuple()
+
+        #
+        try:
+            dock_files_modification_dict = dc_kwargs['dock_files_modification']
+            flat_dock_files_modification_dict = {
+                f"dock_files_modification.{key}": value
+                for key, value in dock_files_modification_dict.items()
+            }
+            flat_dock_files_modification_dict_items_interleaved_sorted_by_key_tuple = tuple(
+                itertools.chain.from_iterable(
+                    sorted(list(zip(*list(zip(*flat_dock_files_modification_dict.items())))), key=lambda x: x[0])
+                )
+            )
+        except KeyError:
+            if not partial_okay:
+                raise Exception(f"Key `dock_files_modification` not found in dict: {dc_kwargs}")
+            flat_dock_files_modification_dict_items_interleaved_sorted_by_key_tuple = tuple()
+
+        #
+        try:
+            indock_file_generation_dict = dc_kwargs['indock_file_generation']
+            flat_indock_file_generation_dict = {
+                f"indock_file_generation.{key}": value
+                for key, value in indock_file_generation_dict.items()
+            }
+            flat_indock_file_generation_dict_items_interleaved_sorted_by_key_tuple = tuple(
+                itertools.chain.from_iterable(
+                    sorted(list(zip(*list(zip(*flat_indock_file_generation_dict.items())))), key=lambda x: x[0])
+                )
+            )
+        except KeyError:
+            if not partial_okay:
+                raise Exception(f"Key `indock_file_generation` not found in dict: {dc_kwargs}")
+            flat_indock_file_generation_dict_items_interleaved_sorted_by_key_tuple = tuple()
+
+        #
+        try:
+            dock_exec_hash_tuple = tuple(hashlib.md5(open(dc_kwargs["dock_executable_path"], 'rb').read()).hexdigest())
+        except KeyError:
+            if not partial_okay:
+                raise Exception(f"Key `dock_executable_path` not found in dict: {dc_kwargs}")
+            dock_exec_hash_tuple = tuple()
+
+        #
+        try:
+            dock_file_nodes_tuple = tuple([getattr(dc_kwargs['dock_file_coordinates'], field.name).node_id for field in fields(dc_kwargs['dock_file_coordinates'])])
+        except KeyError:
+            if not partial_okay:
+                raise Exception(f"Key `dock_file_coordinates` not found in dict: {dc_kwargs}")
+            dock_file_nodes_tuple = tuple()
+
+        return get_hexdigest_of_persistent_md5_hash_of_tuple(
+            flat_dock_files_generation_dict_items_interleaved_sorted_by_key_tuple
+            + flat_dock_files_modification_dict_items_interleaved_sorted_by_key_tuple
+            + flat_indock_file_generation_dict_items_interleaved_sorted_by_key_tuple
+            + dock_exec_hash_tuple
+            + dock_file_nodes_tuple
         )
-
-        #
-        dock_exec_hash_tuple = tuple(hashlib.md5(open(full_flat_parameters_dict["dock_executable_path"], 'rb').read()).hexdigest())
-
-        #
-        dock_file_nodes_tuple = tuple([getattr(dc_kwargs['dock_file_coordinates'], field.name).node_id for field in fields(dc_kwargs['dock_file_coordinates'])])
-
-        return get_hexdigest_of_persistent_md5_hash_of_tuple(parameters_dict_items_interleaved_sorted_by_key_tuple + dock_exec_hash_tuple + dock_file_nodes_tuple)
 
     @property
     def hexdigest_of_persistent_md5_hash(self):
-        return self.get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs({field.name: getattr(self, field.name) for field in fields(self)})
+        return self.get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs({field.name: getattr(self, field.name) for field in fields(self)}, partial_okay=False)
 
     def to_dict(self):
         d = {

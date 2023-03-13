@@ -530,7 +530,7 @@ class DockoptStep(PipelineComponent):
                 dc_kwargs_so_far.append(partial_dc_kwargs)
 
         #
-        dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(dc_kwargs_so_far)
+        dc_kwargs_so_far = self._get_unique_partial_docking_configuration_kwargs_sorted(dc_kwargs_so_far)
 
         # matching spheres perturbation
         sorted_unique_matching_spheres_file_nodes = sorted(list(set([partial_dc_kwargs['dock_file_coordinates'].matching_spheres_file.node_id for partial_dc_kwargs in dc_kwargs_so_far])))
@@ -636,7 +636,7 @@ class DockoptStep(PipelineComponent):
                 for partial_dc_kwargs in temp_dc_kwargs_so_far:
                     partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
                 new_dc_kwargs_so_far += temp_dc_kwargs_so_far
-        dc_kwargs_so_far = self._get_unique_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
+        dc_kwargs_so_far = self._get_unique_partial_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
 
         #
         new_dc_kwargs_so_far = []
@@ -657,7 +657,7 @@ class DockoptStep(PipelineComponent):
                 ),
             }
             new_dc_kwargs_so_far.append(new_partial_dc_kwargs)
-        all_dc_kwargs = self._get_unique_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
+        all_dc_kwargs = self._get_unique_partial_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
 
         #
         self.docking_configurations = [DockingConfiguration(**dc_kwargs) for dc_kwargs in all_dc_kwargs]
@@ -672,11 +672,11 @@ class DockoptStep(PipelineComponent):
             f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
         )
         
-    def _get_unique_docking_configuration_kwargs_sorted(self, dc_kwargs_list: List[dict]) -> List[dict]:
+    def _get_unique_partial_docking_configuration_kwargs_sorted(self, dc_kwargs_list: List[dict]) -> List[dict]:
         new_dc_kwargs = []
         hashes = []
         for dc_kwargs in dc_kwargs_list:
-            hash = DockingConfiguration.get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs)
+            hash = DockingConfiguration.get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs, partial_okay=True)
             if hash not in hashes:
                 new_dc_kwargs.append(dc_kwargs)
                 hashes.append(hash)
