@@ -1,6 +1,7 @@
 from dataclasses import dataclass, make_dataclass, fields, asdict
 import itertools
 import os
+import hashlib
 
 from pydock3.files import IndockFile
 from pydock3.blastermaster.util import BlasterFile
@@ -66,14 +67,27 @@ class DockingConfiguration:
 
     @staticmethod
     def get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs):
+        #
         filtered_kwargs = filter_kwargs_for_callable(dc_kwargs, DockingConfiguration.get_full_flat_parameters_dict)
+        full_flat_parameters_dict = DockingConfiguration.get_full_flat_parameters_dict(**filtered_kwargs)
+
+        #
+        flat_parameters_dict_no_dock_exec_path = {key: value for key, value in full_flat_parameters_dict.items() if key != "dock_executable_path"}
+
+        #
         parameters_dict_items_interleaved_sorted_by_key_tuple = tuple(
             itertools.chain.from_iterable(
-                sorted(list(zip(*list(zip(*DockingConfiguration.get_full_flat_parameters_dict(**filtered_kwargs).items())))), key=lambda x: x[0])
+                sorted(list(zip(*list(zip(*flat_parameters_dict_no_dock_exec_path.items())))), key=lambda x: x[0])
             )
         )
 
-        return get_hexdigest_of_persistent_md5_hash_of_tuple(tuple([getattr(dc_kwargs['dock_file_coordinates'], field.name).node_id for field in fields(dc_kwargs['dock_file_coordinates'])] + [parameters_dict_items_interleaved_sorted_by_key_tuple]))
+        #
+        dock_exec_hash_tuple = tuple(hashlib.md5(open(full_flat_parameters_dict["dock_executable_path"], 'rb').read()).hexdigest())
+
+        #
+        dock_file_nodes_tuple = tuple([getattr(dc_kwargs['dock_file_coordinates'], field.name).node_id for field in fields(dc_kwargs['dock_file_coordinates'])])
+
+        return get_hexdigest_of_persistent_md5_hash_of_tuple(parameters_dict_items_interleaved_sorted_by_key_tuple + dock_exec_hash_tuple + dock_file_nodes_tuple)
 
     @property
     def hexdigest_of_persistent_md5_hash(self):

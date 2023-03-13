@@ -58,7 +58,7 @@ from pydock3.blastermaster.util import (
     BlasterStep,
 )
 from pydock3.dockopt.roc import ROC
-from pydock3.jobs import ArrayDockingJob, DOCK3_EXECUTABLE_PATH
+from pydock3.jobs import ArrayDockingJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float, ROC_PLOT_FILE_NAME
@@ -337,17 +337,9 @@ class DockoptStep(PipelineComponent):
 
         #
         if isinstance(parameters["dock_executable_path"], list):
-            dock_executable_paths = []
-            for dock_executable_path in parameters["dock_executable_path"].value:
-                if dock_executable_path is None:
-                    dock_executable_paths.append(DOCK3_EXECUTABLE_PATH)
-                else:
-                    dock_executable_paths.append(dock_executable_path)
+            dock_executable_paths = [dock_executable_path for dock_executable_path in parameters["dock_executable_path"].value]
         else:
-            if parameters["dock_executable_path"] is None:
-                dock_executable_paths = [DOCK3_EXECUTABLE_PATH]
-            else:
-                dock_executable_paths = [parameters["dock_executable_path"]]
+            dock_executable_paths = [parameters["dock_executable_path"]]
 
         #
         sorted_dock_files_generation_flat_param_dicts = get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["dock_files_generation"])
