@@ -11,7 +11,7 @@ import logging
 import collections
 import time
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import networkx as nx
 import numpy as np
@@ -83,6 +83,9 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 
 #
 CRITERION_CLASS_DICT = {"enrichment_score": EnrichmentScore}
+
+#
+MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 
 
 @dataclass
@@ -765,16 +768,19 @@ class DockoptStep(PipelineComponent):
         )
         data_dicts = []
         configuration_num_to_num_reattempts_dict = collections.defaultdict(int)
+        datetime_queue_was_last_checked = datetime.min
         while len(docking_configurations_processing_queue) > 0:
             #
             docking_configuration = docking_configurations_processing_queue.pop(0)
-
             if any([not array_job.task_is_complete(str(docking_configuration.configuration_num)) for array_job in array_jobs]):  # one or both OUTDOCK files do not exist yet
                 time.sleep(
                     0.01
                 )  # sleep for a bit
-                if any([(not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.is_running) for array_job in array_jobs]):
-                    time.sleep(0.01)  # wait a bit and check again
+
+                #
+                datetime_now = datetime.now()
+                if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
+                    datetime_queue_was_last_checked = datetime_now
                     if any([(not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.is_running) for array_job in array_jobs]):
                         # task must have timed out / failed for one or both jobs
                         logger.warning(
