@@ -719,9 +719,18 @@ class DockoptStep(PipelineComponent):
         logger.info("done.")
 
         #
-        temp_step_id = uuid.uuid4()
-        with open(os.path.join(self.component_dir.path, "temp_step_id"), "w") as f:
-            f.write(f"{temp_step_id}\n")
+        step_id_file_path = os.path.join(self.component_dir.path, "step_id")
+        if File.file_exists(step_id_file_path):
+            with open(step_id_file_path, "r") as f:
+                step_id, = tuple([line.strip() for line in f.readlines()])
+                try:
+                    _ = uuid.UUID(step_id)
+                except ValueError:
+                    raise Exception("Temp step id loaded from step_id_file_path is not a valid UUID.")
+        else:
+            step_id = str(uuid.uuid4())
+            with open(step_id_file_path, "w") as f:
+                f.write(f"{step_id}\n")
 
         #
         array_job_docking_configurations_file_path = os.path.join(self.component_dir.path, "array_job_docking_configurations.txt")
@@ -746,7 +755,7 @@ class DockoptStep(PipelineComponent):
             ('decoys', False, component_run_func_arg_set.decoys_tgz_file_path),
         ]:
             array_job = ArrayDockingJob(
-                name=f"dockopt_step_{temp_step_id}_{sub_dir_name}",
+                name=f"dockopt_step_{step_id}_{sub_dir_name}",
                 job_dir=Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name)),
                 input_molecules_tgz_file_path=input_molecules_tgz_file_path,
                 job_scheduler=component_run_func_arg_set.scheduler,
