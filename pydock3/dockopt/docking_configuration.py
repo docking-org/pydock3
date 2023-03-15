@@ -106,7 +106,7 @@ class DockingConfiguration:
         try:
             custom_dock_executable = dc_kwargs["custom_dock_executable"]
             dock_executable_path = DockingConfiguration.get_dock_executable_path(custom_dock_executable)
-            dock_exec_hash_tuple = tuple(hashlib.md5(open(dock_executable_path, 'rb').read()).hexdigest())
+            dock_exec_hash_tuple = tuple([hashlib.md5(open(dock_executable_path, 'rb').read()).hexdigest()])
         except KeyError:
             if not partial_okay:
                 raise Exception(f"Key `custom_dock_executable` not found in dict: {dc_kwargs}")
