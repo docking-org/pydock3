@@ -171,7 +171,7 @@ class Retrodock(Script):
         job_dir_path=".",
         dock_files_dir_path=None,
         indock_file_path=None,
-        dock_executable_path=None,
+        custom_dock_executable=None,
         actives_tgz_file_path=None,
         decoys_tgz_file_path=None,
         retrodock_job_max_reattempts=0,

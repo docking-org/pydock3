@@ -2,12 +2,14 @@ from dataclasses import dataclass, make_dataclass, fields, asdict
 import itertools
 import os
 import hashlib
+from typing import Union
 
 from pydock3.files import IndockFile
 from pydock3.blastermaster.util import BlasterFile
 from pydock3.util import get_hexdigest_of_persistent_md5_hash_of_tuple, filter_kwargs_for_callable
 from pydock3.blastermaster.util import DOCK_FILE_IDENTIFIERS, DockFiles
 from pydock3.dockopt.util import WORKING_DIR_NAME
+from pydock3.jobs import DOCK3_EXECUTABLE_PATH
 
 
 #
@@ -29,12 +31,23 @@ DockFileCoordinates = make_dataclass("DockFileCoordinates", [(identifier, DockFi
 class DockingConfiguration:
     component_id: str
     configuration_num: str
-    dock_executable_path: str
+    custom_dock_executable: Union[str, None]
     dock_files_generation_flat_param_dict: dict
     dock_files_modification_flat_param_dict: dict
     indock_file_generation_flat_param_dict: dict
     dock_file_coordinates: DockFileCoordinates
     indock_file_coordinate: IndockFileCoordinate
+
+    @property
+    def dock_executable_path(self):
+        return self.get_dock_executable_path(self.custom_dock_executable)
+
+    @staticmethod
+    def get_dock_executable_path(custom_dock_executable):
+        if custom_dock_executable is None:
+            return DOCK3_EXECUTABLE_PATH
+        else:
+            return custom_dock_executable
 
     @staticmethod
     def get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs(dc_kwargs, partial_okay=False):
@@ -91,10 +104,12 @@ class DockingConfiguration:
 
         #
         try:
-            dock_exec_hash_tuple = tuple(hashlib.md5(open(dc_kwargs["dock_executable_path"], 'rb').read()).hexdigest())
+            custom_dock_executable = dc_kwargs["custom_dock_executable"]
+            dock_executable_path = DockingConfiguration.get_dock_executable_path(custom_dock_executable)
+            dock_exec_hash_tuple = tuple(hashlib.md5(open(dock_executable_path, 'rb').read()).hexdigest())
         except KeyError:
             if not partial_okay:
-                raise Exception(f"Key `dock_executable_path` not found in dict: {dc_kwargs}")
+                raise Exception(f"Key `custom_dock_executable` not found in dict: {dc_kwargs}")
             dock_exec_hash_tuple = tuple()
 
         #
@@ -118,11 +133,23 @@ class DockingConfiguration:
         return self.get_hexdigest_of_persistent_md5_hash_of_docking_configuration_kwargs({field.name: getattr(self, field.name) for field in fields(self)}, partial_okay=False)
 
     def to_dict(self):
+        #
         d = {
             'component_id': self.component_id,
             'configuration_num': self.configuration_num,
-            **{f"parameters.{key}": value for key, value in self.full_flat_parameters_dict.items()},
         }
+
+        #
+        for param_group_dict, param_group_key in [
+            (self.dock_files_generation_flat_param_dict, "dock_files_generation"),
+            (self.dock_files_modification_flat_param_dict, "dock_files_modification"),
+            (self.indock_file_generation_flat_param_dict, "indock_file_generation"),
+        ]:
+            d.update({
+                f"parameters.{param_group_key}.{key}": value for key, value in param_group_dict.items()
+            })
+
+        #
         for field in fields(self.dock_file_coordinates):
             dock_file_coordinate = getattr(self.dock_file_coordinates, field.name)
             identifier_str = f"dock_files.{field.name}"
@@ -149,7 +176,7 @@ class DockingConfiguration:
         return DockingConfiguration(
             component_id=str(d['component_id']),
             configuration_num=d['configuration_num'],
-            dock_executable_path=d['parameters.dock_executable_path'],
+            custom_dock_executable=d['parameters.custom_dock_executable'],
             dock_files_generation_flat_param_dict=dock_files_generation_flat_param_dict,
             dock_files_modification_flat_param_dict=dock_files_modification_flat_param_dict,
             indock_file_generation_flat_param_dict=indock_file_generation_flat_param_dict,

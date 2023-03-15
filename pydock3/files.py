@@ -382,7 +382,7 @@ class IndockFile(File):
     """
     The INDOCK file is the main parameters file for the DOCK program.
 
-    `config_param_dict` corresponds to the key-values of blastermaster_config.yaml
+    `indock_file_generation_dict` corresponds to the key-values of blastermaster_config.yaml
     """
 
     def __init__(self, path):
@@ -391,7 +391,7 @@ class IndockFile(File):
     def write(
         self,
         dock_files,
-        config_param_dict,
+        indock_file_generation_dict,
         dock_files_dir_name="dockfiles",
         flex_groups=None,
         flex_0_file=None,
@@ -423,69 +423,69 @@ class IndockFile(File):
 #####################################################
 # NOTE: split_database_index is reserved to specify a list of files
 # defults for large scale docking.
-ligand_atom_file               {config_param_dict['indock_file_generation.ligand_atom_file']}
+ligand_atom_file               {indock_file_generation_dict['ligand_atom_file']}
 #####################################################
 #                             OUTPUT
-output_file_prefix            {config_param_dict['indock_file_generation.output_file_prefix']}
+output_file_prefix            {indock_file_generation_dict['output_file_prefix']}
 #####################################################
 #                             MATCHING
-match_method                  {config_param_dict['indock_file_generation.match_method']}
-distance_tolerance            {config_param_dict['indock_file_generation.distance_tolerance']}
-match_goal                    {config_param_dict['indock_file_generation.match_goal']}
-distance_step                 {config_param_dict['indock_file_generation.distance_step']}
-distance_maximum              {config_param_dict['indock_file_generation.distance_maximum']}
-timeout                       {config_param_dict['indock_file_generation.timeout']}
-nodes_maximum                 {config_param_dict['indock_file_generation.nodes_maximum']}
-nodes_minimum                 {config_param_dict['indock_file_generation.nodes_minimum']}
-bump_maximum                  {config_param_dict['indock_file_generation.bump_maximum']}
-bump_rigid                    {config_param_dict['indock_file_generation.bump_rigid']}
-mol2_score_maximum            {config_param_dict['indock_file_generation.mol2_score_maximum']}
+match_method                  {indock_file_generation_dict['match_method']}
+distance_tolerance            {indock_file_generation_dict['distance_tolerance']}
+match_goal                    {indock_file_generation_dict['match_goal']}
+distance_step                 {indock_file_generation_dict['distance_step']}
+distance_maximum              {indock_file_generation_dict['distance_maximum']}
+timeout                       {indock_file_generation_dict['timeout']}
+nodes_maximum                 {indock_file_generation_dict['nodes_maximum']}
+nodes_minimum                 {indock_file_generation_dict['nodes_minimum']}
+bump_maximum                  {indock_file_generation_dict['bump_maximum']}
+bump_rigid                    {indock_file_generation_dict['bump_rigid']}
+mol2_score_maximum            {indock_file_generation_dict['mol2_score_maximum']}
 #####################################################
 #                             COLORING
-chemical_matching             {get_yes_or_no(config_param_dict['indock_file_generation.chemical_matching'])}
-case_sensitive                {get_yes_or_no(config_param_dict['indock_file_generation.case_sensitive'])}
+chemical_matching             {get_yes_or_no(indock_file_generation_dict['chemical_matching'])}
+case_sensitive                {get_yes_or_no(indock_file_generation_dict['case_sensitive'])}
 #####################################################
 #                             SEARCH MODE
-atom_minimum                  {config_param_dict['indock_file_generation.atom_minimum']}
-atom_maximum                  {config_param_dict['indock_file_generation.atom_maximum']}
-number_save                   {config_param_dict['indock_file_generation.number_save']}
-number_write                  {config_param_dict['indock_file_generation.number_write']}
-flush_int                     {config_param_dict['indock_file_generation.flush_int']}
+atom_minimum                  {indock_file_generation_dict['atom_minimum']}
+atom_maximum                  {indock_file_generation_dict['atom_maximum']}
+number_save                   {indock_file_generation_dict['number_save']}
+number_write                  {indock_file_generation_dict['number_write']}
+flush_int                     {indock_file_generation_dict['flush_int']}
 #molecules_maximum            100000
-check_clashes                 {get_yes_or_no(config_param_dict['indock_file_generation.check_clashes'])}
-do_premax                     {get_yes_or_no(config_param_dict['indock_file_generation.do_premax'])}
-do_clusters                   {get_yes_or_no(config_param_dict['indock_file_generation.do_clusters'])}
+check_clashes                 {get_yes_or_no(indock_file_generation_dict['check_clashes'])}
+do_premax                     {get_yes_or_no(indock_file_generation_dict['do_premax'])}
+do_clusters                   {get_yes_or_no(indock_file_generation_dict['do_clusters'])}
 #####################################################
 #                             SCORING
-ligand_desolvation            {config_param_dict['indock_file_generation.ligand_desolvation']}
+ligand_desolvation            {indock_file_generation_dict['ligand_desolvation']}
 #vdw_maximum                   1.0e10
-ligand_desolv_scale           {config_param_dict['indock_file_generation.ligand_desolv_scale']}
-electrostatic_scale           {config_param_dict['indock_file_generation.electrostatic_scale']}
-vdw_scale                     {config_param_dict['indock_file_generation.vdw_scale']}
-internal_scale                {config_param_dict['indock_file_generation.internal_scale']}
-per_atom_scores               {get_yes_or_no(config_param_dict['indock_file_generation.per_atom_scores'])}
+ligand_desolv_scale           {indock_file_generation_dict['ligand_desolv_scale']}
+electrostatic_scale           {indock_file_generation_dict['electrostatic_scale']}
+vdw_scale                     {indock_file_generation_dict['vdw_scale']}
+internal_scale                {indock_file_generation_dict['internal_scale']}
+per_atom_scores               {get_yes_or_no(indock_file_generation_dict['per_atom_scores'])}
 ##################################################### 
 #                             DOCKovalent 
-dockovalent                   {get_yes_or_no(config_param_dict['indock_file_generation.dockovalent'])}
-bond_len                      {config_param_dict['indock_file_generation.bond_len']}
-bond_ang1                     {config_param_dict['indock_file_generation.bond_ang1']}
-bond_ang2                     {config_param_dict['indock_file_generation.bond_ang2']}
-len_range                     {config_param_dict['indock_file_generation.len_range']}
-len_step                      {config_param_dict['indock_file_generation.len_step']}
-ang1_range                    {config_param_dict['indock_file_generation.ang1_range']}
-ang2_range                    {config_param_dict['indock_file_generation.ang2_range']}
-ang1_step                     {config_param_dict['indock_file_generation.ang1_step']}
-ang2_step                     {config_param_dict['indock_file_generation.ang2_step']}
+dockovalent                   {get_yes_or_no(indock_file_generation_dict['dockovalent'])}
+bond_len                      {indock_file_generation_dict['bond_len']}
+bond_ang1                     {indock_file_generation_dict['bond_ang1']}
+bond_ang2                     {indock_file_generation_dict['bond_ang2']}
+len_range                     {indock_file_generation_dict['len_range']}
+len_step                      {indock_file_generation_dict['len_step']}
+ang1_range                    {indock_file_generation_dict['ang1_range']}
+ang2_range                    {indock_file_generation_dict['ang2_range']}
+ang1_step                     {indock_file_generation_dict['ang1_step']}
+ang2_step                     {indock_file_generation_dict['ang2_step']}
 #####################################################
 #                    MINIMIZATION
-minimize                      {get_yes_or_no(config_param_dict['indock_file_generation.minimize'])}
-sim_itmax                     {config_param_dict['indock_file_generation.sim_itmax']}
-sim_trnstep                   {config_param_dict['indock_file_generation.sim_trnstep']}
-sim_rotstep                   {config_param_dict['indock_file_generation.sim_rotstep']}
-sim_need_to_restart           {config_param_dict['indock_file_generation.sim_need_to_restart']}
-sim_cnvrge                    {config_param_dict['indock_file_generation.sim_cnvrge']}
-min_cut                       {config_param_dict['indock_file_generation.min_cut']}
-iseed                         {config_param_dict['indock_file_generation.iseed']}
+minimize                      {get_yes_or_no(indock_file_generation_dict['minimize'])}
+sim_itmax                     {indock_file_generation_dict['sim_itmax']}
+sim_trnstep                   {indock_file_generation_dict['sim_trnstep']}
+sim_rotstep                   {indock_file_generation_dict['sim_rotstep']}
+sim_need_to_restart           {indock_file_generation_dict['sim_need_to_restart']}
+sim_cnvrge                    {indock_file_generation_dict['sim_cnvrge']}
+min_cut                       {indock_file_generation_dict['min_cut']}
+iseed                         {indock_file_generation_dict['iseed']}
 ##################################################### 
 ##                 Monte Carlo OPTIMIZATION
 #monte_carlo                   no 
@@ -511,20 +511,20 @@ iseed                         {config_param_dict['indock_file_generation.iseed']
             f.write(f"delphi_nsize                  {phi_size}\n")
             if not use_flex:  # normal docking, no flexible sidechains
                 f.write(
-                    f"flexible_receptor             {get_yes_or_no(config_param_dict['indock_file_generation.flexible_receptor'])}\n"
+                    f"flexible_receptor             {get_yes_or_no(indock_file_generation_dict['flexible_receptor'])}\n"
                 )
                 f.write(
-                    f"total_receptors               {config_param_dict['indock_file_generation.total_receptors']}\n"
+                    f"total_receptors               {indock_file_generation_dict['total_receptors']}\n"
                 )
                 f.write("############## grids/data for one receptor\n")
                 f.write(
-                    f"rec_number                    {config_param_dict['indock_file_generation.rec_number']}\n"
+                    f"rec_number                    {indock_file_generation_dict['rec_number']}\n"
                 )
                 f.write(
-                    f"rec_group                     {config_param_dict['indock_file_generation.rec_group']}\n"
+                    f"rec_group                     {indock_file_generation_dict['rec_group']}\n"
                 )
                 f.write(
-                    f"rec_group_option              {config_param_dict['indock_file_generation.rec_group_option']}\n"
+                    f"rec_group_option              {indock_file_generation_dict['rec_group_option']}\n"
                 )
                 f.write(
                     f"solvmap_file                  {os.path.join('..', dock_files_dir_name, dock_files.ligand_desolvation_heavy_file.name)}\n"
@@ -544,13 +544,13 @@ iseed                         {config_param_dict['indock_file_generation.iseed']
                 f.write("#####################################################\n")
                 f.write("#                             STRAIN\n")
                 f.write(
-                    f"check_strain                  {get_yes_or_no(config_param_dict['indock_file_generation.check_strain'])}\n"
+                    f"check_strain                  {get_yes_or_no(indock_file_generation_dict['check_strain'])}\n"
                 )
                 f.write(
-                    f"total_strain                  {config_param_dict['indock_file_generation.total_strain']}\n"
+                    f"total_strain                  {indock_file_generation_dict['total_strain']}\n"
                 )
                 f.write(
-                    f"max_strain                    {config_param_dict['indock_file_generation.max_strain']}\n"
+                    f"max_strain                    {indock_file_generation_dict['max_strain']}\n"
                 )
                 f.write("############## end of INDOCK\n")
             else:  # flexible docking

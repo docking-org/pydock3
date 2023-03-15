@@ -336,10 +336,10 @@ class DockoptStep(PipelineComponent):
         self.decoys_tgz_file = None  # set at beginning of .run()  # TODO: make non-class var
 
         #
-        if isinstance(parameters["dock_executable_path"], list):
-            dock_executable_paths = [dock_executable_path for dock_executable_path in parameters["dock_executable_path"]]
+        if isinstance(parameters["custom_dock_executable"], list):
+            custom_dock_executables = [custom_dock_executable for custom_dock_executable in parameters["custom_dock_executable"]]
         else:
-            dock_executable_paths = [parameters["dock_executable_path"]]
+            custom_dock_executables = [parameters["custom_dock_executable"]]
 
         #
         sorted_dock_files_generation_flat_param_dicts = get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["dock_files_generation"])
@@ -633,13 +633,13 @@ class DockoptStep(PipelineComponent):
 
         #
         new_dc_kwargs_so_far = []
-        for i, (partial_dc_kwargs, dock_executable_path, indock_file_generation_flat_param_dict) in enumerate(itertools.product(dc_kwargs_so_far, dock_executable_paths, sorted_indock_file_generation_flat_param_dicts)):
+        for i, (partial_dc_kwargs, custom_dock_executable, indock_file_generation_flat_param_dict) in enumerate(itertools.product(dc_kwargs_so_far, custom_dock_executables, sorted_indock_file_generation_flat_param_dicts)):
             configuration_num = i + 1
             new_partial_dc_kwargs = deepcopy(partial_dc_kwargs)
             new_partial_dc_kwargs = {
                 'component_id': self.component_id,
                 'configuration_num': configuration_num,
-                'dock_executable_path': dock_executable_path,
+                'custom_dock_executable': custom_dock_executable,
                 'dock_files_generation_flat_param_dict': partial_dc_kwargs['dock_files_generation_flat_param_dict'],
                 'dock_files_modification_flat_param_dict': partial_dc_kwargs['dock_files_modification_flat_param_dict'],
                 'indock_file_generation_flat_param_dict': indock_file_generation_flat_param_dict,
@@ -700,7 +700,7 @@ class DockoptStep(PipelineComponent):
 
             # make indock file now that dock files exist
             indock_file = dc.get_indock_file(self.pipeline_dir.path)
-            indock_file.write(dc.get_dock_files(self.pipeline_dir.path), dc.full_flat_parameters_dict)
+            indock_file.write(dc.get_dock_files(self.pipeline_dir.path), dc.to_dict()['indock_file_generation'])
         logger.info("done.")
 
         #
