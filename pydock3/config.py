@@ -105,6 +105,30 @@ def flatten_and_parameter_cast_param_dict(d, key_prefix=""):
     return new_d
 
 
+def sort_list_of_flat_param_dicts(param_dicts):
+    param_dict_hashes = []
+    for p_dict in param_dicts:
+        p_dict_items_interleaved_sorted_by_key_tuple = tuple(
+            itertools.chain.from_iterable(
+                sorted(list(zip(*list(zip(*p_dict.items())))), key=lambda x: x[0])
+            )
+        )
+        param_dict_hashes.append(
+            get_hexdigest_of_persistent_md5_hash_of_tuple(
+                p_dict_items_interleaved_sorted_by_key_tuple
+            )
+        )
+    sorted_param_dicts = [
+        x
+        for x, y in sorted(
+            zip(param_dicts, param_dict_hashes),
+            key=lambda pair: pair[1],
+        )
+    ]
+
+    return sorted_param_dicts
+
+
 def get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(multivalued_param_dict):
     #
     keys, multivalues = zip(*sorted(flatten_param_dict(multivalued_param_dict).items(), key=lambda item: item[0]))  # sort by keys
@@ -131,4 +155,4 @@ def get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_
             univalued_flat_parameter_cast_param_dict
         )
 
-    return univalued_flat_parameter_cast_param_dicts
+    return sort_list_of_flat_param_dicts(univalued_flat_parameter_cast_param_dicts)

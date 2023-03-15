@@ -351,27 +351,6 @@ class DockoptStep(PipelineComponent):
         logger.debug(f"{len(sorted_dock_files_modification_flat_param_dicts)} dock file modification parametrizations:\n{sorted_dock_files_modification_flat_param_dicts}")
         logger.debug(f"{len(sorted_indock_file_generation_flat_param_dicts)} indock file generation parametrizations:\n{sorted_indock_file_generation_flat_param_dicts}")
 
-        # TODO: same thing happens in DockingConfiguration(). Maybe abstract this into another object?
-        param_dict_hashes = []
-        for p_dict in sorted_dock_files_generation_flat_param_dicts:
-            p_dict_items_interleaved_sorted_by_key_tuple = tuple(
-                itertools.chain.from_iterable(
-                    sorted(list(zip(*list(zip(*p_dict.items())))), key=lambda x: x[0])
-                )
-            )
-            param_dict_hashes.append(
-                get_hexdigest_of_persistent_md5_hash_of_tuple(
-                    p_dict_items_interleaved_sorted_by_key_tuple
-                )
-            )
-        sorted_dock_files_generation_flat_param_dicts = [
-            x
-            for x, y in sorted(
-                zip(sorted_dock_files_generation_flat_param_dicts, param_dict_hashes),
-                key=lambda pair: pair[1],
-            )
-        ]
-
         #
         graph = nx.DiGraph()
 
