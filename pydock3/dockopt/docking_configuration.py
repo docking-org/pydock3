@@ -3,6 +3,7 @@ import itertools
 import os
 import hashlib
 from typing import Union
+import logging
 
 from pydock3.files import IndockFile
 from pydock3.blastermaster.util import BlasterFile
@@ -10,6 +11,10 @@ from pydock3.util import get_hexdigest_of_persistent_md5_hash_of_tuple, filter_k
 from pydock3.blastermaster.util import DOCK_FILE_IDENTIFIERS, DockFiles
 from pydock3.dockopt.util import WORKING_DIR_NAME
 from pydock3.jobs import DOCK3_EXECUTABLE_PATH
+
+#
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 #
@@ -120,13 +125,18 @@ class DockingConfiguration:
                 raise Exception(f"Key `dock_file_coordinates` not found in dict: {dc_kwargs}")
             dock_file_nodes_tuple = tuple()
 
-        return get_hexdigest_of_persistent_md5_hash_of_tuple(
+        #
+        tuple_to_hash = (
             flat_dock_files_generation_dict_items_interleaved_sorted_by_key_tuple
             + flat_dock_files_modification_dict_items_interleaved_sorted_by_key_tuple
             + flat_indock_file_generation_dict_items_interleaved_sorted_by_key_tuple
             + dock_exec_hash_tuple
             + dock_file_nodes_tuple
         )
+        hash = get_hexdigest_of_persistent_md5_hash_of_tuple(tuple_to_hash)
+        logger.debug(f"Hashing purported, at-least-partial kwargs for `DockingConfiguration`: \n\ttuple (from kwargs) to hash: {tuple_to_hash}\n\thash: {hash}")
+        
+        return hash
 
     @property
     def hexdigest_of_persistent_md5_hash(self):
