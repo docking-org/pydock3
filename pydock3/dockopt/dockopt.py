@@ -346,6 +346,11 @@ class DockoptStep(PipelineComponent):
         sorted_dock_files_modification_flat_param_dicts = get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["dock_files_modification"])
         sorted_indock_file_generation_flat_param_dicts = get_sorted_univalued_flat_parameter_cast_param_dicts_from_multivalued_param_dict(parameters["indock_file_generation"])
 
+        #
+        logger.debug(f"{len(sorted_dock_files_generation_flat_param_dicts)} dock file generation parametrizations:\n{sorted_dock_files_generation_flat_param_dicts}")
+        logger.debug(f"{len(sorted_dock_files_modification_flat_param_dicts)} dock file modification parametrizations:\n{sorted_dock_files_modification_flat_param_dicts}")
+        logger.debug(f"{len(sorted_indock_file_generation_flat_param_dicts)} indock file generation parametrizations:\n{sorted_indock_file_generation_flat_param_dicts}")
+
         # TODO: same thing happens in DockingConfiguration(). Maybe abstract this into another object?
         param_dict_hashes = []
         for p_dict in sorted_dock_files_generation_flat_param_dicts:
