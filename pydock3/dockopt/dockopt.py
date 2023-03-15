@@ -700,7 +700,7 @@ class DockoptStep(PipelineComponent):
 
             # make indock file now that dock files exist
             indock_file = dc.get_indock_file(self.pipeline_dir.path)
-            indock_file.write(dc.get_dock_files(self.pipeline_dir.path), dc.to_dict()['indock_file_generation'])
+            indock_file.write(dc.get_dock_files(self.pipeline_dir.path), dc.indock_file_generation_flat_param_dict)
         logger.info("done.")
 
         #
