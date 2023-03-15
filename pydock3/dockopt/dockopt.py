@@ -711,7 +711,7 @@ class DockoptStep(PipelineComponent):
                 try:
                     _ = uuid.UUID(step_id)
                 except ValueError:
-                    raise Exception("Temp step id loaded from step_id_file_path is not a valid UUID.")
+                    raise Exception("step id loaded from step_id_file_path is not a valid UUID.")
         else:
             step_id = str(uuid.uuid4())
             with open(step_id_file_path, "w") as f:
