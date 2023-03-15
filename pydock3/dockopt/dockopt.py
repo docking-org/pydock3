@@ -373,6 +373,7 @@ class DockoptStep(PipelineComponent):
         #
         last_component_docking_configurations = []
         if last_component_completed is not None and any(list(dock_files_to_use_from_previous_component.values())):
+            logger.debug(f"Using the following dock files from previous component: {sorted([key for key, value in dock_files_to_use_from_previous_component.items() if value])}")
             for row_index, row in last_component_completed.load_results_dataframe().head(last_component_completed.top_n).iterrows():
                 dc = DockingConfiguration.from_dict(row.to_dict())
                 for dock_file_identifier, should_be_used in dock_files_to_use_from_previous_component.items():
@@ -392,6 +393,7 @@ class DockoptStep(PipelineComponent):
         blaster_files = BlasterFiles(working_dir=self.working_dir)
         partial_dock_file_nodes_combination_dicts = []
         if any([not x for x in dock_files_to_use_from_previous_component.values()]):
+            logger.debug(f"The following dock files will be generated during this step: {sorted([key for key, value in dock_files_to_use_from_previous_component.items() if not value])}")
             for dock_files_generation_flat_param_dict in sorted_dock_files_generation_flat_param_dicts:
                 # get config for get_blaster_steps
                 # each value in dict must be an instance of Parameter
@@ -479,11 +481,6 @@ class DockoptStep(PipelineComponent):
                 partial_dock_file_nodes_combination_dicts.append(partial_dock_file_nodes_combination_dict)
 
         #
-        dummy_dc_kwargs = {
-            'component_id': self.component_id,
-        }
-
-        #
         dc_kwargs_so_far = []
         if last_component_docking_configurations:
             if partial_dock_file_nodes_combination_dicts:
@@ -497,15 +494,17 @@ class DockoptStep(PipelineComponent):
                         **{identifier: coord for identifier, coord in asdict(last_component_dc.dock_file_coordinates).items() if identifier not in partial_dock_file_nodes_combination_dict},
                     }
                     dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
-                    partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
-                    partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
-                    partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
+                    partial_dc_kwargs = {
+                        'dock_file_coordinates': dock_file_coordinates,
+                        'dock_files_generation_flat_param_dict': self._get_param_dict_for_dock_files(graph, dock_file_coordinates),
+                    }
                     dc_kwargs_so_far.append(partial_dc_kwargs)
             else:
                 for last_component_dc in last_component_docking_configurations:
-                    partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
-                    partial_dc_kwargs['dock_file_coordinates'] = deepcopy(last_component_dc.dock_file_coordinates)
-                    partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, last_component_dc.dock_file_coordinates)
+                    partial_dc_kwargs = {
+                        'dock_file_coordinates': deepcopy(last_component_dc.dock_file_coordinates),
+                        'dock_files_generation_flat_param_dict': self._get_param_dict_for_dock_files(graph, last_component_dc.dock_file_coordinates),
+                    }
                     dc_kwargs_so_far.append(partial_dc_kwargs)
         else:
             for partial_dock_file_nodes_combination_dict in partial_dock_file_nodes_combination_dicts:
@@ -517,13 +516,16 @@ class DockoptStep(PipelineComponent):
                     ) for identifier, node_id in partial_dock_file_nodes_combination_dict.items()},
                 }
                 dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
-                partial_dc_kwargs = deepcopy(dummy_dc_kwargs)
-                partial_dc_kwargs['dock_file_coordinates'] = dock_file_coordinates
-                partial_dc_kwargs['dock_files_generation_flat_param_dict'] = self._get_param_dict_for_dock_files(graph, dock_file_coordinates)
+                partial_dc_kwargs = {
+                    'dock_file_coordinates': dock_file_coordinates,
+                    'dock_files_generation_flat_param_dict': self._get_param_dict_for_dock_files(graph, dock_file_coordinates),
+                }
                 dc_kwargs_so_far.append(partial_dc_kwargs)
+        logger.debug(f"Number of partial docking configurations after dock files generation specification: {len(dc_kwargs_so_far)}")
 
         #
         dc_kwargs_so_far = self._get_unique_partial_docking_configuration_kwargs_sorted(dc_kwargs_so_far)
+        logger.debug(f"Number of unique partial docking configurations after dock files generation specification: {len(dc_kwargs_so_far)}")
 
         # matching spheres perturbation
         sorted_unique_matching_spheres_file_nodes = sorted(list(set([partial_dc_kwargs['dock_file_coordinates'].matching_spheres_file.node_id for partial_dc_kwargs in dc_kwargs_so_far])))
@@ -629,7 +631,11 @@ class DockoptStep(PipelineComponent):
                 for partial_dc_kwargs in temp_dc_kwargs_so_far:
                     partial_dc_kwargs['dock_files_modification_flat_param_dict'] = dock_files_modification_flat_param_dict
                 new_dc_kwargs_so_far += temp_dc_kwargs_so_far
+        logger.debug(f"Number of partial docking configurations after dock files modification specification: {len(new_dc_kwargs_so_far)}")
+
+        #
         dc_kwargs_so_far = self._get_unique_partial_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
+        logger.debug(f"Number of unique partial docking configurations after dock files modification specification: {len(dc_kwargs_so_far)}")
 
         #
         new_dc_kwargs_so_far = []
@@ -650,10 +656,15 @@ class DockoptStep(PipelineComponent):
                 ),
             }
             new_dc_kwargs_so_far.append(new_partial_dc_kwargs)
+        logger.debug(f"Number of partial docking configurations after indock file generation specification: {len(new_partial_dc_kwargs)}")
+
+        #
         all_dc_kwargs = self._get_unique_partial_docking_configuration_kwargs_sorted(new_dc_kwargs_so_far)
+        logger.debug(f"Number of unique partial docking configurations after indock file generation specification: {len(all_dc_kwargs)}")
 
         #
         self.docking_configurations = [DockingConfiguration(**dc_kwargs) for dc_kwargs in all_dc_kwargs]
+        logger.info(f"Number of unique docking configurations: {len(self.docking_configurations)}")
 
         # validate that there are no cycles (i.e. that it is a directed acyclic graph)
         if not nx.is_directed_acyclic_graph(graph):
@@ -666,6 +677,7 @@ class DockoptStep(PipelineComponent):
         )
 
     def _get_unique_partial_docking_configuration_kwargs_sorted(self, dc_kwargs_list: List[dict]) -> List[dict]:
+        logger.debug(f"Getting unique partial docking configurations (sorted). # before: {len(dc_kwargs_list)}")
         new_dc_kwargs = []
         hashes = []
         for dc_kwargs in dc_kwargs_list:
@@ -676,6 +688,7 @@ class DockoptStep(PipelineComponent):
 
         #
         new_dc_kwargs_sorted, hashes_sorted = zip(*sorted(zip(new_dc_kwargs, hashes), key=lambda x: x[1]))
+        logger.debug(f"# after: {len(new_dc_kwargs_sorted)}")
 
         return new_dc_kwargs_sorted
 
