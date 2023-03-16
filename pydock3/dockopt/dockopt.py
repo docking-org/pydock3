@@ -391,7 +391,6 @@ class DockoptStep(PipelineComponent):
                 subgraph = self._get_graph_from_all_steps_in_order(self.component_id, steps)
 
                 #
-                dock_file_identifier_to_node_id_dict = {}
                 partial_dock_file_nodes_combination_dict = {}
                 for dock_file_identifier, should_be_used in dock_files_to_use_from_previous_component.items():
                     step_hash_to_edges_dict = collections.defaultdict(list)
@@ -400,7 +399,6 @@ class DockoptStep(PipelineComponent):
                         #
                         dock_file_node_id = self._get_blaster_file_node_with_blaster_file_identifier(dock_file_identifier, subgraph)
                         partial_dock_file_nodes_combination_dict[dock_file_identifier] = dock_file_node_id
-                        dock_file_identifier_to_node_id_dict[dock_file_identifier] = dock_file_node_id
                         dock_file_lineage_subgraph = self._get_dock_file_lineage_subgraph(
                             graph=subgraph,
                             dock_file_node_id=dock_file_node_id,
