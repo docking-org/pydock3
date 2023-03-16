@@ -457,7 +457,7 @@ class DockoptStep(PipelineComponent):
                                 ] = step_hash_to_step_class_instance_dict[step_hash]
 
                         #
-                        graph = nx.compose(graph, new_dock_file_lineage_subgraph)
+                        graph = nx.compose(graph, dock_file_lineage_subgraph)
 
                 #
                 partial_dock_file_nodes_combination_dicts.append(partial_dock_file_nodes_combination_dict)
