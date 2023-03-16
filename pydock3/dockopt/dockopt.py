@@ -478,14 +478,14 @@ class DockoptStep(PipelineComponent):
                     dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
                     partial_dc_kwargs = {
                         'dock_file_coordinates': dock_file_coordinates,
-                        'dock_files_generation_flat_param_dict': self._get_param_dict_for_dock_files(graph, dock_file_coordinates),
+                        'dock_files_generation_flat_param_dict': self._get_dock_files_generation_flat_param_dict(graph, dock_file_coordinates),
                     }
                     dc_kwargs_so_far.append(partial_dc_kwargs)
             else:
                 for last_component_dc in last_component_docking_configurations:
                     partial_dc_kwargs = {
                         'dock_file_coordinates': deepcopy(last_component_dc.dock_file_coordinates),
-                        'dock_files_generation_flat_param_dict': self._get_param_dict_for_dock_files(graph, last_component_dc.dock_file_coordinates),
+                        'dock_files_generation_flat_param_dict': self._get_dock_files_generation_flat_param_dict(graph, last_component_dc.dock_file_coordinates),
                     }
                     dc_kwargs_so_far.append(partial_dc_kwargs)
         else:
@@ -500,7 +500,7 @@ class DockoptStep(PipelineComponent):
                 dock_file_coordinates = DockFileCoordinates(**dock_file_coordinates_kwargs)
                 partial_dc_kwargs = {
                     'dock_file_coordinates': dock_file_coordinates,
-                    'dock_files_generation_flat_param_dict': self._get_param_dict_for_dock_files(graph, dock_file_coordinates),
+                    'dock_files_generation_flat_param_dict': self._get_dock_files_generation_flat_param_dict(graph, dock_file_coordinates),
                 }
                 dc_kwargs_so_far.append(partial_dc_kwargs)
         logger.debug(f"Number of partial docking configurations after dock files generation specification: {len(dc_kwargs_so_far)}")
@@ -1030,8 +1030,8 @@ class DockoptStep(PipelineComponent):
         return matching_blaster_file_node
 
     @staticmethod
-    def _get_param_dict_for_dock_files(graph: nx.DiGraph, dock_file_coordinates: DockFileCoordinates) -> dict:
-        dock_file_node_ids = [getattr(dock_file_coordinates, field.name).node_id for field in fields(dock_file_coordinates)]
+    def _get_dock_files_generation_flat_param_dict(graph: nx.DiGraph, dock_file_coordinates: DockFileCoordinates) -> dict:
+        dock_file_node_ids = sorted([getattr(dock_file_coordinates, field.name).node_id for field in fields(dock_file_coordinates)])
         node_ids = [node_id for dock_file_node_id in dock_file_node_ids for node_id in nx.ancestors(graph, dock_file_node_id)]
         node_ids = list(set(node_ids))
         d = {}
@@ -1039,6 +1039,7 @@ class DockoptStep(PipelineComponent):
             if graph.nodes[node_id].get('parameter'):
                 parameter = graph.nodes[node_id]['parameter']
                 d[parameter.name] = parameter.value
+        logger.debug(f"dock files generation parameters dict derived from dock file nodes:\n\tnodes: {dock_file_node_ids}\n\tdict: {d}")
 
         return d
 
