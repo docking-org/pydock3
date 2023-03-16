@@ -373,7 +373,7 @@ class DockoptStep(PipelineComponent):
 
         #
         dock_file_identifier_counter_dict = collections.defaultdict(int)
-        dock_file_node_id_to_numerical_suffix_dict = {}
+        blaster_file_node_id_to_numerical_suffix_dict = {}
         blaster_files = BlasterFiles(working_dir=self.working_dir)
         partial_dock_file_nodes_combination_dicts = []
         if any([not x for x in dock_files_to_use_from_previous_component.values()]):
@@ -407,12 +407,12 @@ class DockoptStep(PipelineComponent):
                         #
                         new_dock_file_lineage_subgraph = deepcopy(dock_file_lineage_subgraph)
                         for node_id in self._get_blaster_file_nodes(dock_file_lineage_subgraph):
-                            if node_id not in dock_file_node_id_to_numerical_suffix_dict:
+                            if node_id not in blaster_file_node_id_to_numerical_suffix_dict:
                                 blaster_file_identifier = dock_file_lineage_subgraph.nodes[node_id]['blaster_file'].identifier
-                                dock_file_node_id_to_numerical_suffix_dict[node_id] = dock_file_identifier_counter_dict[blaster_file_identifier] + 1
+                                blaster_file_node_id_to_numerical_suffix_dict[node_id] = dock_file_identifier_counter_dict[blaster_file_identifier] + 1
                                 dock_file_identifier_counter_dict[blaster_file_identifier] += 1
                             new_blaster_file = deepcopy(dock_file_lineage_subgraph.nodes[node_id]['blaster_file'])
-                            new_blaster_file.path = f"{new_blaster_file.path}_{dock_file_node_id_to_numerical_suffix_dict[node_id]}"
+                            new_blaster_file.path = f"{new_blaster_file.path}_{blaster_file_node_id_to_numerical_suffix_dict[node_id]}"
                             new_dock_file_lineage_subgraph.nodes[node_id]['blaster_file'] = new_blaster_file
                         dock_file_lineage_subgraph = new_dock_file_lineage_subgraph
 
