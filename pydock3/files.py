@@ -34,6 +34,9 @@ class FileSystemEntity(object):
     def __str__(self):
         return self.path
 
+    def __repr__(self):
+        return self.path
+
     @property
     def path(self):
         return self._path
