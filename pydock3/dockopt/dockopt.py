@@ -463,6 +463,19 @@ class DockoptStep(PipelineComponent):
                                         if dock_file_lineage_subgraph.nodes[n].get(attr) is not None:
                                             if dock_file_lineage_subgraph.nodes[n].get(attr) != graph.nodes[n].get(attr):
                                                 raise Exception(f"`dock_file_lineage_subgraph` and `graph` have nodes with ID `{n}` in common but possess unequal attribute `{attr}`: {dock_file_lineage_subgraph.nodes[n].get(attr)} vs. {graph.nodes[n].get(attr)}")
+                            if graph.hash_node(v):
+                                for pred in graph.predecessors(v):
+                                    if graph.nodes[pred].get(u_node_type) is not None:
+                                        if data[u_node_type] == graph.nodes[pred][u_node_type]:
+                                            continue
+                                        if data.get('parameter') is not None:
+                                            if data['parameter'].name == graph.nodes[pred]['parameter'].name:
+                                                raise Exception(f"Nodes with ID `{v}` in common in `dock_file_lineage_subgraph` and `graph` have different parent parameter nodes: {data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
+                                        elif data.get('blaster_file') is not None:
+                                            if data['blaster_file'].identifier == graph.nodes[pred]['blaster_file'].identifier:
+                                                raise Exception(f"Nodes with ID `{v}` in common in `dock_file_lineage_subgraph` and `graph` have different parent blaster file nodes: {data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
+                                        else:
+                                            raise Exception(f"Unrecognized node type for `{u}`: {data}")
 
                         #
                         graph = nx.compose(graph, dock_file_lineage_subgraph)
