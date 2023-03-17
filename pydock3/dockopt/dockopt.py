@@ -490,13 +490,12 @@ class DockoptStep(PipelineComponent):
                                             continue
                                         if u_node_type == 'parameter':
                                             if u_data[u_node_type].name == graph.nodes[pred][u_node_type].name:
-                                                raise Exception(f"Nodes with ID `{v}` ({v_data}) in common in `dock_file_lineage_subgraph` and `graph` have different parent parameter nodes: {u_data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
+                                                raise Exception(f"Nodes with ID `{v}` ({v_data}) in common in `dock_file_lineage_subgraph` and `graph` have different parent parameter nodes: \n\t{u} {u_data[u_node_type]}\n\t{pred} {graph.nodes[pred][u_node_type]}")
                                         elif u_node_type == 'blaster_file':
                                             if u_data[u_node_type].identifier == graph.nodes[pred][u_node_type].identifier:
-                                                raise Exception(f"Nodes with ID `{v}` ({v_data}) in common in `dock_file_lineage_subgraph` and `graph` have different parent blaster_file nodes: {u_data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
+                                                raise Exception(f"Nodes with ID `{v}` ({v_data}) in common in `dock_file_lineage_subgraph` and `graph` have different parent blaster_file nodes: \n\t{u} {u_data[u_node_type]}\n\t{pred} {graph.nodes[pred][u_node_type]}")
                                         else:
                                             raise Exception(f"Unrecognized node type for `{u}`: {u_data}")
-
 
                         #
                         graph = nx.compose(graph, dock_file_lineage_subgraph)
@@ -593,8 +592,12 @@ class DockoptStep(PipelineComponent):
                         )
                         num_files_perturbed_so_far += 1
 
-                        # get step hash from infile hashes, step dir, parameters, and outfiles
-                        step_hash = DockoptStep._get_step_hash(self.component_id, step)
+                        #
+                        infile_hashes = [matching_spheres_file_node]
+                        infiles_hash = get_hexdigest_of_persistent_md5_hash_of_tuple(tuple(sorted(infile_hashes)))
+
+                        # get step hash from infiles hash, step, parameters, and outfiles
+                        step_hash = DockoptStep._get_step_hash(self.component_id, step, infiles_hash)
 
                         # add outfile node
                         outfile, = list(step.outfiles._asdict().values())
@@ -936,26 +939,16 @@ class DockoptStep(PipelineComponent):
         return get_hexdigest_of_persistent_md5_hash_of_tuple((component_id, outfile.original_file_in_working_dir.name, step_hash))
 
     @staticmethod
-    def _get_step_hash(component_id: str, step: BlasterStep) -> str:
+    def _get_step_hash(component_id: str, step: BlasterStep, infiles_hash: str) -> str:
         #
-        infiles_dict_items_list = sorted(step.infiles._asdict().items())
-        outfiles_dict_items_list = sorted(step.outfiles._asdict().items())
         parameters_dict_items_list = sorted(step.parameters._asdict().items())
+        outfiles_dict_items_list = sorted(step.outfiles._asdict().items())
 
         #
-        infile_hash_tuples = []
-        for infile_step_var_name, infile in infiles_dict_items_list:
-            infile_hash = DockoptStep._get_infile_hash(component_id, infile)
-            infile_hash_tuples.append(
-                (
-                    infile_step_var_name,
-                    infile_hash,
-                )
-            )
         return get_hexdigest_of_persistent_md5_hash_of_tuple(
             tuple(
-                infile_hash_tuples
-                + [step.__class__.__name__, step.step_dir.name]
+                [step.__class__.__name__, step.step_dir.name]
+                + [infiles_hash]
                 + [(parameter_step_var_name, parameter.hexdigest_of_persistent_md5_hash) for parameter_step_var_name, parameter in parameters_dict_items_list]
                 + [(outfile_step_var_name, outfile.original_file_in_working_dir.name) for outfile_step_var_name, outfile in outfiles_dict_items_list]
             )
@@ -972,10 +965,8 @@ class DockoptStep(PipelineComponent):
             outfiles_dict_items_list = sorted(step.outfiles._asdict().items())
             parameters_dict_items_list = sorted(step.parameters._asdict().items())
 
-            # get step hash from infile hashes, step dir, parameters, and outfiles
-            step_hash = DockoptStep._get_step_hash(component_id, step)
-
             # add infile nodes
+            infile_hashes = []
             for infile in step.infiles:
                 if DockoptStep._get_blaster_file_node_with_same_file_name(infile.original_file_in_working_dir.name, graph) is not None:
                     continue
@@ -985,6 +976,11 @@ class DockoptStep(PipelineComponent):
                     blaster_file_hash_dict[(component_id, infile.original_file_in_working_dir.name)],
                     blaster_file=deepcopy(infile.original_file_in_working_dir),
                 )
+                infile_hashes.append(blaster_file_hash_dict[(component_id, infile.original_file_in_working_dir.name)])
+            infiles_hash = get_hexdigest_of_persistent_md5_hash_of_tuple(tuple(sorted(infile_hashes)))
+
+            # get step hash from infile hashes, step dir, parameters, and outfiles
+            step_hash = DockoptStep._get_step_hash(component_id, step, infiles_hash)
 
             # add outfile nodes
             for outfile_step_var_name, outfile in outfiles_dict_items_list:
