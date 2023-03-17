@@ -457,12 +457,12 @@ class DockoptStep(PipelineComponent):
 
                         #
                         for u, v, data in dock_file_lineage_subgraph.edges(data=True):
-                            if data.get('parameter') is not None:
+                            if dock_file_lineage_subgraph.nodes[u].get('parameter') is not None:
                                 u_node_type = 'parameter'
-                            elif data.get('blaster_file') is not None:
+                            elif dock_file_lineage_subgraph.nodes[u].get('blaster_file') is not None:
                                 u_node_type = 'blaster_file'
                             else:
-                                raise Exception(f"Unrecognized node type for `{u}`: {data}")
+                                raise Exception(f"Unrecognized node type for `{u}`: {dock_file_lineage_subgraph.nodes[u]}")
                             if graph.has_edge(u, v):
                                 for attr in ['parameter', 'blaster_file']:
                                     for n in [u, v]:
