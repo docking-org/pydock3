@@ -419,7 +419,6 @@ class DockoptStep(PipelineComponent):
                         #
                         for u, v, data in dock_file_lineage_subgraph.edges(data=True):
                             step_hash_to_edges_dict[data["step_hash"]].append((u, v))
-                            step_hash_to_step_class_instance_dict[data["step_hash"]] = data["step_instance"]
 
                         #
                         for step_hash, edges in step_hash_to_edges_dict.items():
