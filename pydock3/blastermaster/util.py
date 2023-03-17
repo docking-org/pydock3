@@ -176,6 +176,11 @@ class BlasterFile(File):
         self.src_file_path = None
         self.datetime_marked_complete_in_most_recent_job = None
 
+    def __eq__(self, other):
+        if type(other) == type(self):
+            return (self.path == other.path) and (self.identifier == other.identifier)
+        return False
+
 
 class WorkingDir(Dir):
     """#TODO"""
