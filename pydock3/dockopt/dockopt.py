@@ -969,6 +969,7 @@ class DockoptStep(PipelineComponent):
             infile_hashes = []
             for infile in step.infiles:
                 if DockoptStep._get_blaster_file_node_with_same_file_name(infile.original_file_in_working_dir.name, graph) is not None:
+                    infile_hashes.append(blaster_file_hash_dict[(component_id, infile.original_file_in_working_dir.name)])
                     continue
                 if (component_id, infile.original_file_in_working_dir.name) not in blaster_file_hash_dict:
                     blaster_file_hash_dict[(component_id, infile.original_file_in_working_dir.name)] = DockoptStep._get_infile_hash(component_id, infile)
