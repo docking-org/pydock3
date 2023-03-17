@@ -463,7 +463,7 @@ class DockoptStep(PipelineComponent):
                                         if dock_file_lineage_subgraph.nodes[n].get(attr) is not None:
                                             if dock_file_lineage_subgraph.nodes[n].get(attr) != graph.nodes[n].get(attr):
                                                 raise Exception(f"`dock_file_lineage_subgraph` and `graph` have nodes with ID `{n}` in common but possess unequal attribute `{attr}`: {dock_file_lineage_subgraph.nodes[n].get(attr)} vs. {graph.nodes[n].get(attr)}")
-                            if graph.hash_node(v):
+                            if graph.has_node(v):
                                 for pred in graph.predecessors(v):
                                     if graph.nodes[pred].get(u_node_type) is not None:
                                         if data[u_node_type] == graph.nodes[pred][u_node_type]:
