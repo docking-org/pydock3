@@ -457,7 +457,7 @@ class DockoptStep(PipelineComponent):
 
                         #
                         for u, v, data in dock_file_lineage_subgraph.edges(data=True):
-                            if graph.has_node(u, v):
+                            if graph.has_edge(u, v):
                                 for attr in ['parameter', 'blaster_file']:
                                     for n in [u, v]:
                                         if dock_file_lineage_subgraph.nodes[n].get(attr) is not None:
