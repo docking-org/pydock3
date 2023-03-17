@@ -458,18 +458,31 @@ class DockoptStep(PipelineComponent):
                         #
                         for u, v, data in dock_file_lineage_subgraph.edges(data=True):
                             u_data = dock_file_lineage_subgraph.nodes[u]
+                            v_data = dock_file_lineage_subgraph.nodes[v]
+
+                            #
                             if u_data.get('parameter') is not None:
                                 u_node_type = 'parameter'
                             elif u_data.get('blaster_file') is not None:
                                 u_node_type = 'blaster_file'
                             else:
-                                raise Exception(f"Unrecognized node type for `{u}`: {u_data}")
+                                raise Exception(f"Unrecognized node type for parent `{u}`: {u_data}")
+
+                            #
+                            if v_data.get('blaster_file') is not None:
+                                v_node_type = 'blaster_file'
+                            else:
+                                raise Exception(f"Unrecognized node type for child `{v}`: {v_data}")
+
+                            #
                             if graph.has_edge(u, v):
                                 for attr in ['parameter', 'blaster_file']:
                                     for n in [u, v]:
                                         if dock_file_lineage_subgraph.nodes[n].get(attr) is not None:
                                             if dock_file_lineage_subgraph.nodes[n].get(attr) != graph.nodes[n].get(attr):
                                                 raise Exception(f"`dock_file_lineage_subgraph` and `graph` have nodes with ID `{n}` in common but possess unequal attribute `{attr}`: {dock_file_lineage_subgraph.nodes[n].get(attr)} vs. {graph.nodes[n].get(attr)}")
+
+                            #
                             if graph.has_node(v):
                                 for pred in graph.predecessors(v):
                                     if graph.nodes[pred].get(u_node_type) is not None:
@@ -477,10 +490,10 @@ class DockoptStep(PipelineComponent):
                                             continue
                                         if u_node_type == 'parameter':
                                             if u_data[u_node_type].name == graph.nodes[pred][u_node_type].name:
-                                                raise Exception(f"Nodes with ID `{v}` in common in `dock_file_lineage_subgraph` and `graph` have different parent parameter nodes: {u_data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
+                                                raise Exception(f"Nodes with ID `{v}` ({v_data}) in common in `dock_file_lineage_subgraph` and `graph` have different parent parameter nodes: {u_data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
                                         elif u_node_type == 'blaster_file':
                                             if u_data[u_node_type].identifier == graph.nodes[pred][u_node_type].identifier:
-                                                raise Exception(f"Nodes with ID `{v}` in common in `dock_file_lineage_subgraph` and `graph` have different parent blaster_file nodes: {u_data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
+                                                raise Exception(f"Nodes with ID `{v}` ({v_data}) in common in `dock_file_lineage_subgraph` and `graph` have different parent blaster_file nodes: {u_data[u_node_type]} vs. {graph.nodes[pred][u_node_type]}")
                                         else:
                                             raise Exception(f"Unrecognized node type for `{u}`: {u_data}")
 
