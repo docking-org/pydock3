@@ -456,6 +456,15 @@ class DockoptStep(PipelineComponent):
                                 ] = step_hash_to_step_class_instance_dict[step_hash]
 
                         #
+                        for u, v, data in dock_file_lineage_subgraph.edges(data=True):
+                            if graph.has_node(u, v):
+                                for attr in ['parameter', 'blaster_file']:
+                                    for n in [u, v]:
+                                        if dock_file_lineage_subgraph.nodes[n].get(attr) is not None:
+                                            dock_file_lineage_subgraph.nodes[n].get(attr) == graph.nodes[n].get(attr)
+                                        raise Exception(f"`dock_file_lineage_subgraph` and `graph` have nodes with ID `{n}` in common but possess unequal attribute `{attr}`: {dock_file_lineage_subgraph.nodes[n].get(attr)} vs. {graph.nodes[n].get(attr)}")
+
+                        #
                         graph = nx.compose(graph, dock_file_lineage_subgraph)
 
                 #
