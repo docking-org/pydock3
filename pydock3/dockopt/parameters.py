@@ -1,12 +1,10 @@
 from typing import List, Tuple, Union
-from functools import reduce
-from operator import getitem
 from copy import deepcopy
 
 import pandas as pd
 
 from pydock3.config import flatten_param_dict
-from pydock3.jobs import DOCK3_EXECUTABLE_PATH
+from pydock3.util import get_nested_dict_item, set_nested_dict_item
 
 
 class ParametersManager(object):
@@ -43,15 +41,6 @@ class DockoptComponentParametersManager(ParametersManager):
         contains numerical operators, replaces the `reference_value` of the `target_key`
         with the specified float `new_ref` if `reference_value` matches the string
         `old_ref`."""
-
-        def get_nested_dict_item(dic, nested_keys):
-            """Get item in nested dictionary"""
-            return reduce(getitem, nested_keys, dic)
-
-        def set_nested_dict_item(dic, nested_keys, value):
-            """Set item in nested dictionary"""
-            reduce(getitem, nested_keys[:-1], dic)[nested_keys[-1]] = value
-            return dic
 
         def traverse(obj):
             if isinstance(obj, dict):

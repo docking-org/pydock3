@@ -54,7 +54,7 @@ def log_job_submission_result(job, submission_result, procs):
         logger.info(
             f"Job submission skipped for '{job.name}' since all its OUTDOCK files already exist.\n"
         )
-    elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_STILL_RUNNING:
+    elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_STILL_ON_JOB_SCHEDULER_QUEUE:
         logger.info(
             f"Job submission skipped for '{job.name}' since it is still running from a previous submission.\n"
         )
@@ -279,7 +279,7 @@ class Retrodock(Script):
         #
         while not retrodock_job.is_complete:
             #
-            if retrodock_job.is_running:
+            if retrodock_job.is_on_job_scheduler_queue:
                 time.sleep(1)
                 continue
 

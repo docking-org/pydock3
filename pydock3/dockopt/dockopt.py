@@ -818,7 +818,7 @@ class DockoptStep(PipelineComponent):
                 datetime_now = datetime.now()
                 if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
                     datetime_queue_was_last_checked = datetime_now
-                    if any([(not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.is_running) for array_job in array_jobs]):
+                    if any([(not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.is_on_job_scheduler_queue) for array_job in array_jobs]):
                         # task must have timed out / failed for one or both jobs
                         logger.warning(
                             f"Failure / time out witnessed for task {docking_configuration.configuration_num}"

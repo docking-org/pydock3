@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, Iterable, Hashable, Any
 from typing_extensions import ParamSpec
 from dataclasses import fields
 import subprocess
@@ -8,6 +8,8 @@ import sys
 import traceback
 import hashlib
 import inspect
+from functools import reduce
+from operator import getitem
 
 
 #
@@ -112,3 +114,16 @@ class CleanExit(object):
 
 def filter_kwargs_for_callable(d: dict, callable: Callable[P, T]) -> dict:
     return {k: v for k, v in d.items() if k in inspect.getfullargspec(callable).args}
+
+
+def get_nested_dict_item(dic: dict, nested_keys: Iterable[Hashable]) -> Any:
+    """Get item in nested dictionary"""
+
+    return reduce(getitem, nested_keys, dic)
+
+
+def set_nested_dict_item(dic: dict, nested_keys: Iterable[Hashable], value: Any) -> dict:
+    """Set item in nested dictionary"""
+
+    reduce(getitem, nested_keys[:-1], dic)[nested_keys[-1]] = value
+    return dic

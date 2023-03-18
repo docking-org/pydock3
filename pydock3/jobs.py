@@ -29,8 +29,7 @@ class JobSubmissionResult(Enum):
     SUCCESS = 1
     FAILED = 2
     SKIPPED_BECAUSE_ALREADY_COMPLETE = 3
-    SKIPPED_BECAUSE_STILL_RUNNING = 4
-
+    SKIPPED_BECAUSE_STILL_ON_JOB_SCHEDULER_QUEUE = 4
 
 
 @dataclass
@@ -76,8 +75,8 @@ class ArrayDockingJob(ABC):
         """
 
         #
-        if self.is_running:
-            return JobSubmissionResult.SKIPPED_BECAUSE_STILL_RUNNING, []
+        if self.is_on_job_scheduler_queue:
+            return JobSubmissionResult.SKIPPED_BECAUSE_STILL_ON_JOB_SCHEDULER_QUEUE, []
 
         #
         if skip_if_complete:
@@ -172,8 +171,8 @@ class ArrayDockingJob(ABC):
             return JobSubmissionResult.SUCCESS, []
 
     @property
-    def is_running(self):
-        return self.job_scheduler.is_running_job(self.name)
+    def is_on_job_scheduler_queue(self):
+        return self.job_scheduler.job_is_on_queue(self.name)
 
     @property
     def is_complete(self):

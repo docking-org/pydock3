@@ -1,10 +1,15 @@
 import logging
+from typing import Union, List, Iterable
 import os
 from abc import ABC, abstractmethod
 from itertools import groupby
 from operator import itemgetter
+import re
+from subprocess import CompletedProcess
 
-from pydock3.util import system_call
+import xmltodict
+
+from pydock3.util import system_call, get_nested_dict_item
 
 #
 logger = logging.getLogger(__name__)
@@ -33,7 +38,11 @@ class JobScheduler(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def is_running_job(self, job_name):
+    def job_is_on_queue(self, job_name: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def task_is_on_queue(self, task_id: Union[str, int], job_name: str) -> bool:
         raise NotImplementedError
 
 
@@ -45,7 +54,7 @@ class SlurmJobScheduler(JobScheduler):
 
     MAX_ARRAY_JOBS_SUBMITTED_PER_SBATCH = 100
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="Slurm")
 
         # set required env vars
@@ -61,14 +70,14 @@ class SlurmJobScheduler(JobScheduler):
 
     def submit(
             self,
-            job_name,
-            script_path,
-            env_vars_dict,
-            out_log_dir_path,
-            err_log_dir_path,
-            task_ids,
-            job_timeout_minutes=None,
-    ):
+            job_name: str,
+            script_path: str,
+            env_vars_dict: dict,
+            out_log_dir_path: str,
+            err_log_dir_path: str,
+            task_ids: Iterable[Union[str, int]],
+            job_timeout_minutes: Union[int, None] = None,
+    ) -> List[CompletedProcess]:
         #
         task_nums = sorted([int(task_id) for task_id in task_ids])
         contiguous_task_nums_sets = [list(map(itemgetter(1), g)) for k, g in groupby(enumerate(task_nums), lambda x: x[0] - x[1])]
@@ -92,13 +101,31 @@ class SlurmJobScheduler(JobScheduler):
 
         return procs
 
-    def is_running_job(self, job_name):
-        command_str = f"{self.SQUEUE_EXEC} --format='%.18i %.{len(job_name)}j' | grep '{job_name}'"
+    def job_is_on_queue(self, job_name: str) -> bool:
+        command_str = f"{self.SQUEUE_EXEC} --format='%i %j %t' | grep '{job_name}'"
         proc = system_call(command_str)
+
+        #
         if proc.stdout:
             return True
         else:
             return False
+
+    def task_is_on_queue(self, task_id: Union[str, int], job_name: str) -> bool:
+        command_str = f"{self.SQUEUE_EXEC} --format='%i %j %t' | grep '{job_name}'"
+        proc = system_call(command_str)
+
+        #
+        if not proc.stdout:
+            return False
+
+        #
+        for line in proc.stdout:
+            job_id, job_name, state = tuple(line.decode('utf-8').strip().split())
+            if job_id.endswith(f"_{task_id}"):
+                return True
+
+        return False
 
 
 class SGEJobScheduler(JobScheduler):
@@ -107,7 +134,7 @@ class SGEJobScheduler(JobScheduler):
         "QSTAT_EXEC",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="SGE")
 
         # set required env vars
@@ -123,14 +150,14 @@ class SGEJobScheduler(JobScheduler):
 
     def submit(
             self,
-            job_name,
-            script_path,
-            env_vars_dict,
-            out_log_dir_path,
-            err_log_dir_path,
-            task_ids,
-            job_timeout_minutes=None,
-    ):
+            job_name: str,
+            script_path: str,
+            env_vars_dict: dict,
+            out_log_dir_path: str,
+            err_log_dir_path: str,
+            task_ids: Iterable[Union[str, int]],
+            job_timeout_minutes: Union[int, None] = None,
+    ) -> List[CompletedProcess]:
         #
         if not job_name[0].isalpha():
             raise Exception(f"{self.name} job names must start with a letter.")
@@ -159,10 +186,64 @@ class SGEJobScheduler(JobScheduler):
 
         return procs
 
-    def is_running_job(self, job_name):
+    def job_is_on_queue(self, job_name: str) -> bool:
         command_str = f"{self.QSTAT_EXEC} -r | grep '{job_name}'"
         proc = system_call(command_str)
         if proc.stdout:
             return True
         else:
             return False
+
+    def _get_qstat_xml_as_dict(self) -> Union[dict, None]:
+        command_str = f"{self.QSTAT_EXEC} -xml"
+        proc = system_call(command_str)
+        if proc.stdout:
+            return xmltodict.parse(proc.stdout)
+        else:
+            return None
+
+    def task_is_on_queue(self, task_id: Union[str, int], job_name: str) -> bool:
+        task_num = int(task_id)
+
+        #
+        q_dict = self._get_qstat_xml_as_dict()
+
+        #
+        try:
+            job_dicts = get_nested_dict_item(q_dict, ('job_info', 'queue_info', 'job_list'))
+        except KeyError:
+            return False
+
+        #
+        for job_dict in job_dicts:
+            #
+            if not job_dict.get('JB_name') == job_name:
+                continue
+
+            #
+            tasks_str = job_dict.get('tasks')
+            if tasks_str is None:
+                continue
+
+            #
+            pattern = r'^(\d+)-(\d+)(:\d+)?$'
+            match = re.match(pattern, tasks_str)
+            if match is not None:
+                if match.group(1) is not None and match.group(2) is not None:
+                    start = int(match.group(1))
+                    end = int(match.group(2))
+                    if (task_num >= start) and (task_num <= end):
+                        #
+                        return True
+
+            #
+            pattern = r'^(\d+)$'
+            match = re.match(pattern, tasks_str)
+            if match is not None:
+                if match.group(1) is not None:
+                    num = int(match.group(1))
+                    if task_num == num:
+                        return True
+
+        #
+        return False
