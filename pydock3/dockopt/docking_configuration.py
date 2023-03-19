@@ -147,7 +147,7 @@ class DockingConfiguration:
         d = {
             'component_id': self.component_id,
             'configuration_num': self.configuration_num,
-            'custom_dock_executable': self.custom_dock_executable,
+            'parameters.custom_dock_executable': self.custom_dock_executable,
         }
 
         #
