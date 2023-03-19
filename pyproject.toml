@@ -27,6 +27,7 @@ seaborn = "^0.11.2"
 dirhash = "^0.2.1"
 joypy = "^0.2.6"
 typing-extensions = "^4.5.0"
+xmltodict = "^0.13.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^2.18.1"
