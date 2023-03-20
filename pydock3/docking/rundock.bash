@@ -198,6 +198,8 @@ function cleanup {
 	fi
 
 	cp -p $JOB_DIR/working/OUTDOCK $OUTPUT/OUTDOCK.$nout
+	sleep 20  # necessary in order to prevent bug witnessed using DockOpt with Slurm on Gimel where OUTDOCK fails to appear by the time job has left queue
+
 	if $EXPORT_MOL2; then
 	  cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
   fi
@@ -213,8 +215,6 @@ function cleanup {
 	chmod -R 777 $OUTPUT
 
 	rm -rf $JOB_DIR
-
-	sleep 20  # necessary in order to prevent bug witnessed using DockOpt with Slurm on Gimel where OUTDOCK fails to appear by the time job has left queue
 }
 
 popd > /dev/null 2>&1
