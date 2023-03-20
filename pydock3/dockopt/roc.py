@@ -76,15 +76,19 @@ class ROC(object):
         )
 
         #
+        self._literal_log_auc = self._get_literal_log_auc()
+        self._random_literal_log_auc = self._get_random_literal_log_auc()
+        self._optimal_literal_log_auc = self._get_optimal_literal_log_auc()
+        self.log_auc = self._get_normalized_log_auc()
         self.enrichment_score = self._get_enrichment_score()
+        
+    def _get_random_literal_log_auc(self):
+        return 1 - self.alpha
+    
+    def _get_optimal_literal_log_auc(self):
+        return -np.log(self.alpha)
 
-    def _get_enrichment_score(self) -> np.ndarray:
-        return (
-            self._get_literal_area_under_roc_curve_with_log_scaled_x_axis()
-            - (1 - self.alpha)
-        ) / (-np.log(self.alpha) - (1 - self.alpha))
-
-    def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self) -> np.ndarray:
+    def _get_literal_log_auc(self) -> np.ndarray:
         # remove point at x=0.0 and add point at x=1.0
         x_values = self.x_coords[1:] + [1.0]
         y_values = self.y_coords[1:] + [self.y_coords[-1]]
@@ -111,6 +115,12 @@ class ROC(object):
             previous_y_value = current_y_value
 
         return np.dot(weights, y_values_of_intervals)
+    
+    def _get_normalized_log_auc(self) -> np.ndarray:
+        return self._literal_log_auc / self._optimal_literal_log_auc
+    
+    def _get_enrichment_score(self) -> np.ndarray:
+        return (self._literal_log_auc - self._random_literal_log_auc) / (self._optimal_literal_log_auc - self._random_literal_log_auc)
 
     def plot(
         self,
