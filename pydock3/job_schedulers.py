@@ -121,7 +121,7 @@ class SlurmJobScheduler(JobScheduler):
 
         #
         for line in proc.stdout:
-            job_id, job_name, state = tuple(line.decode('utf-8').strip().split())
+            job_id, job_name, state = tuple(line.strip().split())
             if job_id.endswith(f"_{task_id}"):
                 return True
 
