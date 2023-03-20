@@ -213,6 +213,8 @@ function cleanup {
 	chmod -R 777 $OUTPUT
 
 	rm -rf $JOB_DIR
+
+	sleep 20  # necessary in order to prevent bug witnessed using DockOpt with Slurm on Gimel where OUTDOCK fails to appear by the time job has left queue
 }
 
 popd > /dev/null 2>&1
