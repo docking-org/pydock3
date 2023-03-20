@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-from pydock3.util import validate_variable_type
+from pydock3.util import validate_variable_type, system_call
 
 
 #
@@ -112,9 +112,12 @@ class Dir(FileSystemEntity):
 
     def delete(self):
         if os.path.exists(self.path):
+            '''
             shutil.rmtree(self.path, ignore_errors=True)
             while os.path.isdir(self.path):  # TODO: hmmm. is this valid?
                 pass
+            '''
+            system_call(f"rm -rf {self.path}")
             logger.info(f"Deleted directory {self}.")
 
     def reset(self):
