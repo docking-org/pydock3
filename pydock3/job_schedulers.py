@@ -112,7 +112,7 @@ class SlurmJobScheduler(JobScheduler):
             return False
 
     def task_is_on_queue(self, task_id: Union[str, int], job_name: str) -> bool:
-        command_str = f"{self.SQUEUE_EXEC} --format='%i %j %t' | grep '{job_name}'"
+        command_str = f"{self.SQUEUE_EXEC} -r --format='%i %j %t' | grep '{job_name}'"
         proc = system_call(command_str)
 
         #
@@ -120,10 +120,12 @@ class SlurmJobScheduler(JobScheduler):
             return False
 
         #
-        for line in proc.stdout:
-            job_id, job_name, state = line.strip().split()
-            if job_id.endswith(f"_{task_id}"):
-                return True
+        for line in proc.stdout.split('\n'):
+            line_stripped = line.strip()
+            if line_stripped:
+                job_id, job_name, state = line_stripped.split()
+                if job_id.endswith(f"_{task_id}"):
+                    return True
 
         return False
 
