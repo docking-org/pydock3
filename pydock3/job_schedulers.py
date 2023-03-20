@@ -91,8 +91,9 @@ class SlurmJobScheduler(JobScheduler):
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
             command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array={array_str} {script_path}"
-            if File.file_exists(self.SLURM_SETTINGS):
-                command_str = f"source {self.SLURM_SETTINGS}; {command_str}"
+            if self.SLURM_SETTINGS:
+                if File.file_exists(self.SLURM_SETTINGS):  # TODO: move validation to __init__
+                    command_str = f"source {self.SLURM_SETTINGS}; {command_str}"
             if job_timeout_minutes is None:
                 command_str += " --time=0"
             else:
@@ -179,8 +180,9 @@ class SGEJobScheduler(JobScheduler):
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
             command_str = f"{self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd -S /bin/bash -q !gpu.q -t {array_str} {script_path}"
-            if File.file_exists(self.SGE_SETTINGS):
-                command_str = f"source {self.SGE_SETTINGS}; {command_str}"
+            if self.SGE_SETTINGS:
+                if File.file_exists(self.SGE_SETTINGS):  # TODO: move validation to __init__
+                    command_str = f"source {self.SGE_SETTINGS}; {command_str}"
             if job_timeout_minutes is not None:
                 job_timeout_seconds = 60 * job_timeout_minutes
                 command_str += (
