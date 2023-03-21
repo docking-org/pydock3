@@ -1,3 +1,4 @@
+from typing import Iterable
 from dataclasses import dataclass
 import math
 
@@ -15,9 +16,13 @@ class Point:
 
 
 class ROC(object):
-    def __init__(self, booleans, alpha=None):
+    def __init__(
+            self,
+            booleans: Iterable[bool],
+            alpha: float = None,
+    ):
         #
-        self.booleans = [bool(b) for b in booleans]
+        self.booleans = booleans
 
         #
         self.num_actives = len([b for b in self.booleans if b])
@@ -25,7 +30,8 @@ class ROC(object):
 
         # validate num actives and num decoys
         if self.num_actives == 0 or self.num_decoys == 0:
-            raise ValueError(f"Number of actives and number of decoys both must be greater than zero!\n\tnum_actives={self.num_actives}\n\tnum_decoys={self.num_decoys}")
+            raise ValueError(
+                f"Number of actives and number of decoys both must be greater than zero!\n\tnum_actives={self.num_actives}\n\tnum_decoys={self.num_decoys}")
 
         # validate and set alpha
         if alpha is None:
@@ -62,7 +68,8 @@ class ROC(object):
         ]
 
         #
-        x_coords_for_interpolation = self.x_coords + [1.0]  # add point at x=1.0 to complete the last interval [(n-1)/n, 1.0]
+        x_coords_for_interpolation = self.x_coords + [
+            1.0]  # add point at x=1.0 to complete the last interval [(n-1)/n, 1.0]
         y_coords_for_interpolation = self.y_coords + [self.y_coords[-1]]
         self.f = lambda w: float(
             interpolate.interp1d(
@@ -71,15 +78,19 @@ class ROC(object):
         )
 
         #
+        self._literal_log_auc = self._get_literal_log_auc()
+        self._random_literal_log_auc = self._get_random_literal_log_auc()
+        self._optimal_literal_log_auc = self._get_optimal_literal_log_auc()
+        self.log_auc = self._get_normalized_log_auc()
         self.enrichment_score = self._get_enrichment_score()
 
-    def _get_enrichment_score(self):
-        return (
-            self._get_literal_area_under_roc_curve_with_log_scaled_x_axis()
-            - (1 - self.alpha)
-        ) / (-np.log(self.alpha) - (1 - self.alpha))
+    def _get_random_literal_log_auc(self):
+        return 1 - self.alpha
 
-    def _get_literal_area_under_roc_curve_with_log_scaled_x_axis(self):
+    def _get_optimal_literal_log_auc(self):
+        return -np.log(self.alpha)
+
+    def _get_literal_log_auc(self) -> np.ndarray:
         # remove point at x=0.0 and add point at x=1.0
         x_values = self.x_coords[1:] + [1.0]
         y_values = self.y_coords[1:] + [self.y_coords[-1]]
@@ -90,10 +101,10 @@ class ROC(object):
         previous_x_value = self.alpha
         previous_y_value = self.f(self.alpha)  # initialize according to point at x=alpha
         for i, (current_x_value, current_y_value) in enumerate(
-            zip(x_values, y_values)
+                zip(x_values, y_values)
         ):
             if current_y_value == previous_y_value and (i + 1) != len(
-                y_values
+                    y_values
             ):  # add for last y no matter what
                 continue
 
@@ -107,7 +118,17 @@ class ROC(object):
 
         return np.dot(weights, y_values_of_intervals)
 
-    def plot(self, save_path):
+    def _get_normalized_log_auc(self) -> np.ndarray:
+        return self._literal_log_auc / self._optimal_literal_log_auc
+
+    def _get_enrichment_score(self) -> np.ndarray:
+        return (self._literal_log_auc - self._random_literal_log_auc) / (
+                    self._optimal_literal_log_auc - self._random_literal_log_auc)
+
+    def plot(
+            self,
+            save_path: str
+    ) -> None:
         fig, ax = plt.subplots()
         fig.set_size_inches(8.0, 8.0)
 
@@ -161,7 +182,7 @@ class ROC(object):
         # set axis ticks
         order_of_magnitude = -math.floor(math.log(self.alpha, 10)) - 1
         ax.set_xticks(
-            [self.alpha] + [float(10**x) for x in range(-order_of_magnitude, 1, 1)]
+            [self.alpha] + [float(10 ** x) for x in range(-order_of_magnitude, 1, 1)]
         )
         ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
