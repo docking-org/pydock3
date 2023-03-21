@@ -203,13 +203,13 @@ class SGEJobScheduler(JobScheduler):
         else:
             return False
 
-    def _get_qstat_xml_as_dict(self) -> Union[dict, None]:
+    def _get_qstat_xml_as_dict(self) -> dict:
         command_str = f"{self.QSTAT_EXEC} -xml"
         proc = system_call(command_str)
-        if proc.stdout:
+        if proc.stdout is not None:
             return xmltodict.parse(proc.stdout)
         else:
-            return None
+            raise Exception(f"Command '{command_str}' returned stdout of None. stderr: {proc.stderr}")
 
     def task_is_on_queue(self, task_id: Union[str, int], job_name: str) -> bool:
         task_num = int(task_id)
@@ -220,7 +220,7 @@ class SGEJobScheduler(JobScheduler):
         #
         try:
             job_dicts = get_nested_dict_item(q_dict, ('job_info', 'queue_info', 'job_list'))
-        except KeyError:
+        except (KeyError, TypeError):
             return False
 
         #
