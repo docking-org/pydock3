@@ -1239,19 +1239,11 @@ class DockoptStepSequence(PipelineComponentSequence):
             iteration_num =  i + 1
 
             #
-            if i == 0:
-                component_criterion = self.last_component_completed.criterion.name
-                component_top_n = self.last_component_completed.top_n
-            else:
-                component_criterion = self.inter_iteration_criterion
-                component_top_n = self.inter_iteration_top_n
-
-            #
             component = DockoptStepSequenceIteration(
                 component_id=f"{self.component_id}.iter={iteration_num}",
                 pipeline_dir_path=self.pipeline_dir.path,
-                criterion=component_criterion,
-                top_n=component_top_n,
+                criterion=self.inter_iteration_criterion,
+                top_n=self.inter_iteration_top_n,
                 components=self.components,
                 blaster_files_to_copy_in=self.blaster_files_to_copy_in,
                 last_component_completed=last_component_completed_in_sequence,
