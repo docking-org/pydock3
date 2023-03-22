@@ -219,9 +219,17 @@ class SGEJobScheduler(JobScheduler):
 
         #
         try:
-            job_dicts = get_nested_dict_item(q_dict, ('job_info', 'queue_info', 'job_list'))
+            obj = get_nested_dict_item(q_dict, ('job_info', 'queue_info', 'job_list'))
         except (KeyError, TypeError):
             return False
+
+        #
+        if isinstance(obj, dict):
+            job_dicts = [obj]
+        elif isinstance(obj, list):
+            job_dicts = obj
+        else:
+            raise Exception(f"Unexpected type for 'job_list': {type(obj)}")
 
         #
         for job_dict in job_dicts:
