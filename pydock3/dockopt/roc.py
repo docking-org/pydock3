@@ -82,13 +82,13 @@ class ROC(object):
         self.log_auc = self._get_normalized_log_auc()
         self.enrichment_score = self._get_enrichment_score()
         
-    def _get_random_literal_log_auc(self):
-        return 1 - self.alpha
+    def _get_random_literal_log_auc(self) -> float:
+        return float(1 - self.alpha)
     
-    def _get_optimal_literal_log_auc(self):
+    def _get_optimal_literal_log_auc(self) -> float:
         return -np.log(self.alpha)
 
-    def _get_literal_log_auc(self) -> np.ndarray:
+    def _get_literal_log_auc(self) -> float:
         # remove point at x=0.0 and add point at x=1.0
         x_values = self.x_coords[1:] + [1.0]
         y_values = self.y_coords[1:] + [self.y_coords[-1]]
@@ -114,12 +114,12 @@ class ROC(object):
             previous_x_value = current_x_value
             previous_y_value = current_y_value
 
-        return np.dot(weights, y_values_of_intervals)
+        return float(np.dot(weights, y_values_of_intervals).item())
     
-    def _get_normalized_log_auc(self) -> np.ndarray:
+    def _get_normalized_log_auc(self) -> float:
         return self._literal_log_auc / self._optimal_literal_log_auc
     
-    def _get_enrichment_score(self) -> np.ndarray:
+    def _get_enrichment_score(self) -> float:
         return (self._literal_log_auc - self._random_literal_log_auc) / (self._optimal_literal_log_auc - self._random_literal_log_auc)
 
     def plot(
