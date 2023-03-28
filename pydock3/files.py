@@ -99,7 +99,7 @@ class Dir(FileSystemEntity):
         """#TODO"""
         if reset:
             self.delete()
-            pathlib.Path(self.path).mkdir(parents=True)
+            pathlib.Path(self.path).mkdir(parents=True, exist_ok=True)
             logger.info(f"Reset directory {self}.")
         else:
             if os.path.exists(self.path):
@@ -107,7 +107,7 @@ class Dir(FileSystemEntity):
                     f"Tried to create directory {self} with reset=False but directory already exists."
                 )
             else:
-                pathlib.Path(self.path).mkdir(parents=True)
+                pathlib.Path(self.path).mkdir(parents=True, exist_ok=True)
                 logger.info(f"Created directory {self}")
 
     def delete(self):
