@@ -37,6 +37,6 @@ class EnrichmentScore(Criterion):
         return roc.enrichment_score
 
 
-criterion_dict = {
+CRITERION_DICT = {
     "enrichment_score": EnrichmentScore
 }

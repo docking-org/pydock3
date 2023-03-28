@@ -6,7 +6,7 @@ import os
 import pandas as pd
 
 from pydock3.files import Dir
-from pydock3.dockopt.criterion import criterion_dict
+from pydock3.dockopt.criterion import CRITERION_DICT
 if TYPE_CHECKING:
     from pydock3.dockopt.results import ResultsManager
 
@@ -44,10 +44,10 @@ class PipelineComponent(object):
         self.results_manager = results_manager
 
         #
-        if criterion in criterion_dict:
-            self.criterion = criterion_dict[criterion]()
+        if criterion in CRITERION_DICT:
+            self.criterion = CRITERION_DICT[criterion]()
         else:
-            raise ValueError(f"`criterion` must be one of: {criterion_dict.keys()}. Witnessed: {criterion}")
+            raise ValueError(f"`criterion` must be one of: {CRITERION_DICT.keys()}. Witnessed: {criterion}")
 
         #
         self.started_utc = None  # set by add_timing_and_reporting_to_run_method() decorator; see .__init_subclass__()
