@@ -127,3 +127,16 @@ def set_nested_dict_item(dic: dict, nested_keys: Iterable[Hashable], value: Any)
 
     reduce(getitem, nested_keys[:-1], dic)[nested_keys[-1]] = value
     return dic
+
+
+def get_ordinal(n: int) -> str:
+    """Get ordinal number (e.g. 1st, 2nd, 3rd, 4th, etc.)"""
+    return "%d%s" % (
+        n,
+        "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10:: 4],
+    )
+
+
+def sort_list_by_another_list(list_to_be_sorted: list, list_to_sort_by: list) -> list:
+    """Sort one list by the sort order of another list"""
+    return tuple(zip(*sorted(zip(list_to_be_sorted, list_to_sort_by), key=lambda x: x[1])))[0]
