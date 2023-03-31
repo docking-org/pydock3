@@ -4,6 +4,8 @@ import math
 
 import numpy as np
 from scipy import interpolate
+import matplotlib
+matplotlib.use('Agg')  # set the backend to Agg (no interactive plots)
 from matplotlib import pyplot as plt
 
 plt.rcParams.update({"font.size": 14})
