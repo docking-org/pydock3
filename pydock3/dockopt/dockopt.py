@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 import networkx as nx
 import pandas as pd
 
-
 from pydock3.util import (
     T,
     P,
@@ -42,11 +41,10 @@ from pydock3.blastermaster.util import (
     BlasterFile,
     BlasterStep,
 )
-from pydock3.dockopt.roc import ROC
 from pydock3.jobs import ArrayDockingJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, ROC_PLOT_FILE_NAME
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results import DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
 from pydock3.dockopt.criterion import EnrichmentScore
