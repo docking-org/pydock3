@@ -56,7 +56,7 @@ def create_new_coords(coords: np.ndarray, min_units_between: int) -> np.ndarray:
     return np.array(new_coords)
 
 
-def heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: int = 5, interp_method: str = 'nearest') -> None:
+def heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: int = 5, interp_method: str = 'cubic') -> None:
     # Extract points and scores
 
     points = df[[x, y]].to_numpy()
@@ -73,7 +73,7 @@ def heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: in
     grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method, fill_value=0)
 
     # Define colormap and normalization for both heatmap and scatter plot
-    cmap = plt.get_cmap('hot')
+    cmap = plt.get_cmap('turbo')
     norm = Normalize(vmin=scores_array.min(), vmax=scores_array.max())
 
     # Plot the heatmap
@@ -233,7 +233,7 @@ class PDFReporter(Reporter):
                 """
 
                 #
-                heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name, min_units_between=5, interp_method='nearest')
+                heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name, min_units_between=5, interp_method='cubic')
 
                 #
                 fig.autofmt_xdate(rotation=25)
