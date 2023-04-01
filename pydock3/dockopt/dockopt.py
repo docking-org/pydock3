@@ -1,27 +1,17 @@
 import uuid
-from typing import Union, Iterable, List, Tuple, Callable, Any, TypeVar
-from typing_extensions import ParamSpec
+from typing import Union, Iterable, List, Callable
 import itertools
 import os
-import shutil
-import sys
 from functools import wraps
-from dataclasses import dataclass, fields, asdict, astuple
-from copy import copy, deepcopy
+from dataclasses import dataclass, fields, asdict
+from copy import deepcopy
 import logging
 import collections
 import time
-import random
 from datetime import datetime, timedelta
 
 import networkx as nx
-import numpy as np
 import pandas as pd
-from dirhash import dirhash
-import matplotlib.pyplot as plt
-
-import seaborn as sns
-from joypy import joyplot
 
 
 from pydock3.util import (
@@ -30,8 +20,6 @@ from pydock3.util import (
     filter_kwargs_for_callable,
     Script,
     CleanExit,
-    get_dataclass_as_dict,
-    validate_variable_type,
     get_hexdigest_of_persistent_md5_hash_of_tuple,
 )
 from pydock3.dockopt.util import WORKING_DIR_NAME, RETRODOCK_JOBS_DIR_NAME, RESULTS_CSV_FILE_NAME, BEST_RETRODOCK_JOBS_DIR_NAME
@@ -46,26 +34,22 @@ from pydock3.files import (
     INDOCK_FILE_NAME,
     Dir,
     File,
-    IndockFile,
-    OutdockFile,
 )
 from pydock3.blastermaster.util import (
     BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT,
     DOCK_FILE_IDENTIFIERS,
     WorkingDir,
     BlasterFile,
-    DockFiles,
     BlasterStep,
 )
 from pydock3.dockopt.roc import ROC
 from pydock3.jobs import ArrayDockingJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, str_to_float, ROC_PLOT_FILE_NAME
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, ROC_PLOT_FILE_NAME
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
-from pydock3.dockopt.results import ResultsManager, DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
-from pydock3.dockopt.reporter import Reporter
-from pydock3.dockopt.criterion import EnrichmentScore, Criterion
+from pydock3.dockopt.results import DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
+from pydock3.dockopt.criterion import EnrichmentScore
 from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, PipelineComponentSequenceIteration, Pipeline
 from pydock3.dockopt.parameters import DockoptComponentParametersManager
 from pydock3.dockopt.docking_configuration import DockingConfiguration, DockFileCoordinates, DockFileCoordinate, IndockFileCoordinate
