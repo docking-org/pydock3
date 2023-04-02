@@ -46,31 +46,36 @@ def get_sorted_component_ids(component_ids: list) -> list:
 def create_new_coords(coords: np.ndarray, min_units_between: int) -> np.ndarray:
     new_coords = []
 
+    # get the x dist and y dist per unit based on the two closest points
     sorted_coords = np.sort(np.unique(coords))
+    min_distance = np.min(np.diff(sorted_coords))
+
+    # Divide min_distance by min_units_between to get the increment value
+    increment = min_distance / (min_units_between + 1)
 
     for i in range(len(sorted_coords) - 1):
         new_coords.extend(
-            np.linspace(sorted_coords[i], sorted_coords[i + 1], num=min_units_between + 1, endpoint=False))
+            np.arange(sorted_coords[i], sorted_coords[i + 1], increment)
+        )
     new_coords.append(sorted_coords[-1])
 
     return np.array(new_coords)
 
 
-def heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: int = 5, interp_method: str = 'cubic') -> None:
+def heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: int = 20, interp_method: str = 'cubic') -> None:
     # Extract points and scores
-
     points = df[[x, y]].to_numpy()
     scores_array = df[scores].to_numpy()
 
-    # Create new x and y coordinates with the specified minimum number of grid units between points
+    # Create new x and y coordinates with the specified minimum number of grid units between any two points
     x_coords = create_new_coords(points[:, 0], min_units_between)
     y_coords = create_new_coords(points[:, 1], min_units_between)
 
-    # Create the uneven mesh grid
+    # Create mesh grid
     grid_x, grid_y = np.meshgrid(x_coords, y_coords)
 
     # Interpolate the data onto the grid
-    grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method, fill_value=0)
+    grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method)
 
     # Define colormap and normalization for both heatmap and scatter plot
     cmap = plt.get_cmap('turbo')
@@ -80,15 +85,14 @@ def heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: in
     heatmap_image = plt.imshow(grid_scores, origin='lower',
                                extent=(x_coords.min(), x_coords.max(), y_coords.min(), y_coords.max()),
                                cmap=cmap, aspect='auto', norm=norm)
-    cbar = plt.colorbar(heatmap_image, label='Scores')
+    cbar = plt.colorbar(heatmap_image, label=scores)
 
     # Plot the scatter points with the same colormap and normalization
-    plt.scatter(points[:, 0], points[:, 1], c=scores_array, cmap=cmap, edgecolors='k', norm=norm)
+    plt.scatter(points[:, 0], points[:, 1], c=scores_array, marker='o', s=80, cmap=cmap, edgecolors=np.array([0.7, 0.7, 0.7]), norm=norm, clip_on=False)
 
     plt.xlabel(x)
     plt.ylabel(y)
-    plt.title('Heatmap of Scores')
-    plt.show()
+    #plt.title(f"{y} vs. {x}")
 
 
 class PDFReporter(Reporter):
@@ -104,7 +108,7 @@ class PDFReporter(Reporter):
 
         with PdfPages(os.path.join(pipeline_component.component_dir.path, self.report_file_name)) as f:
             #
-            fig = plt.figure(figsize=(11.0, 8.5))
+            fig = plt.figure()
 
             #
             for i, (_, row) in enumerate(pipeline_component.get_top_results_dataframe().iterrows()):
@@ -128,7 +132,7 @@ class PDFReporter(Reporter):
                     best_job_dir_path, ENERGY_PLOT_FILE_NAME
                 )
                 if File.file_exists(energy_plot_file_path):
-                    fig = plt.figure(figsize=(11.0, 8.5))
+                    fig = plt.figure()
                     image = mpimg.imread(energy_plot_file_path)
                     plt.axis("off")
                     plt.suptitle("energy terms ridgeline plot of best job")
@@ -141,7 +145,7 @@ class PDFReporter(Reporter):
                     best_job_dir_path, CHARGE_PLOT_FILE_NAME
                 )
                 if File.file_exists(charge_plot_file_path):
-                    fig = plt.figure(figsize=(11.0, 8.5))
+                    fig = plt.figure()
                     image = mpimg.imread(charge_plot_file_path)
                     plt.axis("off")
                     plt.suptitle("charge violin plot of best job")
@@ -150,7 +154,7 @@ class PDFReporter(Reporter):
                     plt.close(fig)
 
             #
-            boxplot_columns = [
+            boxplot_columns = sorted([
                 column
                 for column in df.columns
                 if df[column].nunique() > 1  # multivalued parameters only
@@ -158,9 +162,9 @@ class PDFReporter(Reporter):
                         (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
                         or column == "component_id"  # include component identifier
                     )
-            ]
+            ])
             for column in boxplot_columns:
-                fig = plt.figure(figsize=(8, 6))
+                fig = plt.figure()
 
                 # need to sort component ids by order of numerical pieces
                 if column == "component_id":
@@ -183,29 +187,32 @@ class PDFReporter(Reporter):
                     sns.stripplot(data=df, x=column, y=pipeline_component.criterion.name, order=order, zorder=0.5)
 
                 #
+                plt.gca().set_xlabel("\n".join(column.lstrip('parameters.').split('.')), rotation='horizontal', ha='center')
+                plt.gca().set_ylabel(pipeline_component.criterion.name, rotation='vertical', ha='center')
+
+                #
                 fig.autofmt_xdate(rotation=25)
                 plt.yticks(rotation=0)
                 f.savefig(fig, bbox_inches="tight")
                 plt.close(fig)
 
             #
-            heatmap_columns = [
+            heatmap_numeric_columns = sorted([
                 column
                 for column in df.columns
                 if df[column].nunique() > 1  # multivalued parameters only
                     and (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
                     and pd.api.types.is_numeric_dtype(df[column])  # numeric parameters only
-            ]
+            ])
             df = df.sort_values(
                 by=pipeline_component.criterion.name, ascending=False,
                 ignore_index=True
             )
             for column_1, column_2 in itertools.combinations(
-                    heatmap_columns, 2
+                    heatmap_numeric_columns, 2
             ):
                 #
                 fig, ax = plt.subplots()
-                fig.set_size_inches(8.0, 6.0)
 
                 #
                 df_no_duplicates = df.drop_duplicates(subset=[column_1, column_2], keep="first", ignore_index=True)
@@ -233,7 +240,11 @@ class PDFReporter(Reporter):
                 """
 
                 #
-                heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name, min_units_between=5, interp_method='cubic')
+                heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name, min_units_between=20, interp_method='cubic')
+
+                #
+                plt.gca().set_xlabel("\n".join(column_1.lstrip('parameters.').split('.')), rotation='horizontal', ha='center')
+                plt.gca().set_ylabel("\n".join(column_2.lstrip('parameters.').split('.')), rotation='vertical', ha='center')
 
                 #
                 fig.autofmt_xdate(rotation=25)
