@@ -51,6 +51,9 @@ class ResultsManager(object):
         results_dataframe: pd.DataFrame,
     ) -> NoReturn:
         raise NotImplementedError
+    
+    def results_exist(self, pipeline_component: PipelineComponent) -> NoReturn:
+        raise NotImplementedError
 
     def load_results(self, pipeline_component: PipelineComponent) -> NoReturn:
         raise NotImplementedError
@@ -70,6 +73,9 @@ class DockoptPipelineComponentResultsManager(ResultsManager):
     ) -> None:
         results_dataframe.to_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
         self.save_best_retrodock_jobs(pipeline_component)
+
+    def results_exist(self, pipeline_component: PipelineComponent) -> bool:
+        return os.path.exists(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
 
     def load_results(self, pipeline_component: PipelineComponent) -> pd.DataFrame:
         df = pd.read_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
