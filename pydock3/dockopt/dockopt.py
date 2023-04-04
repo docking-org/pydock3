@@ -168,6 +168,8 @@ class Dockopt(Script):
         retrodock_job_timeout_minutes: Union[str, None] = None,
         max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
         export_decoy_poses: bool = False,  # TODO
+        skip_if_results_exist: bool = False,
+        force_rewrite_report: bool = False,
     ) -> None:
         # validate args
         if config_file_path is None:
@@ -253,7 +255,11 @@ class Dockopt(Script):
             pipeline_dir_path=job_dir_path,
             blaster_files_to_copy_in=blaster_files_to_copy_in,
         )
-        pipeline.run(component_run_func_arg_set=component_run_func_arg_set)
+        pipeline.run(
+            component_run_func_arg_set=component_run_func_arg_set,
+            skip_if_results_exist=skip_if_results_exist,
+            force_rewrite_report=force_rewrite_report,
+        )
 
 
 class DockoptStep(PipelineComponent):
@@ -701,7 +707,12 @@ class DockoptStep(PipelineComponent):
 
         return new_dc_kwargs_sorted
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
+    def run(
+            self, 
+            component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
+            skip_if_results_exist: bool = False,
+            force_rewrite_report: bool = False,
+        ) -> pd.DataFrame:
         if component_run_func_arg_set.actives_tgz_file_path is not None:
             self.actives_tgz_file = File(path=component_run_func_arg_set.actives_tgz_file_path)
         else:
@@ -1120,7 +1131,12 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
         #
         self.graph = nx.DiGraph()
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
+    def run(
+            self, 
+            component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
+            skip_if_results_exist: bool = False,
+            force_rewrite_report: bool = False,
+            ) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1154,7 +1170,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
                 'last_component_completed': last_component_completed_in_sequence,
             }, component_class)
             component = component_class(**kwargs)
-            component.run(component_run_func_arg_set)
+            component.run(component_run_func_arg_set, skip_if_results_exist=skip_if_results_exist, force_rewrite_report=force_rewrite_report)
 
             #
             df_component = component.load_results_dataframe()
@@ -1211,7 +1227,12 @@ class DockoptStepSequence(PipelineComponentSequence):
         #
         self.graph = nx.DiGraph()
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
+    def run(
+            self, 
+            component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
+            skip_if_results_exist: bool = False,
+            force_rewrite_report: bool = False,
+            ) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1230,7 +1251,7 @@ class DockoptStepSequence(PipelineComponentSequence):
                 blaster_files_to_copy_in=self.blaster_files_to_copy_in,
                 last_component_completed=last_component_completed_in_sequence,
             )
-            component.run(component_run_func_arg_set)
+            component.run(component_run_func_arg_set, skip_if_results_exist=skip_if_results_exist, force_rewrite_report=force_rewrite_report)
 
             #
             df_component = component.load_results_dataframe()
@@ -1287,7 +1308,12 @@ class DockoptPipeline(Pipeline):
         #
         self.graph = nx.DiGraph()
 
-    def run(self, component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet) -> pd.DataFrame:
+    def run(
+            self, 
+            component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
+            skip_if_results_exist: bool = False,
+            force_rewrite_report: bool = False,
+            ) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1322,7 +1348,7 @@ class DockoptPipeline(Pipeline):
                 'last_component_completed': last_component_completed_in_sequence,
             }, component_class)
             component = component_class(**kwargs)
-            component.run(component_run_func_arg_set)
+            component.run(component_run_func_arg_set, skip_if_results_exist=skip_if_results_exist, force_rewrite_report=force_rewrite_report)
 
             #
             df_component = component.load_results_dataframe()

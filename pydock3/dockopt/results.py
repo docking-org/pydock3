@@ -70,7 +70,6 @@ class DockoptPipelineComponentResultsManager(ResultsManager):
     ) -> None:
         results_dataframe.to_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))
         self.save_best_retrodock_jobs(pipeline_component)
-        self.write_report(pipeline_component)
 
     def load_results(self, pipeline_component: PipelineComponent) -> pd.DataFrame:
         df = pd.read_csv(os.path.join(pipeline_component.component_dir.path, self.results_file_name))

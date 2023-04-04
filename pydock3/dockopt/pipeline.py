@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn, Iterable, Union
 from datetime import datetime
 import os
+import functools
 
 import pandas as pd
 
@@ -11,21 +12,29 @@ if TYPE_CHECKING:
     from pydock3.dockopt.results import ResultsManager
 
 
-def add_timing_and_results_writing_to_run_method(_cls: object) -> object:
-    run = getattr(_cls, "run")
+def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineComponent) -> PipelineComponent:
+    run = getattr(pipeline_component, "run")
 
-    def new_run(self, *args, **kwargs):
+    @functools.wraps(run)
+    def new_run(self, *args, skip_if_results_exist: bool = False, force_rewrite_report: bool = False, **kwargs):
+        if skip_if_results_exist and self.results_manager is not None:
+            if self.results_manager.results_exist(self):
+                result = self.results_manager.load_results(self)
+                if force_rewrite_report:
+                    self.results_manager.write_report(self, pipeline_component)
+
         self.started_utc = datetime.utcnow()  # record utc datetime when `run` starts
         result = run(self, *args, **kwargs)
-        if self.results_manager is not None:  # automatically write results if set
+        if self.results_manager is not None:  # write results if set
             self.results_manager.write_results(self, result)
+            self.results_manager.write_report(self, pipeline_component)
         self.finished_utc = datetime.utcnow()  # record utc datetime when `run` finishes
 
         return result
 
-    setattr(_cls, "run", new_run)
+    setattr(pipeline_component, "run", new_run)
 
-    return _cls
+    return pipeline_component
 
 
 class PipelineComponent(object):
@@ -50,11 +59,11 @@ class PipelineComponent(object):
             raise ValueError(f"`criterion` must be one of: {CRITERION_DICT.keys()}. Witnessed: {criterion}")
 
         #
-        self.started_utc = None  # set by add_timing_and_reporting_to_run_method() decorator; see .__init_subclass__()
-        self.finished_utc = None  # set by add_timing_and_reporting_to_run_method() decorator; see .__init_subclass__()
+        self.started_utc = None  # set by run()
+        self.finished_utc = None  # set by run()
 
     def __init_subclass__(cls, **kwargs):
-        return add_timing_and_results_writing_to_run_method(_cls=cls)
+        return add_timing_and_results_writing_to_run_method(pipeline_component=cls)
 
     @property
     def component_dir(self):
@@ -63,9 +72,9 @@ class PipelineComponent(object):
         else:
             return Dir(os.path.join(self.pipeline_dir.path, *self.component_id.split('.')))
 
-    def run(self, *args, **kwargs) -> NoReturn:
+    def run(self, *args, skip_if_results_exist: bool = False, force_rewrite_report: bool = False, **kwargs) -> NoReturn:
         raise NotImplementedError
-
+            
     def load_results_dataframe(self) -> pd.DataFrame:
         return self.results_manager.load_results(self)
 
