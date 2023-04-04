@@ -22,6 +22,7 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
                 result = self.results_manager.load_results(self)
                 if force_rewrite_report:
                     self.results_manager.write_report(self)
+                return result
 
         self.started_utc = datetime.utcnow()  # record utc datetime when `run` starts
         result = run(self, *args, **kwargs)
