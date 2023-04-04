@@ -21,13 +21,13 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
             if self.results_manager.results_exist(self):
                 result = self.results_manager.load_results(self)
                 if force_rewrite_report:
-                    self.results_manager.write_report(self, pipeline_component)
+                    self.results_manager.write_report(self)
 
         self.started_utc = datetime.utcnow()  # record utc datetime when `run` starts
         result = run(self, *args, **kwargs)
         if self.results_manager is not None:  # write results if set
             self.results_manager.write_results(self, result)
-            self.results_manager.write_report(self, pipeline_component)
+            self.results_manager.write_report(self)
         self.finished_utc = datetime.utcnow()  # record utc datetime when `run` finishes
 
         return result
