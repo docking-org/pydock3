@@ -316,7 +316,7 @@ class DockoptStep(PipelineComponent):
         self.best_retrodock_jobs_dir = Dir(
             path=os.path.join(self.component_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
-            reset=True,
+            reset=False,
         )
 
         #
@@ -1125,7 +1125,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
         self.best_retrodock_jobs_dir = Dir(
             path=os.path.join(self.component_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
-            reset=True,
+            reset=False,
         )
 
         #
@@ -1221,7 +1221,7 @@ class DockoptStepSequence(PipelineComponentSequence):
         self.best_retrodock_jobs_dir = Dir(
             path=os.path.join(self.component_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
-            reset=True,
+            reset=False,
         )
 
         #
@@ -1302,7 +1302,7 @@ class DockoptPipeline(Pipeline):
         self.best_retrodock_jobs_dir = Dir(
             path=os.path.join(self.pipeline_dir.path, BEST_RETRODOCK_JOBS_DIR_NAME),
             create=True,
-            reset=True,
+            reset=False,
         )
 
         #
