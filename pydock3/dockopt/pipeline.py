@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, NoReturn, Iterable, Union
 from datetime import datetime
 import os
 import functools
+import re
 
 import pandas as pd
 
@@ -16,16 +17,34 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
     run = getattr(pipeline_component, "run")
 
     @functools.wraps(run)
-    def new_run(self, *args, skip_if_results_exist: bool = False, force_rewrite_report: bool = False, **kwargs):
-        if skip_if_results_exist and self.results_manager is not None:
+    def new_run(
+            self, 
+            *args,
+            components_to_run: str = "^.*$",  # default: match any string
+            components_to_skip_if_results_exist: str = "^.*$",  # default: match any string
+            components_to_force_rewrite_report: str = "^.*$",  # default: match any string,
+            **kwargs
+            ) -> pd.DataFrame:
+        
+        if re.match(rf"{pipeline_component.component_id}", components_to_run) is None:
+            return None
+
+        if re.match(rf"{pipeline_component.component_id}", components_to_skip_if_results_exist) is not None and self.results_manager is not None:
             if self.results_manager.results_exist(self):
                 result = self.results_manager.load_results(self)
-                if force_rewrite_report:
+                if re.match(rf"{pipeline_component.component_id}", components_to_force_rewrite_report) is not None:
                     self.results_manager.write_report(self)
                 return result
 
         self.started_utc = datetime.utcnow()  # record utc datetime when `run` starts
-        result = run(self, *args, **kwargs)
+        result = run(
+            self, 
+            *args, 
+            components_to_run=components_to_run, 
+            components_to_skip_if_results_exist=components_to_skip_if_results_exist, 
+            components_to_force_rewrite_report=components_to_force_rewrite_report, 
+            **kwargs
+        )
         if self.results_manager is not None:  # write results if set
             self.results_manager.write_results(self, result)
             self.results_manager.write_report(self)
@@ -73,7 +92,14 @@ class PipelineComponent(object):
         else:
             return Dir(os.path.join(self.pipeline_dir.path, *self.component_id.split('.')))
 
-    def run(self, *args, skip_if_results_exist: bool = False, force_rewrite_report: bool = False, **kwargs) -> NoReturn:
+    def run(
+            self, 
+            *args,
+            components_to_run: str = "^.*$",  # default: match any string
+            components_to_skip_if_results_exist: str = "^.*$",  # default: match any string
+            components_to_force_rewrite_report: str = "^.*$",  # default: match any string,
+            **kwargs
+            ) -> NoReturn:
         raise NotImplementedError
             
     def load_results_dataframe(self) -> pd.DataFrame:
@@ -103,9 +129,6 @@ class PipelineComponentSequenceIteration(PipelineComponent):
 
         #
         self.components = components
-
-    def run(self, *arg, **kwargs) -> NoReturn:
-        raise NotImplementedError
 
 
 class PipelineComponentSequence(PipelineComponent):
@@ -137,9 +160,6 @@ class PipelineComponentSequence(PipelineComponent):
         self.inter_iteration_criterion = inter_iteration_criterion
         self.inter_iteration_top_n = inter_iteration_top_n
 
-    def run(self, *arg, **kwargs) -> NoReturn:
-        raise NotImplementedError
-
 
 class Pipeline(PipelineComponent):
     def __init__(
@@ -160,6 +180,3 @@ class Pipeline(PipelineComponent):
 
         #
         self.components = components
-
-    def run(self, *arg, **kwargs) -> NoReturn:
-        raise NotImplementedError

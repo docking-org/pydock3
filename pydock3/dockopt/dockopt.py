@@ -72,7 +72,7 @@ MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 
 
 @dataclass
-class DockoptPipelineComponentRunFuncArgSet:
+class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     scheduler: str
     actives_tgz_file_path: Union[None, str] = None
     decoys_tgz_file_path: Union[None, str] = None
@@ -168,8 +168,9 @@ class Dockopt(Script):
         retrodock_job_timeout_minutes: Union[str, None] = None,
         max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
         export_decoy_poses: bool = False,  # TODO
-        skip_if_results_exist: bool = False,
-        force_rewrite_report: bool = False,
+        components_to_run: str = "^.*$",  # default: match any string
+        components_to_skip_if_results_exist: str = "^.*\.\d$",  # default: match only DockoptStep IDs
+        components_to_force_rewrite_report: str = "^.*$",  # default: match any string
     ) -> None:
         # validate args
         if config_file_path is None:
@@ -257,8 +258,9 @@ class Dockopt(Script):
         )
         pipeline.run(
             component_run_func_arg_set=component_run_func_arg_set,
-            skip_if_results_exist=skip_if_results_exist,
-            force_rewrite_report=force_rewrite_report,
+            components_to_run=components_to_run,
+            components_to_skip_if_results_exist=components_to_skip_if_results_exist,
+            components_to_force_rewrite_report=components_to_force_rewrite_report,
         )
 
 
@@ -710,8 +712,9 @@ class DockoptStep(PipelineComponent):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool = False,
-            force_rewrite_report: bool = False,
+            components_to_run: str,
+            components_to_skip_if_results_exist: str,
+            components_to_force_rewrite_report: str,
         ) -> pd.DataFrame:
         if component_run_func_arg_set.actives_tgz_file_path is not None:
             self.actives_tgz_file = File(path=component_run_func_arg_set.actives_tgz_file_path)
@@ -875,7 +878,7 @@ class DockoptStep(PipelineComponent):
                 by=["total_energy", "is_active"], na_position="last", ignore_index=True
             )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
             df = df.drop_duplicates(
-                subset=["db2_file_path"], keep="first", ignore_index=True
+                subset=["db2_file_path"], keep="first", ignore_index=True  # TODO: replace `db2_file_path` with some kind of molecule ID
             )
 
             # make data dict for this configuration num
@@ -1134,8 +1137,9 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool = False,
-            force_rewrite_report: bool = False,
+            components_to_run: str,
+            components_to_skip_if_results_exist: str,
+            components_to_force_rewrite_report: str,
             ) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
@@ -1170,7 +1174,12 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
                 'last_component_completed': last_component_completed_in_sequence,
             }, component_class)
             component = component_class(**kwargs)
-            component.run(component_run_func_arg_set, skip_if_results_exist=skip_if_results_exist, force_rewrite_report=force_rewrite_report)
+            component.run(
+                component_run_func_arg_set,
+                components_to_run=components_to_run,
+                components_to_skip_if_results_exist=components_to_skip_if_results_exist,
+                components_to_force_rewrite_report=components_to_force_rewrite_report,
+            )
 
             #
             df_component = component.load_results_dataframe()
@@ -1230,8 +1239,9 @@ class DockoptStepSequence(PipelineComponentSequence):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool = False,
-            force_rewrite_report: bool = False,
+            components_to_run: str,
+            components_to_skip_if_results_exist: str,
+            components_to_force_rewrite_report: str,
             ) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
@@ -1251,7 +1261,12 @@ class DockoptStepSequence(PipelineComponentSequence):
                 blaster_files_to_copy_in=self.blaster_files_to_copy_in,
                 last_component_completed=last_component_completed_in_sequence,
             )
-            component.run(component_run_func_arg_set, skip_if_results_exist=skip_if_results_exist, force_rewrite_report=force_rewrite_report)
+            component.run(
+                component_run_func_arg_set,
+                components_to_run=components_to_run,
+                components_to_skip_if_results_exist=components_to_skip_if_results_exist,
+                components_to_force_rewrite_report=components_to_force_rewrite_report,
+            )
 
             #
             df_component = component.load_results_dataframe()
@@ -1311,8 +1326,9 @@ class DockoptPipeline(Pipeline):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool = False,
-            force_rewrite_report: bool = False,
+            components_to_run: str,
+            components_to_skip_if_results_exist: str,
+            components_to_force_rewrite_report: str,
             ) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
@@ -1348,7 +1364,12 @@ class DockoptPipeline(Pipeline):
                 'last_component_completed': last_component_completed_in_sequence,
             }, component_class)
             component = component_class(**kwargs)
-            component.run(component_run_func_arg_set, skip_if_results_exist=skip_if_results_exist, force_rewrite_report=force_rewrite_report)
+            component.run(
+                component_run_func_arg_set,
+                components_to_run=components_to_run,
+                components_to_skip_if_results_exist=components_to_skip_if_results_exist,
+                components_to_force_rewrite_report=components_to_force_rewrite_report,
+            )
 
             #
             df_component = component.load_results_dataframe()
