@@ -26,13 +26,13 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
             **kwargs
             ) -> pd.DataFrame:
         
-        if re.match(rf"{self.component_id}", components_to_run) is None:
+        if re.match(components_to_run, rf"{self.component_id}") is None:
             return None
 
-        if re.match(rf"{self.component_id}", components_to_skip_if_results_exist) is not None and self.results_manager is not None:
+        if re.match(components_to_skip_if_results_exist, rf"{self.component_id}") is not None and self.results_manager is not None:
             if self.results_manager.results_exist(self):
                 result = self.results_manager.load_results(self)
-                if re.match(rf"{self.component_id}", components_to_force_rewrite_report) is not None:
+                if re.match(components_to_force_rewrite_report, rf"{self.component_id}") is not None:
                     self.results_manager.write_report(self)
                 return result
 
