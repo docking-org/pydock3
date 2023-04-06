@@ -169,7 +169,7 @@ class Dockopt(Script):
         max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
         export_decoy_poses: bool = False,  # TODO
         components_to_run: str = "^.*$",  # default: match any string
-        components_to_skip_if_results_exist: str = "^(.*\.\d|\d)$",  # default: match only DockoptStep IDs
+        components_to_skip_if_results_exist: str = "^(.*\.)?step_\d+$",  # default: match only DockoptStep IDs
         components_to_force_rewrite_report: str = "^.*$",  # default: match any string
     ) -> None:
         # validate args
@@ -1155,9 +1155,11 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             if "step" in component_identifier_dict:
                 component_identifier = "step"
                 component_class = DockoptStep
+                component_id = f"{self.component_id}.{component_num}_step"
             elif "sequence" in component_identifier_dict:
                 component_identifier = "sequence"
                 component_class = DockoptStepSequence
+                component_id = f"{self.component_id}.{component_num}_seq"
             else:
                 raise Exception(f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {component_identifier_dict}")
 
@@ -1171,7 +1173,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             #
             kwargs = filter_kwargs_for_callable({
                 **parameters_manager.parameters_dict,
-                'component_id': f"{self.component_id}.{component_num}",
+                'component_id': component_id,
                 'pipeline_dir_path': self.pipeline_dir.path,
                 'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
                 'last_component_completed': last_component_completed_in_sequence,
@@ -1256,7 +1258,7 @@ class DockoptStepSequence(PipelineComponentSequence):
 
             #
             component = DockoptStepSequenceIteration(
-                component_id=f"{self.component_id}.iter={iteration_num}",
+                component_id=f"{self.component_id}.{iteration_num}_iter",
                 pipeline_dir_path=self.pipeline_dir.path,
                 criterion=self.inter_iteration_criterion,
                 top_n=self.inter_iteration_top_n,
@@ -1344,9 +1346,11 @@ class DockoptPipeline(Pipeline):
             if "step" in component_identifier_dict:
                 component_identifier = "step"
                 component_class = DockoptStep
+                component_id = f"{component_num}_step"
             elif "sequence" in component_identifier_dict:
                 component_identifier = "sequence"
                 component_class = DockoptStepSequence
+                component_id = f"{component_num}_seq"
             else:
                 raise Exception(
                     f"Dict must have one of 'step' or 'sequence' as keys. Witnessed: {component_identifier_dict}")
@@ -1361,7 +1365,7 @@ class DockoptPipeline(Pipeline):
             #
             kwargs = filter_kwargs_for_callable({
                 **parameters_manager.parameters_dict,
-                'component_id': str(component_num),
+                'component_id': component_id,
                 'pipeline_dir_path': self.pipeline_dir.path,
                 'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
                 'last_component_completed': last_component_completed_in_sequence,
