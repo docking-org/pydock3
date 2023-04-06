@@ -157,7 +157,7 @@ class PDFReporter(Reporter):
             boxplot_columns = sorted([
                 column
                 for column in df.columns
-                if df[column].nunique() > 1  # multivalued parameters only
+                if df[column].dropna().nunique() > 1  # multivalued parameters only, excluding NaNs
                     and (
                         (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
                         or column == "component_id"  # include component identifier
@@ -200,7 +200,7 @@ class PDFReporter(Reporter):
             heatmap_numeric_columns = sorted([
                 column
                 for column in df.columns
-                if df[column].nunique() > 1  # multivalued parameters only
+                if df[column].dropna().nunique() > 1  # multivalued parameters only, excluding NaNs
                     and (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
                     and pd.api.types.is_numeric_dtype(df[column])  # numeric parameters only
             ])
