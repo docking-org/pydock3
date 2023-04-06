@@ -285,6 +285,9 @@ class DockoptStep(PipelineComponent):
         )
 
         #
+        logger.info(f"Starting DockOpt step {self.component_id}...")
+
+        #
         blaster_file_names = list(BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.values())
         backup_blaster_file_paths = [
             os.path.join(DEFAULT_FILES_DIR_PATH, blaster_file_name)
