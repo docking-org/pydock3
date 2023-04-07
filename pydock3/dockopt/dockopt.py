@@ -169,7 +169,7 @@ class Dockopt(Script):
         max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
         export_decoy_poses: bool = False,  # TODO
         components_to_run: str = "^.*$",  # default: match any string
-        components_to_skip_if_results_exist: str = "^(.*\.)?step_\d+$",  # default: match only DockoptStep IDs
+        components_to_skip_if_results_exist: str = "^(.*\.)?\d+_step$",  # default: match only DockoptStep IDs
         components_to_force_rewrite_report: str = "^.*$",  # default: match any string
     ) -> None:
         # validate args
