@@ -451,7 +451,7 @@ class Blastermaster(Script):
     def __init__(self):
         super().__init__()
 
-    def init(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
+    def new(self, job_dir_path=JOB_DIR_NAME, overwrite=False):
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 

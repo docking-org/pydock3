@@ -95,9 +95,6 @@ class Dockopt(Script):
     def __init__(self) -> None:
         super().__init__()
 
-        #
-        self.job_dir = None  # assigned in .init()
-
     @staticmethod
     def handle_run_func(run_func: Callable[P, T]) -> Callable[P, T]:
         @wraps(run_func)
@@ -108,13 +105,13 @@ class Dockopt(Script):
 
         return wrapper
 
-    def init(
+    def new(
         self,
         job_dir_path: str = JOB_DIR_NAME,
         overwrite: bool = False
     ) -> None:
         # create job dir
-        self.job_dir = Dir(path=job_dir_path, create=True, reset=False)
+        job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
         # create working dir & copy in blaster files
         blaster_file_names = list(BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.values())
@@ -127,7 +124,7 @@ class Dockopt(Script):
                 f"Copying the following files from current directory into job working directory:\n\t{files_to_copy_str}"
             )
             for blaster_file_path in user_provided_blaster_file_paths:
-                self.job_dir.copy_in_file(blaster_file_path)
+                job_dir.copy_in_file(blaster_file_path)
         else:
             logger.info(
                 f"No blaster files detected in current working directory. Be sure to add them manually before running the job."
@@ -143,7 +140,7 @@ class Dockopt(Script):
                 f"Copying the following files from current directory into job directory:\n\t{files_to_copy_str}"
             )
             for tgz_file_name in tgz_file_names_in_cwd:
-                self.job_dir.copy_in_file(tgz_file_name)
+                job_dir.copy_in_file(tgz_file_name)
         if tgz_file_names_not_in_cwd:
             files_missing_str = "\n\t".join(tgz_file_names_not_in_cwd)
             logger.info(
@@ -151,7 +148,7 @@ class Dockopt(Script):
             )
 
         # write fresh config file from default file
-        save_path = os.path.join(self.job_dir.path, self.CONFIG_FILE_NAME)
+        save_path = os.path.join(job_dir.path, self.CONFIG_FILE_NAME)
         DockoptParametersConfiguration.write_config_file(
             save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite
         )
