@@ -9,7 +9,7 @@ from subprocess import CompletedProcess
 
 import xmltodict
 
-from pydock3.util import system_call, get_nested_dict_item
+from pydock3.util import system_call, get_nested_dict_item, find_key_values_in_dict
 from pydock3.files import File
 
 #
@@ -218,18 +218,17 @@ class SGEJobScheduler(JobScheduler):
         q_dict = self._get_qstat_xml_as_dict()
 
         #
-        try:
-            obj = get_nested_dict_item(q_dict, ('job_info', 'queue_info', 'job_list'))
-        except (KeyError, TypeError):
-            return False
+        job_list_values = find_key_values_in_dict(q_dict, key='job_list')
 
         #
-        if isinstance(obj, dict):
-            job_dicts = [obj]
-        elif isinstance(obj, list):
-            job_dicts = obj
-        else:
-            raise Exception(f"Unexpected type for 'job_list': {type(obj)}")
+        job_dicts = []
+        for obj in job_list_values:
+            if isinstance(obj, dict):
+                job_dicts += [obj]
+            elif isinstance(obj, list):
+                job_dicts += obj
+            else:
+                raise Exception(f"Unexpected type for `job_list`: {type(obj)}")
 
         #
         for job_dict in job_dicts:

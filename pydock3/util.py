@@ -129,6 +129,20 @@ def set_nested_dict_item(dic: dict, nested_keys: Iterable[Hashable], value: Any)
     return dic
 
 
+def find_key_values_in_dict(nested_dict, key):
+    result = []
+
+    def traverse_dict(d):
+        for k, v in d.items():
+            if k == key:
+                result.append(v)
+            elif isinstance(v, dict):
+                traverse_dict(v)
+
+    traverse_dict(nested_dict)
+    return result
+
+
 def get_ordinal(n: int) -> str:
     """Get ordinal number (e.g. 1st, 2nd, 3rd, 4th, etc.)"""
     return "%d%s" % (
