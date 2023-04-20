@@ -3,20 +3,19 @@ from typing import TYPE_CHECKING, NoReturn
 import os
 import itertools
 import re
+import base64
+from io import BytesIO
 
 import numpy as np
 import pandas as pd
 from scipy.interpolate import griddata
-from matplotlib.colors import Normalize
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from matplotlib.backends.backend_pdf import PdfPages
-import seaborn as sns
-
+from PIL import Image
+import plotly.graph_objs as go
+import plotly.express as px
 
 from pydock3.util import get_ordinal, sort_list_by_another_list
-from pydock3.files import File
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
+
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
 
@@ -62,192 +61,221 @@ def create_new_coords(coords: np.ndarray, min_units_between: int) -> np.ndarray:
     return np.array(new_coords)
 
 
-def heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: int = 20, interp_method: str = 'cubic') -> None:
-    # Extract points and scores
-    points = df[[x, y]].to_numpy()
-    scores_array = df[scores].to_numpy()
-
-    # Create new x and y coordinates with the specified minimum number of grid units between any two points
-    x_coords = create_new_coords(points[:, 0], min_units_between)
-    y_coords = create_new_coords(points[:, 1], min_units_between)
-
-    # Create mesh grid
-    grid_x, grid_y = np.meshgrid(x_coords, y_coords)
-
-    # Interpolate the data onto the grid
-    grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method)
-
-    # Define colormap and normalization for both heatmap and scatter plot
-    cmap = plt.get_cmap('turbo')
-    norm = Normalize(vmin=scores_array.min(), vmax=scores_array.max())
-
-    # Plot the heatmap
-    heatmap_image = plt.imshow(grid_scores, origin='lower',
-                               extent=(x_coords.min(), x_coords.max(), y_coords.min(), y_coords.max()),
-                               cmap=cmap, aspect='auto', norm=norm)
-    cbar = plt.colorbar(heatmap_image, label=scores)
-
-    # Plot the scatter points with the same colormap and normalization
-    plt.scatter(points[:, 0], points[:, 1], c=scores_array, marker='o', s=80, cmap=cmap, edgecolors=np.array([0.7, 0.7, 0.7]), norm=norm, clip_on=False)
-
-    plt.xlabel(x)
-    plt.ylabel(y)
-    #plt.title(f"{y} vs. {x}")
-
-
-class PDFReporter(Reporter):
-    def __init__(self, report_file_name: str = "report.pdf") -> None:
+class HTMLReporter(Reporter):
+    def __init__(self, report_file_name: str = "report.html") -> None:
         super().__init__(report_file_name)
 
-        #
-        plt.rcParams.update({"font.size": 14})
-
     def write_report(self, pipeline_component: PipelineComponent) -> None:
-
         df = pipeline_component.load_results_dataframe()
 
-        with PdfPages(os.path.join(pipeline_component.component_dir.path, self.report_file_name)) as f:
-            #
-            fig = plt.figure()
+        # Prepare data for subplots
+        subplots = []
+        subplot_titles = []
 
-            #
-            for i, (_, row) in enumerate(pipeline_component.get_top_results_dataframe().iterrows()):
-                #
-                best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"{i + 1}_id={row['configuration_num']}")
+        # ROC Images
+        for i, (_, row) in enumerate(pipeline_component.get_top_results_dataframe().iterrows()):
+            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"{i + 1}_id={row['configuration_num']}")
+            roc_file_path = os.path.join(best_job_dir_path, ROC_PLOT_FILE_NAME)
+            if os.path.exists(roc_file_path):
+                img = Image.open(roc_file_path)
+                img_bytes = BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_str = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
 
-                #
-                roc_file_path = os.path.join(
-                    best_job_dir_path, ROC_PLOT_FILE_NAME
+                subplot_titles.append(f"linear-log ROC plot of {get_ordinal(i + 1)} best job<br>{best_job_dir_path}")
+                subplots.append(go.Image(z=img_str))
+
+        # Create boxplots
+        boxplot_columns = sorted([
+            column
+            for column in df.columns
+            if df[column].dropna().nunique() > 1  # multivalued parameters only, excluding NaNs
+                and (
+                    (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
+                    or column == "component_id"  # include component identifier
                 )
-                if File.file_exists(roc_file_path):  # TODO: replace this logic with call to `Retrodock.analyze` method or something in order to ensure that these Retrodock-pertaining files are created
-                    image = mpimg.imread(roc_file_path)
-                    plt.axis("off")
-                    plt.suptitle(f"linear-log ROC plot of {get_ordinal(i + 1)} best job\n{best_job_dir_path}")
-                    plt.imshow(image)
-                    f.savefig(fig, bbox_inches="tight")
-                    plt.close(fig)
+        ])
 
-                #
-                energy_plot_file_path = os.path.join(
-                    best_job_dir_path, ENERGY_PLOT_FILE_NAME
-                )
-                if File.file_exists(energy_plot_file_path):
-                    fig = plt.figure()
-                    image = mpimg.imread(energy_plot_file_path)
-                    plt.axis("off")
-                    plt.suptitle("energy terms ridgeline plot of best job")
-                    plt.imshow(image)
-                    f.savefig(fig, bbox_inches="tight")
-                    plt.close(fig)
+        for column in boxplot_columns:
+            fig = self.get_boxplot(df, column, pipeline_component.criterion.name)
+            subplots.append(fig)
+            subplot_titles.append(column.lstrip('parameters.').replace('.', '\n'))
 
-                #
-                charge_plot_file_path = os.path.join(
-                    best_job_dir_path, CHARGE_PLOT_FILE_NAME
-                )
-                if File.file_exists(charge_plot_file_path):
-                    fig = plt.figure()
-                    image = mpimg.imread(charge_plot_file_path)
-                    plt.axis("off")
-                    plt.suptitle("charge violin plot of best job")
-                    plt.imshow(image)
-                    f.savefig(fig, bbox_inches="tight")
-                    plt.close(fig)
+        # Create heatmap for pairs of columns
+        heatmap_numeric_columns = sorted([
+            column
+            for column in df.columns
+            if df[column].dropna().nunique() > 1  # multivalued parameters only, excluding NaNs
+                and (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
+                and pd.api.types.is_numeric_dtype(df[column])  # numeric parameters only
+        ])
+        df = df.sort_values(
+            by=pipeline_component.criterion.name, ascending=False,
+            ignore_index=True
+        )
 
-            #
-            boxplot_columns = sorted([
-                column
-                for column in df.columns
-                if df[column].dropna().nunique() > 1  # multivalued parameters only, excluding NaNs
-                    and (
-                        (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
-                        or column == "component_id"  # include component identifier
-                    )
-            ])
-            for column in boxplot_columns:
-                fig = plt.figure()
+        for column_1, column_2 in itertools.combinations(heatmap_numeric_columns, 2):
+            df_no_duplicates = df.drop_duplicates(subset=[column_1, column_2], keep="first", ignore_index=True)
+            fig = self.get_heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name)
+            subplots.append(fig)
+            subplot_titles.append(f"{column_2} vs. {column_1}")
 
-                # need to sort component ids by order of numerical pieces
-                if column == "component_id":
-                    order = get_sorted_component_ids(list(df["component_id"].unique()))
-                else:
-                    order = None  # seaborn will infer order from data
+        # Generate the HTML report
+        html = self.get_html(subplots, subplot_titles)
 
-                #
-                if len(df) == len(df.drop_duplicates(subset=[column])):  # use bar plot instead if all values are unique
-                    sns.barplot(data=df, x=column, y=pipeline_component.criterion.name, order=order, rot=0)
-                else:
-                    sns.boxplot(
-                        data=df,
-                        x=column,
-                        y=pipeline_component.criterion.name,
-                        order=order,
-                        showfliers=False,
-                        boxprops={"facecolor": "None"},
-                    )
-                    sns.stripplot(data=df, x=column, y=pipeline_component.criterion.name, order=order, zorder=0.5)
+        with open(os.path.join(pipeline_component.component_dir.path, self.report_file_name), 'w') as f:
+            f.write(html)
 
-                #
-                plt.gca().set_xlabel("\n".join(column.lstrip('parameters.').split('.')), rotation='horizontal', ha='center')
-                plt.gca().set_ylabel(pipeline_component.criterion.name, rotation='vertical', ha='center')
+    @staticmethod
+    def get_boxplot(df: pd.DataFrame, column: str, criterion_name: str, order=None) -> go.Figure:
+        if order is None:
+            order = sorted(df[column].unique())
 
-                #
-                fig.autofmt_xdate(rotation=25)
-                plt.yticks(rotation=0)
-                f.savefig(fig, bbox_inches="tight")
-                plt.close(fig)
+        # generate an array of rainbow colors by fixing the saturation and lightness of the HSL
+        # representation of colour and marching around the hue.
+        # Plotly accepts any CSS color format, see e.g. http://www.w3schools.com/cssref/css_colors_legal.asp.
+        c = ['hsl(' + str(h) + ',50%' + ',50%)' for h in np.linspace(0, 360, len(order))]
 
-            #
-            heatmap_numeric_columns = sorted([
-                column
-                for column in df.columns
-                if df[column].dropna().nunique() > 1  # multivalued parameters only, excluding NaNs
-                    and (column.startswith("parameters.dock_files_generation") or column.startswith("parameters.indock_file_generation"))  # include generation parameters
-                    and pd.api.types.is_numeric_dtype(df[column])  # numeric parameters only
-            ])
-            df = df.sort_values(
-                by=pipeline_component.criterion.name, ascending=False,
-                ignore_index=True
+        data = []
+        for i, value in enumerate(order):
+            filtered_df = df[df[column] == value]
+            subplot = go.Box(
+                y=filtered_df[criterion_name],
+                x=filtered_df[column],
+                name=str(value),
+                boxpoints='all',  # Show all individual points
+                jitter=0.5,  # Add some jitter for better visibility of points
+                pointpos=-1.8,  # Position of points relative to the box
+                whiskerwidth=0.3,
+                marker=dict(color=c[i], size=6, line=dict(color='black', width=1)),  # Point marker color, size, and outline
+                showlegend=False,
             )
-            for column_1, column_2 in itertools.combinations(
-                    heatmap_numeric_columns, 2
-            ):
-                #
-                fig, ax = plt.subplots()
 
-                #
-                df_no_duplicates = df.drop_duplicates(subset=[column_1, column_2], keep="first", ignore_index=True)
+            # format the layout
+            data.append(subplot)
 
-                #
-                """
-                df_pivot = pd.pivot_table(
-                    df_no_duplicates,
-                    values=pipeline_component.criterion.name,
-                    index=[column_1],
-                    columns=[column_2],
-                )
-                df_pivot = df_pivot.sort_index(axis=0, ascending=False)
-                sns.heatmap(
-                    df_pivot,
-                    ax=ax,
-                    annot=True,
-                    square=True,
-                    fmt=".2f",
-                    center=0,
-                    cmap="turbo",
-                    robust=True,
-                    cbar_kws={"label": pipeline_component.criterion.name},
-                )
-                """
+        layout = go.Layout(
+            xaxis=dict(title=column),
+            yaxis=dict(title=criterion_name),
+            boxmode="group"
+        )
+        fig = go.Figure(data=data, layout=layout)
+        return fig
 
-                #
-                heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name, min_units_between=20, interp_method='cubic')
+    @staticmethod
+    def get_heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: int = 20,
+                    interp_method: str = 'cubic', title=None) -> go.Figure:
+        # Extract points and scores
+        points = df[[x, y]].to_numpy()
+        scores_array = df[scores].to_numpy()
 
-                #
-                plt.gca().set_xlabel("\n".join(column_1.lstrip('parameters.').split('.')), rotation='horizontal', ha='center')
-                plt.gca().set_ylabel("\n".join(column_2.lstrip('parameters.').split('.')), rotation='vertical', ha='center')
+        # Create new x and y coordinates with the specified minimum number of grid units between any two points
+        x_coords = create_new_coords(points[:, 0], min_units_between)
+        y_coords = create_new_coords(points[:, 1], min_units_between)
 
-                #
-                fig.autofmt_xdate(rotation=25)
-                plt.yticks(rotation=0)
-                f.savefig(fig, bbox_inches="tight")
-                plt.close(fig)
+        # Create mesh grid
+        grid_x, grid_y = np.meshgrid(x_coords, y_coords)
+
+        # Interpolate the data onto the grid
+        grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method)
+
+        # Create the heatmap
+        heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='Turbo', showscale=False)
+
+        # Create the scatter plot
+        scatter = go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers',
+                             marker=dict(color=scores_array, colorscale='Turbo', size=8,
+                                         line=dict(color='gray', width=1)))
+
+        # Combine the heatmap and scatter plot
+        fig = go.Figure(data=[heatmap, scatter])
+
+        #
+        fig.update_layout(xaxis_title=x, yaxis_title=y)
+        if title is not None:
+            fig.update_layout(title_text=title)
+
+        return fig
+
+    @staticmethod
+    def get_html(subplots, subplot_titles):
+        divs = []
+        for i, (subplot, subplot_title) in enumerate(zip(subplots, subplot_titles)):
+            fig = go.Figure(subplot)
+            fig.update_layout(title=subplot_title, margin=dict(l=20, r=20, t=40, b=20))
+            plot_html = fig.to_html(full_html=False, include_plotlyjs=False)
+            divs.append(f"""<div>
+        <label for="heightSlider{i}">Height:</label>
+        <input type="range" min="100" max="1000" value="300" class="slider" id="heightSlider{i}">
+        <label for="widthSlider{i}">Width:</label>
+        <input type="range" min="100" max="1000" value="500" class="slider" id="widthSlider{i}">
+        <div id="plot{i}">{plot_html}</div>
+    </div>
+"""
+                        )
+
+        html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .slider {{
+            width: 100%;
+        }}
+    </style>
+</head>
+<body>
+    {''.join(divs)}
+    <script>
+        function getMaxHeight() {{
+            return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+        }}
+
+        function getMaxWidth() {{
+            return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        }}
+
+        function setDefaultSize(plotDiv, heightSlider, widthSlider) {{
+            var defaultHeight = getMaxHeight() * 0.5;
+            var defaultWidth = getMaxWidth() * 0.5;
+            heightSlider.value = defaultHeight;
+            widthSlider.value = defaultWidth;
+            Plotly.update(plotDiv, {{}}, {{height: defaultHeight, width: defaultWidth}});
+        }}
+
+        var plots = [];
+        for (var i = 0; i < {len(subplots)}; i++) {{
+            var plotDiv = document.getElementById('plot' + i).getElementsByClassName('plotly-graph-div')[0];
+            plots.push(plotDiv);
+
+            var heightSlider = document.getElementById('heightSlider' + i);
+            heightSlider.max = getMaxHeight();
+            heightSlider.oninput = (function(idx) {{
+                return function() {{
+                    var plotDiv = plots[idx];
+                    var height = document.getElementById('heightSlider' + idx).value;
+                    var width = document.getElementById('widthSlider' + idx).value;
+                    Plotly.update(plotDiv, {{}}, {{height: height, width: width}});
+                }};
+            }})(i);
+
+            var widthSlider = document.getElementById('widthSlider' + i);
+            widthSlider.max = getMaxWidth();
+            widthSlider.oninput = (function(idx) {{
+                return function() {{
+                    var plotDiv = plots[idx];
+                    var height = document.getElementById('heightSlider' + idx).value;
+                    var width = document.getElementById('widthSlider' + idx).value;
+                    Plotly.update(plotDiv, {{}}, {{height: height, width: width}});
+                }};
+            }})(i);
+
+            setDefaultSize(plotDiv, heightSlider, widthSlider);
+        }}
+    </script>
+</body>
+</html>
+"""
+
+        return html

@@ -16,7 +16,7 @@ from pydock3.files import Dir
 from pydock3.dockopt.util import BEST_RETRODOCK_JOBS_DIR_NAME
 from pydock3.dockopt.docking_configuration import DockingConfiguration
 from pydock3.dockopt.roc import ROC
-from pydock3.dockopt.reporter import PDFReporter
+from pydock3.dockopt.reporter import HTMLReporter
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
@@ -86,7 +86,7 @@ class DockoptPipelineComponentResultsManager(ResultsManager):
         return df
 
     def write_report(self, pipeline_component: PipelineComponent) -> None:
-        PDFReporter().write_report(pipeline_component)
+        HTMLReporter().write_report(pipeline_component)
 
     def save_best_retrodock_jobs(self, pipeline_component: PipelineComponent) -> NoReturn:
         raise NotImplementedError
