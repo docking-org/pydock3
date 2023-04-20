@@ -225,7 +225,7 @@ class Dockopt(Script):
             temp_storage_path=temp_storage_path,
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
-            max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,
+            #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO
             export_decoys_mol2=export_decoys_mol2,
         )
 
