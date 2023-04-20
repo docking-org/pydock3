@@ -9,11 +9,15 @@
 
 #optional:
 # EXPORT_MOL2
+# SLEEP_SECONDS_AFTER_COPYING_OUTPUT
 
 
 # set default for unset vars
 if [[ -z $EXPORT_MOL2 ]]; then
 	EXPORT_MOL2=true
+fi
+if [[ -z $SLEEP_SECONDS_AFTER_COPYING_OUTPUT ]]; then
+	SLEEP_SECONDS_AFTER_COPYING_OUTPUT=0
 fi
 
 # get scheduler job / task IDs
@@ -45,7 +49,7 @@ log TMPDIR=$TMPDIR
 log ARRAY_JOB_DOCKING_CONFIGURATIONS=$ARRAY_JOB_DOCKING_CONFIGURATIONS
 log INPUT_TARBALL=$INPUT_TARBALL
 log EXPORT_MOL2=$EXPORT_MOL2
-log df=$(df)
+log SLEEP_SECONDS_AFTER_COPYING_OUTPUT=$SLEEP_SECONDS_AFTER_COPYING_OUTPUT
 
 # validate required environmental variables
 for var in EXPORT_DEST DOCKFILES TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL; do
@@ -212,9 +216,11 @@ function cleanup {
 		rm $OUTPUT/restart
 	fi
 
-	chmod -R 777 $OUTPUT
+	chmod -R 777 $OUTPUT  # TODO: is this necessary? try to remove
 
 	rm -rf $JOB_DIR
+
+  sleep $SLEEP_SECONDS_AFTER_COPYING_OUTPUT
 }
 
 popd > /dev/null 2>&1

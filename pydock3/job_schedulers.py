@@ -9,7 +9,7 @@ from subprocess import CompletedProcess
 
 import xmltodict
 
-from pydock3.util import system_call, get_nested_dict_item, find_key_values_in_dict
+from pydock3.util import system_call, find_key_values_in_dict
 from pydock3.files import File
 
 #
@@ -26,13 +26,14 @@ class JobScheduler(ABC):
     @abstractmethod
     def submit(
             self,
-            job_name,
-            script_path,
-            env_vars_dict,
-            out_log_dir_path,
-            err_log_dir_path,
-            task_ids,
-            job_timeout_minutes=None,
+            job_name: str,
+            script_path: str,
+            env_vars_dict: dict,
+            out_log_dir_path: str,
+            err_log_dir_path: str,
+            task_ids: Iterable[Union[str, int]],
+            job_timeout_minutes: Union[int, None] = None,
+            extra_submission_cmd_params_str: str = ""
     ):
         """returns: subprocess.CompletedProcess"""
 
@@ -78,6 +79,7 @@ class SlurmJobScheduler(JobScheduler):
             err_log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
+            extra_submission_cmd_params_str: str = "",
     ) -> List[CompletedProcess]:
         #
         task_nums = sorted([int(task_id) for task_id in task_ids])
@@ -90,7 +92,7 @@ class SlurmJobScheduler(JobScheduler):
                 array_str = f"{contiguous_task_nums_set[0]}"
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
-            command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 --array={array_str} {script_path}"
+            command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 {extra_submission_cmd_params_str} --array={array_str} {script_path}"  # TODO: is `signal` useful / necessary?
             if self.SLURM_SETTINGS:
                 if File.file_exists(self.SLURM_SETTINGS):  # TODO: move validation to __init__
                     command_str = f"source {self.SLURM_SETTINGS}; {command_str}"
@@ -163,6 +165,7 @@ class SGEJobScheduler(JobScheduler):
             err_log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
+            extra_submission_cmd_params_str: str = "-S /bin/bash -q !gpu.q",
     ) -> List[CompletedProcess]:
         #
         if not job_name[0].isalpha():
@@ -179,7 +182,7 @@ class SGEJobScheduler(JobScheduler):
                 array_str = f"{contiguous_task_nums_set[0]}"
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
-            command_str = f"{self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd -S /bin/bash -q !gpu.q -t {array_str} {script_path}"
+            command_str = f"{self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd {extra_submission_cmd_params_str} -t {array_str} {script_path}"
             if self.SGE_SETTINGS:
                 if File.file_exists(self.SGE_SETTINGS):  # TODO: move validation to __init__
                     command_str = f"source {self.SGE_SETTINGS}; {command_str}"

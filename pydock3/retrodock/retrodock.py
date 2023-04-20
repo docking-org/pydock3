@@ -180,8 +180,8 @@ class Retrodock(Script):
         decoys_tgz_file_path=None,
         retrodock_job_max_reattempts=0,
         retrodock_job_timeout_minutes=None,
-        max_scheduler_jobs_running_at_a_time=None,  # TODO
-        export_decoy_poses=False,  # TODO
+        export_decoys_mol2=False,  # TODO
+        #max_scheduler_jobs_running_at_a_time=None,  # TODO
     ) -> None:
         # validate args
         if dock_files_dir_path is None:

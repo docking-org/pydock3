@@ -1,6 +1,6 @@
 import logging
 import subprocess
-from typing import Tuple, List
+from typing import Tuple, List, Union
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -47,8 +47,11 @@ class ArrayDockingJob(ABC):
     job_scheduler: JobScheduler
     temp_storage_path: str
     array_job_docking_configurations_file_path: str
-    max_reattempts: int = 0
+    job_timeout_minutes: Union[None, int] = None
+    extra_submission_cmd_params_str: Union[None, str] = None
+    sleep_seconds_after_copying_output: int = 0
     export_mol2: bool = True
+    #max_reattempts: int = 0  # TODO
 
     OUTDOCK_FILE_NAME = "OUTDOCK.0"
 
@@ -67,7 +70,10 @@ class ArrayDockingJob(ABC):
         self.out_log_dir = Dir(os.path.join(self.job_dir.path, "out_logs"), create=True, reset=False)
         self.err_log_dir = Dir(os.path.join(self.job_dir.path, "err_logs"), create=True, reset=False)
 
-    def submit_all_tasks(self, job_timeout_minutes=None, skip_if_complete=True) -> Tuple[JobSubmissionResult, List[subprocess.CompletedProcess]]:
+    def submit_all_tasks(
+            self,
+            skip_if_complete: bool = True,
+    ) -> Tuple[JobSubmissionResult, List[subprocess.CompletedProcess]]:
         """
         if job submission is skipped, returns (JobSubmissionResult, [])
         if job submission is not skipped, returns (JobSubmissionResult, List[subprocess.CompletedProcess])
@@ -112,7 +118,8 @@ class ArrayDockingJob(ABC):
             out_log_dir_path=self.out_log_dir.path,
             err_log_dir_path=self.err_log_dir.path,
             task_ids=task_ids_to_submit,
-            job_timeout_minutes=job_timeout_minutes,
+            job_timeout_minutes=self.job_timeout_minutes,
+            extra_submission_cmd_params_str=self.extra_submission_cmd_params_str,
         )
 
         failed_procs = [proc for proc in procs if proc.stderr]
@@ -121,7 +128,11 @@ class ArrayDockingJob(ABC):
         else:
             return JobSubmissionResult.SUCCESS, []
 
-    def submit_task(self, task_id, job_timeout_minutes=None, skip_if_complete=True) -> Tuple[JobSubmissionResult, List[subprocess.CompletedProcess]]:
+    def submit_task(
+            self,
+            task_id: Union[str, int],
+            skip_if_complete: bool = True,
+    ) -> Tuple[JobSubmissionResult, List[subprocess.CompletedProcess]]:
         """
         if job submission is skipped, returns (JobSubmissionResult, [])
         if job submission is not skipped, returns (JobSubmissionResult, List[subprocess.CompletedProcess])
@@ -145,6 +156,7 @@ class ArrayDockingJob(ABC):
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
             "INPUT_TARBALL": self.input_molecules_tgz_file_path,
+            "SLEEP_SECONDS_AFTER_COPYING_OUTPUT": self.sleep_seconds_after_copying_output,
         }
 
         #
@@ -161,7 +173,8 @@ class ArrayDockingJob(ABC):
             out_log_dir_path=self.out_log_dir.path,
             err_log_dir_path=self.err_log_dir.path,
             task_ids=task_ids_to_submit,
-            job_timeout_minutes=job_timeout_minutes,
+            job_timeout_minutes=self.job_timeout_minutes,
+            extra_submission_cmd_params_str=self.extra_submission_cmd_params_str,
         )
 
         failed_procs = [proc for proc in procs if proc.stderr]
@@ -183,5 +196,5 @@ class ArrayDockingJob(ABC):
             ]
         )
 
-    def task_is_complete(self, task_id):
+    def task_is_complete(self, task_id: Union[str, int]):
         return File.file_exists(os.path.join(self.job_dir.path, task_id, self.OUTDOCK_FILE_NAME))

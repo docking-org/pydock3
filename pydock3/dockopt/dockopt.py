@@ -79,8 +79,10 @@ class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     temp_storage_path: Union[None, str] = None
     retrodock_job_max_reattempts: int = 0
     retrodock_job_timeout_minutes: Union[None, int] = None
+    extra_submission_cmd_params_str: Union[None, str] = None
+    sleep_seconds_after_copying_output: int = 0
+    export_decoys_mol2: bool = False
     max_scheduler_jobs_running_at_a_time: Union[None, int] = None
-    export_decoy_poses: bool = False
 
 
 class Dockopt(Script):
@@ -163,8 +165,10 @@ class Dockopt(Script):
         decoys_tgz_file_path: Union[str, None] = None,
         retrodock_job_max_reattempts: int = 0,
         retrodock_job_timeout_minutes: Union[str, None] = None,
-        max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
-        export_decoy_poses: bool = False,  # TODO
+        extra_submission_cmd_params_str: Union[None, str] = None,
+        sleep_seconds_after_copying_output: int = 0,
+        export_decoys_mol2: bool = False,
+        #max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
         components_to_run: str = "^.*$",  # default: match any string
         components_to_skip_if_results_exist: str = "^(.*\.)?\d+_step$",  # default: match only DockoptStep IDs
         components_to_force_rewrite_report: str = "^.*$",  # default: match any string
@@ -222,7 +226,7 @@ class Dockopt(Script):
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
             max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,
-            export_decoy_poses=export_decoy_poses,
+            export_decoys_mol2=export_decoys_mol2,
         )
 
         #
@@ -773,7 +777,7 @@ class DockoptStep(PipelineComponent):
         array_jobs = []
         for sub_dir_name, should_export_mol2, input_molecules_tgz_file_path in [
             ('actives', True, component_run_func_arg_set.actives_tgz_file_path),
-            ('decoys', False, component_run_func_arg_set.decoys_tgz_file_path),
+            ('decoys', component_run_func_arg_set.export_decoys_mol2, component_run_func_arg_set.decoys_tgz_file_path),
         ]:
             array_job = ArrayDockingJob(
                 name=f"dockopt_step_{step_id}_{sub_dir_name}",
@@ -782,11 +786,13 @@ class DockoptStep(PipelineComponent):
                 job_scheduler=component_run_func_arg_set.scheduler,
                 temp_storage_path=component_run_func_arg_set.temp_storage_path,
                 array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
+                job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
+                extra_submission_cmd_params_str=component_run_func_arg_set.extra_submission_cmd_params_str,
+                sleep_seconds_after_copying_output=component_run_func_arg_set.sleep_seconds_after_copying_output,
                 max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,
                 export_mol2=should_export_mol2,
             )
             sub_result, procs = array_job.submit_all_tasks(
-                job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
                 skip_if_complete=True,
             )
             array_jobs.append(array_job)
@@ -829,7 +835,6 @@ class DockoptStep(PipelineComponent):
                             if not array_job.task_is_complete(str(docking_configuration.configuration_num)):
                                 array_job.submit_task(
                                     str(docking_configuration.configuration_num),
-                                    job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
                                     skip_if_complete=False,
                                 )  # re-attempt relevant job(s) for incomplete task
                         configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
@@ -858,7 +863,6 @@ class DockoptStep(PipelineComponent):
                 for array_job in array_jobs:
                     array_job.submit_task(
                         str(docking_configuration.configuration_num),
-                        job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
                         skip_if_complete=False,
                     )  # re-attempt both jobs
                 configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
