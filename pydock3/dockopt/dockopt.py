@@ -225,7 +225,7 @@ class Dockopt(Script):
             temp_storage_path=temp_storage_path,
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
-            #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO
+            #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
             export_decoys_mol2=export_decoys_mol2,
         )
 
@@ -789,7 +789,7 @@ class DockoptStep(PipelineComponent):
                 job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
                 extra_submission_cmd_params_str=component_run_func_arg_set.extra_submission_cmd_params_str,
                 sleep_seconds_after_copying_output=component_run_func_arg_set.sleep_seconds_after_copying_output,
-                max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,
+                #max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,  # TODO
                 export_mol2=should_export_mol2,
             )
             sub_result, procs = array_job.submit_all_tasks(
