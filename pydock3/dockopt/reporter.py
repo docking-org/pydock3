@@ -72,9 +72,11 @@ class HTMLReporter(Reporter):
         subplots = []
         subplot_titles = []
 
-        # ROC Images
-        for i, (_, row) in enumerate(pipeline_component.get_top_results_dataframe().iterrows()):
-            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"{i + 1}_id={row['configuration_num']}")
+        # Images
+        for i, (_, row) in enumerate(pipeline_component.get_top_results_dataframe().head(1).iterrows()):
+            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={row['component_id']}_conf={row['configuration_num']}")
+
+            # ROC image
             roc_file_path = os.path.join(best_job_dir_path, ROC_PLOT_FILE_NAME)
             if os.path.exists(roc_file_path):
                 img = Image.open(roc_file_path)
@@ -83,6 +85,28 @@ class HTMLReporter(Reporter):
                 img_str = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
 
                 subplot_titles.append(f"linear-log ROC plot of {get_ordinal(i + 1)} best job<br>{best_job_dir_path}")
+                subplots.append(go.Image(z=img_str))
+
+            # Energy plot image
+            energy_plot_file_path = os.path.join(best_job_dir_path, ENERGY_PLOT_FILE_NAME)
+            if os.path.exists(energy_plot_file_path):
+                img = Image.open(energy_plot_file_path)
+                img_bytes = BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_str = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
+
+                subplot_titles.append(f"Ridgeline plot of energies of {get_ordinal(i + 1)} best job<br>{best_job_dir_path}")
+                subplots.append(go.Image(z=img_str))
+
+            # Energy plot image
+            charge_plot_file_path = os.path.join(best_job_dir_path, CHARGE_PLOT_FILE_NAME)
+            if os.path.exists(charge_plot_file_path):
+                img = Image.open(charge_plot_file_path)
+                img_bytes = BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_str = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
+
+                subplot_titles.append(f"Violin plot of charges of {get_ordinal(i + 1)} best job<br>{best_job_dir_path}")
                 subplots.append(go.Image(z=img_str))
 
         # Create boxplots
