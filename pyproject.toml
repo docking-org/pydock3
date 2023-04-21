@@ -51,21 +51,3 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 pydock3 = "pydock3.scripts:main"
-
-[tool.black]
-line-length = 88
-target-version = ['py38', 'py39', 'py310']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-| \.hg
-| \.mypy_cache
-| \.tox
-| \.venv
-| _build
-| buck-out
-| build
-)/
-'''
-
