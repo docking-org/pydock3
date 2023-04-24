@@ -10,7 +10,8 @@ import pandas as pd
 from scipy.interpolate import griddata
 import plotly.graph_objs as go
 
-from pydock3.util import get_ordinal, sort_list_by_another_list
+from pydock3.util import sort_list_by_another_list
+from pydock3.files import File
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
 
 if TYPE_CHECKING:
@@ -62,27 +63,35 @@ class HTMLReporter(Reporter):
     def __init__(self, report_file_name: str = "report.html") -> None:
         super().__init__(report_file_name)
 
-    def write_report(self, pipeline_component: PipelineComponent) -> None:
+    def write_report(self, pipeline_component: PipelineComponent, top_n_jobs_to_show=3) -> None:
         df = pipeline_component.load_results_dataframe()
 
         #
         figures = []
 
-        # Images
-        for i, (_, row) in enumerate(pipeline_component.get_top_results_dataframe().head(1).iterrows()):
+        # Add plot images to figures
+        df_to_iter = pipeline_component.get_top_results_dataframe().head(top_n_jobs_to_show)
+
+        # ROC plot images
+        for i, (_, row) in enumerate(df_to_iter.iterrows()):
             best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={row['component_id']}_conf={row['configuration_num']}")
 
-            # ROC image
             roc_file_path = os.path.join(best_job_dir_path, ROC_PLOT_FILE_NAME)
             if os.path.exists(roc_file_path):
                 figures.append(roc_file_path)
 
-            # Energy plot image
+        # Energy plot images
+        for i, (_, row) in enumerate(df_to_iter.iterrows()):
+            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i + 1}_step={row['component_id']}_conf={row['configuration_num']}")
+
             energy_plot_file_path = os.path.join(best_job_dir_path, ENERGY_PLOT_FILE_NAME)
             if os.path.exists(energy_plot_file_path):
                 figures.append(energy_plot_file_path)
 
-            # Energy plot image
+        # Charge plot images
+        for i, (_, row) in enumerate(df_to_iter.iterrows()):
+            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i + 1}_step={row['component_id']}_conf={row['configuration_num']}")
+
             charge_plot_file_path = os.path.join(best_job_dir_path, CHARGE_PLOT_FILE_NAME)
             if os.path.exists(charge_plot_file_path):
                 figures.append(charge_plot_file_path)
@@ -121,7 +130,7 @@ class HTMLReporter(Reporter):
             figures.append(fig)
 
         # Generate the HTML report
-        html = self.get_html(figures)
+        html = self.get_html(figures, pipeline_component.component_id)
         with open(os.path.join(pipeline_component.component_dir.path, self.report_file_name), 'w') as f:
             f.write(html)
 
@@ -157,7 +166,7 @@ class HTMLReporter(Reporter):
         # generate an array of rainbow colors by fixing the saturation and lightness of the HSL
         # representation of colour and marching around the hue.
         # Plotly accepts any CSS color format, see e.g. http://www.w3schools.com/cssref/css_colors_legal.asp.
-        c = ['hsl(' + str(h) + ',50%' + ',50%)' for h in np.linspace(0, 360, len(order))]
+        c = ['hsl(' + str(h) + ',50%' + ',50%)' for h in np.linspace(0, 270, len(order))]
 
         data = []
         for i, value in enumerate(order):
@@ -220,11 +229,12 @@ class HTMLReporter(Reporter):
         grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method)
 
         # Create the heatmap
-        heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='Turbo', showscale=True)
+        heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='RdBu', showscale=True, reversescale=True)
 
         # Create the scatter plot
         scatter = go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers',
-                             marker=dict(color=scores_array, colorscale='Turbo', size=8,
+                             marker=dict(color=scores_array, colorscale='RdBu',
+                                         reversescale=True, size=8,
                                          line=dict(color='gray', width=1)))
 
         # Combine the heatmap and scatter plot
@@ -242,24 +252,37 @@ class HTMLReporter(Reporter):
         return fig
 
     @staticmethod
-    def get_html(figures: Union[go.Figure, str]):
+    def get_html(figures: Union[go.Figure, str], component_id):
         divs = []
 
         for i, fig in enumerate(figures):
             is_one_slider = bool(isinstance(fig, str))
             if is_one_slider:
                 image_path = fig
+
+                parent_dir = os.path.basename(os.path.dirname(image_path))
+                file_name = File.get_file_name_of_file(image_path)
+
+                # Extract the substrings
+                first_piece, rest_of_str = parent_dir.split("_step=")
+                rank_str = first_piece.replace("rank=", '')
+                step_str, conf_str = rest_of_str.split("_conf=")
+
                 with open(image_path, "rb") as image_file:
                     encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
 
                 slider_html = f"""
                     <label for="sizeSlider{i}">Size:</label>
-                    <input type="range" min="100" max="1000" value="300" class="slider" id="sizeSlider{i}">
+                    <input type="range" min="100" max="1400" value="300" class="slider" id="sizeSlider{i}">
                     """
                 divs.append(f"""<div>
+                    <h3>Rank: {rank_str}</h3>
+                    <h3>Step ID: {step_str}</h3>
+                    <h3>Configuration #: {conf_str}</h3>
+                    <h3>File name: {file_name}</h3>
                     {slider_html}
                     <img id="image{i}" src="data:image/jpeg;base64,{encoded_image}" style="max-width: 100%; max-height: 100%;">
-                </div>
+                </div><br><hr><br>
                 """)
             else:
                 plot_html = fig.to_html(full_html=False, include_plotlyjs=False)
@@ -267,13 +290,13 @@ class HTMLReporter(Reporter):
                     <label for="heightSlider{i}">Height:</label>
                     <input type="range" min="100" max="1000" value="300" class="slider" id="heightSlider{i}">
                     <label for="widthSlider{i}">Width:</label>
-                    <input type="range" min="100" max="1000" value="500" class="slider" id="widthSlider{i}">
+                    <input type="range" min="100" max="1400" value="500" class="slider" id="widthSlider{i}">
                     """
 
                 divs.append(f"""<div>
                 {slider_html}
                 <div id="plot{i}">{plot_html}</div>
-            </div>
+            </div><br><hr><br>
         """
                             )
 
@@ -281,6 +304,7 @@ class HTMLReporter(Reporter):
     <!DOCTYPE html>
     <html>
     <head>
+        <title>{component_id}</title>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <style>
             .slider {{
@@ -289,7 +313,13 @@ class HTMLReporter(Reporter):
         </style>
     </head>
     <body>
+        <h1>Component ID: {component_id}</h1><br><hr><br>
         {''.join(divs)}
+        <style>
+            h1 {{
+                text-align: center;
+            }}
+        </style>
         <script>
             function setDefaultSize(imageElement, sizeSlider, widthSlider, heightSlider) {{
                 if (sizeSlider) {{
