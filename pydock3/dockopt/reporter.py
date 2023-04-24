@@ -39,30 +39,6 @@ def get_sorted_component_ids(component_ids: list) -> list:
     return sort_list_by_another_list(component_ids, numeric_ids)  # sort by numeric ids, return component ids
 
 
-def get_axis_label(param):
-    label = ""
-    barrier = ' ↳ '
-    barrier_length = len(barrier)
-    substrings = param.replace('_', ' ').split('.')
-    max_len = max([len(s) + (barrier_length * i) for i, s in enumerate(substrings)])
-    for i, s in enumerate(substrings):
-        current_line = ""
-
-        if i > 0:
-            current_line += ' ' * barrier_length * (i-1)
-            current_line += barrier
-
-        current_line += s
-        current_line = current_line.ljust(max_len)
-        current_line += '​'
-
-        label += current_line
-        if i < len(substrings) - 1:
-            label += '<br>'
-
-    return label
-
-
 def create_new_coords(coords: np.ndarray, min_units_between: int) -> np.ndarray:
     new_coords = []
 
@@ -150,6 +126,30 @@ class HTMLReporter(Reporter):
             f.write(html)
 
     @staticmethod
+    def get_axis_label(param):
+        label = ""
+        barrier = ' ↳ '
+        barrier_length = len(barrier)
+        substrings = param.replace('_', ' ').split('.')
+        max_len = max([len(s) + (barrier_length * i) for i, s in enumerate(substrings)])
+        for i, s in enumerate(substrings):
+            current_line = ""
+
+            if i > 0:
+                current_line += ' ' * barrier_length * (i - 1)
+                current_line += barrier
+
+            current_line += s
+            current_line = current_line.ljust(max_len)
+            current_line += '​'
+
+            label += current_line
+            if i < len(substrings) - 1:
+                label += '<br>'
+
+        return label
+
+    @staticmethod
     def get_boxplot(df: pd.DataFrame, column: str, criterion_name: str, order=None, title=None) -> go.Figure:
         if order is None:
             order = sorted(df[column].unique())
@@ -179,8 +179,8 @@ class HTMLReporter(Reporter):
 
         layout = go.Layout(
             font_family='monospace',
-            xaxis=dict(title=get_axis_label(column.replace('parameters.', ''))),
-            yaxis=dict(title=get_axis_label(criterion_name)),
+            xaxis=dict(title=HTMLReporter.get_axis_label(column.replace('parameters.', ''))),
+            yaxis=dict(title=HTMLReporter.get_axis_label(criterion_name)),
             boxmode="group"
         )
         fig = go.Figure(data=data, layout=layout)
@@ -219,8 +219,8 @@ class HTMLReporter(Reporter):
         # Combine the heatmap and scatter plot
         layout = go.Layout(
             font_family='monospace',
-            xaxis=dict(title=get_axis_label(x.replace('parameters.', ''))),
-            yaxis=dict(title=get_axis_label(y.replace('parameters.', ''))),
+            xaxis=dict(title=HTMLReporter.get_axis_label(x.replace('parameters.', ''))),
+            yaxis=dict(title=HTMLReporter.get_axis_label(y.replace('parameters.', ''))),
             boxmode="group"
         )
         fig = go.Figure(data=[heatmap, scatter], layout=layout)
