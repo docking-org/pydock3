@@ -15,13 +15,13 @@ class Criterion(object):
         raise NotImplementedError
 
 
-class EnrichmentScore(Criterion):
+class NormalizedLogAUC(Criterion):
     def __init__(self):
         super().__init__()
 
     @property
     def name(self) -> str:
-        return "enrichment_score"
+        return "normalized_log_auc"
 
     def calculate(
         self,
@@ -34,9 +34,9 @@ class EnrichmentScore(Criterion):
         if image_save_path is not None:
             roc.plot(save_path=image_save_path)
 
-        return roc.enrichment_score
+        return roc.normalized_log_auc
 
 
 CRITERION_DICT = {
-    "enrichment_score": EnrichmentScore
+    "normalized_log_auc": NormalizedLogAUC
 }

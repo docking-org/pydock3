@@ -305,12 +305,12 @@ class Retrodock(Script):
             subset=["db2_file_path"], keep="first", ignore_index=True
         )  # keep only the best score per molecule
 
-        # get ROC and calculate enrichment score of this job's docking set-up
-        logger.debug("Calculating ROC and enrichment score...")
+        # get ROC and calculate normalized LogAUC of this job's docking set-up
+        logger.debug("Calculating ROC and normalized LogAUC...")
         booleans = df["is_active"].astype(bool)
         roc = ROC(booleans)
-        with open("enrichment_score", "w") as f:
-            f.write(f"{roc.enrichment_score}")
+        with open("normalized_log_auc", "w") as f:
+            f.write(f"{roc.normalized_log_auc}")
         logger.debug("done.")
 
         # write ROC plot image

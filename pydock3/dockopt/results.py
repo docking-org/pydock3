@@ -158,7 +158,7 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
                 ignore_index=True
             )  # keep only the best score per molecule
 
-            # get ROC and calculate enrichment score of this job's docking set-up
+            # get ROC and calculate normalized LogAUC of this job's docking set-up
             # TODO: get this from Retrodock instead
             booleans = df_best_job["is_active"].astype(bool)
             roc = ROC(booleans)

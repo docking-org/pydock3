@@ -2,7 +2,7 @@ definitions:
   steps:
     - step: &step_1
         top_n: 1
-        criterion: enrichment_score
+        criterion: normalized_log_auc
         dock_files_to_use_from_previous_component:
           matching_spheres_file: false
           electrostatics_trim_phi_file: false
@@ -167,8 +167,8 @@ definitions:
     - sequence: &sequence_1
         top_n: 1
         inter_iteration_top_n: 1
-        criterion: enrichment_score
-        inter_iteration_criterion: enrichment_score
+        criterion: normalized_log_auc
+        inter_iteration_criterion: normalized_log_auc
         num_repetitions: 1
         max_iterations_with_no_improvement: 1
         components:
@@ -176,7 +176,7 @@ definitions:
 
 pipeline:
   top_n: 1
-  criterion: enrichment_score
+  criterion: normalized_log_auc
   components:
     - step: *step_1
     - step: *step_2

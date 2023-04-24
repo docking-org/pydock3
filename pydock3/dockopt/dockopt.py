@@ -47,7 +47,7 @@ from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
 from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results import DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
-from pydock3.dockopt.criterion import EnrichmentScore
+from pydock3.dockopt.criterion import NormalizedLogAUC
 from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequence, PipelineComponentSequenceIteration, Pipeline
 from pydock3.dockopt.parameters import DockoptComponentParametersManager
 from pydock3.dockopt.docking_configuration import DockingConfiguration, DockFileCoordinates, DockFileCoordinate, IndockFileCoordinate
@@ -65,7 +65,7 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 }
 
 #
-CRITERION_CLASS_DICT = {"enrichment_score": EnrichmentScore}
+CRITERION_CLASS_DICT = {"normalized_log_auc": NormalizedLogAUC}
 
 #
 MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
@@ -888,9 +888,9 @@ class DockoptStep(PipelineComponent):
             # make data dict for this configuration num
             data_dict = docking_configuration.to_dict()
 
-            # get ROC and calculate enrichment score of this job's docking set-up
-            if isinstance(self.criterion, EnrichmentScore):
-                logger.debug("Calculating ROC and enrichment score...")
+            # get ROC and calculate normalized LogAUC of this job's docking set-up
+            if isinstance(self.criterion, NormalizedLogAUC):
+                logger.debug("Calculating ROC and normalized LogAUC...")
                 booleans = df["is_active"]
                 data_dict[self.criterion.name] = self.criterion.calculate(booleans)
                 logger.debug("done.")

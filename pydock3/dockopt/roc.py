@@ -81,9 +81,9 @@ class ROC(object):
         self._literal_log_auc = self._get_literal_log_auc()
         self._random_literal_log_auc = self._get_random_literal_log_auc()
         self._optimal_literal_log_auc = self._get_optimal_literal_log_auc()
-        self.log_auc = self._get_normalized_log_auc()
-        self.enrichment_score = self._get_enrichment_score()
-        
+        #self.log_auc = self._get_log_auc()  # unnormalized LogAUC should probably be avoided entirely
+        self.normalized_log_auc = self._get_normalized_log_auc()
+
     def _get_random_literal_log_auc(self) -> float:
         return float(1 - self.alpha)
     
@@ -118,10 +118,10 @@ class ROC(object):
 
         return float(np.dot(weights, y_values_of_intervals).item())
     
-    def _get_normalized_log_auc(self) -> float:
+    def _get_log_auc(self) -> float:
         return self._literal_log_auc / self._optimal_literal_log_auc
     
-    def _get_enrichment_score(self) -> float:
+    def _get_normalized_log_auc(self) -> float:
         return (self._literal_log_auc - self._random_literal_log_auc) / (self._optimal_literal_log_auc - self._random_literal_log_auc)
 
     def plot(
@@ -151,7 +151,7 @@ class ROC(object):
             label=f"ROC curve",
         )
 
-        # add an extra label of enrichment score (nothing extra will be plotted)
+        # add an extra label of normalized LogAUC (nothing extra will be plotted)
         plt.plot([], [], " ", label=f"# of actives: {self.num_actives}")
         plt.plot([], [], " ", label=f"# of decoys: {self.num_decoys}")
         plt.plot(
@@ -161,7 +161,7 @@ class ROC(object):
             label=f"x-axis interval: [{np.format_float_scientific(self.alpha, precision=3)}, 1.0]",
         )
         plt.plot(
-            [], [], " ", label=f"enrichment score: {round(self.enrichment_score, 3)}"
+            [], [], " ", label=f"normalized LogAUC: {round(self.normalized_log_auc, 3)}"
         )
 
         # set legend
