@@ -164,14 +164,15 @@ class HTMLReporter(Reporter):
             filtered_df = df[df[column] == value]
             subplot = go.Box(
                 y=filtered_df[criterion_name],
-                x=filtered_df[column],
+                x=filtered_df[column].astype(str),  # treat as categorical
                 name=str(value),
                 boxpoints='all',  # Show all individual points
-                jitter=0.5,  # Add some jitter for better visibility of points
+                jitter=0.6,  # Add some jitter for better visibility of points
                 pointpos=-1.8,  # Position of points relative to the box
-                whiskerwidth=0.3,
+                whiskerwidth=0.5,
                 marker=dict(color=c[i], size=6, line=dict(color='black', width=1)),  # Point marker color, size, and outline
                 showlegend=False,
+                offsetgroup=i,
             )
 
             # format the layout
@@ -179,11 +180,21 @@ class HTMLReporter(Reporter):
 
         layout = go.Layout(
             font_family='monospace',
-            xaxis=dict(title=HTMLReporter.get_axis_label(column.replace('parameters.', ''))),
-            yaxis=dict(title=HTMLReporter.get_axis_label(criterion_name)),
-            boxmode="group"
+            xaxis=dict(
+                title=HTMLReporter.get_axis_label(column.replace('parameters.', '')),
+            ),
+            yaxis=dict(
+                title=HTMLReporter.get_axis_label(criterion_name),
+            ),
+            boxmode="overlay",
+            boxgap=0.5,
         )
         fig = go.Figure(data=data, layout=layout)
+
+        #
+        fig.update_xaxes(
+            type='category',
+        )
 
         #
         if title is not None:
@@ -209,7 +220,7 @@ class HTMLReporter(Reporter):
         grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method)
 
         # Create the heatmap
-        heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='Turbo', showscale=False)
+        heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='Turbo', showscale=True)
 
         # Create the scatter plot
         scatter = go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers',
@@ -221,7 +232,6 @@ class HTMLReporter(Reporter):
             font_family='monospace',
             xaxis=dict(title=HTMLReporter.get_axis_label(x.replace('parameters.', ''))),
             yaxis=dict(title=HTMLReporter.get_axis_label(y.replace('parameters.', ''))),
-            boxmode="group"
         )
         fig = go.Figure(data=[heatmap, scatter], layout=layout)
 
