@@ -1208,7 +1208,7 @@ class DockoptStepSequence(PipelineComponentSequence):
         criterion: str,
         top_n: int,
         components: Iterable[dict],
-        num_repetitions: int,
+        num_iterations: int,
         max_iterations_with_no_improvement: int,
         inter_iteration_criterion: str,
         inter_iteration_top_n: int,
@@ -1222,7 +1222,7 @@ class DockoptStepSequence(PipelineComponentSequence):
             top_n=top_n,
             results_manager=DockoptStepSequenceResultsManager(RESULTS_CSV_FILE_NAME),
             components=components,
-            num_repetitions=num_repetitions,
+            num_iterations=num_iterations,
             max_iterations_with_no_improvement=max_iterations_with_no_improvement,
             inter_iteration_criterion=inter_iteration_criterion,
             inter_iteration_top_n=inter_iteration_top_n,
@@ -1253,7 +1253,7 @@ class DockoptStepSequence(PipelineComponentSequence):
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
         num_iterations_left_with_no_improvement = self.max_iterations_with_no_improvement
-        for i in range(self.num_repetitions+1):
+        for i in range(self.num_iterations):
             #
             iteration_num =  i + 1
 

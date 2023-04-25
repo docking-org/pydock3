@@ -140,7 +140,7 @@ class PipelineComponentSequence(PipelineComponent):
             top_n: int,
             results_manager: ResultsManager,
             components: Iterable[dict],
-            num_repetitions: int,
+            num_iterations: int,
             max_iterations_with_no_improvement: int,
             inter_iteration_criterion: str,
             inter_iteration_top_n: int,
@@ -155,7 +155,7 @@ class PipelineComponentSequence(PipelineComponent):
 
         #
         self.components = components
-        self.num_repetitions = num_repetitions
+        self.num_iterations = num_iterations
         self.max_iterations_with_no_improvement = max_iterations_with_no_improvement
         self.inter_iteration_criterion = inter_iteration_criterion
         self.inter_iteration_top_n = inter_iteration_top_n

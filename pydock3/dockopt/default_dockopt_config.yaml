@@ -169,7 +169,7 @@ definitions:
         inter_iteration_top_n: 1
         criterion: normalized_log_auc
         inter_iteration_criterion: normalized_log_auc
-        num_repetitions: 1
+        num_iterations: 1
         max_iterations_with_no_improvement: 1
         components:
           - step: *step_3
