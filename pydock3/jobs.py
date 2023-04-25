@@ -102,6 +102,7 @@ class ArrayDockingJob(ABC):
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
             "INPUT_TARBALL": self.input_molecules_tgz_file_path,
+            "SLEEP_SECONDS_AFTER_COPYING_OUTPUT": str(self.sleep_seconds_after_copying_output),
         }
 
         #
@@ -156,7 +157,7 @@ class ArrayDockingJob(ABC):
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
             "INPUT_TARBALL": self.input_molecules_tgz_file_path,
-            "SLEEP_SECONDS_AFTER_COPYING_OUTPUT": self.sleep_seconds_after_copying_output,
+            "SLEEP_SECONDS_AFTER_COPYING_OUTPUT": str(self.sleep_seconds_after_copying_output),
         }
 
         #
