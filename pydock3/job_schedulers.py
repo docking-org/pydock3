@@ -33,7 +33,7 @@ class JobScheduler(ABC):
             err_log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
-            extra_submission_cmd_params_str: str = ""
+            extra_submission_cmd_params_str: [str, None] = None
     ):
         """returns: subprocess.CompletedProcess"""
 
@@ -79,8 +79,12 @@ class SlurmJobScheduler(JobScheduler):
             err_log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
-            extra_submission_cmd_params_str: str = "",
+            extra_submission_cmd_params_str: [str, None] = None,
     ) -> List[CompletedProcess]:
+        #
+        if extra_submission_cmd_params_str is None:
+            extra_submission_cmd_params_str = ""
+
         #
         task_nums = sorted([int(task_id) for task_id in task_ids])
         contiguous_task_nums_sets = [list(map(itemgetter(1), g)) for k, g in groupby(enumerate(task_nums), lambda x: x[0] - x[1])]
@@ -165,8 +169,12 @@ class SGEJobScheduler(JobScheduler):
             err_log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
-            extra_submission_cmd_params_str: str = "-S /bin/bash -q !gpu.q",
+            extra_submission_cmd_params_str: [str, None] = None,
     ) -> List[CompletedProcess]:
+        #
+        if extra_submission_cmd_params_str is None:
+            extra_submission_cmd_params_str = "-S /bin/bash -q !gpu.q"
+
         #
         if not job_name[0].isalpha():
             raise Exception(f"{self.name} job names must start with a letter.")
