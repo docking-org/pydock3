@@ -253,7 +253,7 @@ class SGEJobScheduler(JobScheduler):
                 continue
 
             #
-            pattern = r'^(\d+)-(\d+)(:\d+)?$'
+            pattern = r'^(\d+)[,-](\d+)(:\d+)?$'
             match = re.match(pattern, tasks_str)
             if match is not None:
                 if match.group(1) is not None and match.group(2) is not None:
