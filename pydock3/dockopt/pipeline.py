@@ -8,9 +8,15 @@ import re
 import pandas as pd
 
 from pydock3.files import Dir
-from pydock3.dockopt.criterion import CRITERION_DICT
+from pydock3.criterion.enrichment.logauc import NormalizedLogAUC
+
 if TYPE_CHECKING:
     from pydock3.dockopt.results import ResultsManager
+
+
+CRITERION_DICT = {
+    "normalized_log_auc": NormalizedLogAUC
+}
 
 
 def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineComponent) -> PipelineComponent:

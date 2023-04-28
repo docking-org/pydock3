@@ -2,7 +2,7 @@ import os
 import logging
 from uuid import uuid4
 import time
-from dataclasses import fields, astuple
+from dataclasses import astuple
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from pydock3.files import (
     IndockFile,
     OutdockFile,
 )
-from pydock3.dockopt.roc import ROC
+from pydock3.criterion.enrichment.roc import ROC
 from pydock3.jobs import ArrayDockingJob
 from pydock3.blastermaster.blastermaster import BlasterFiles
 from pydock3.jobs import JobSubmissionResult

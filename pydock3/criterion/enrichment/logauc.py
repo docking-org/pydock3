@@ -1,18 +1,7 @@
-from typing import NoReturn, Iterable, Union
+from typing import Iterable, Union
 
-from pydock3.dockopt.roc import ROC
-
-
-class Criterion(object):
-    def __init__(self):
-        pass
-
-    @property
-    def name(self) -> NoReturn:
-        raise NotImplementedError
-
-    def calculate(self, *args, **kwargs) -> NoReturn:
-        raise NotImplementedError
+from pydock3.criterion.criterion import Criterion
+from pydock3.criterion.enrichment.roc import ROC
 
 
 class NormalizedLogAUC(Criterion):
@@ -35,8 +24,3 @@ class NormalizedLogAUC(Criterion):
             roc.plot(save_path=image_save_path)
 
         return roc.normalized_log_auc
-
-
-CRITERION_DICT = {
-    "normalized_log_auc": NormalizedLogAUC
-}
