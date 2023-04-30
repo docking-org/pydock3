@@ -831,7 +831,7 @@ class DockoptStep(PipelineComponent):
                         logger.warning(
                             f"Failure / time out witnessed for task {docking_configuration.configuration_num}"
                         )
-                        if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] > component_run_func_arg_set.retrodock_job_max_reattempts:
+                        if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
                             logger.warning(
                                 f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
                             )
@@ -860,7 +860,7 @@ class DockoptStep(PipelineComponent):
                 )
             except Exception as e:  # if outdock files failed to be parsed then re-attempt task
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
-                if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] > component_run_func_arg_set.retrodock_job_max_reattempts:
+                if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
                     logger.warning(
                         f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
                     )
