@@ -687,6 +687,12 @@ class DockoptStep(PipelineComponent):
         self.docking_configurations = [DockingConfiguration(**dc_kwargs) for dc_kwargs in all_dc_kwargs]
         logger.info(f"Number of unique docking configurations: {len(self.docking_configurations)}")
 
+        #
+        if last_component_completed is not None:
+            self.num_total_docking_configurations_thus_far = len(self.docking_configurations) + last_component_completed.num_total_docking_configurations_thus_far
+        else:
+            self.num_total_docking_configurations_thus_far = len(self.docking_configurations)
+
         # validate that there are no cycles (i.e. that it is a directed acyclic graph)
         if not nx.is_directed_acyclic_graph(graph):
             raise Exception("Cycle found in graph!")

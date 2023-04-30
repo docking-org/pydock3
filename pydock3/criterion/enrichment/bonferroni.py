@@ -5,13 +5,15 @@ from pydock3.criterion.enrichment import __file__ as ENRICHMENT_MODULE_PATH
 
 RANDOM_DATA_DIR_PATH = os.path.join(ENRICHMENT_MODULE_PATH, "random_classifier_probability")
 
+MAX_TABLE_N_ACTIVES = 50
+
 
 def get_bonferroni_correction(
         n_actives: int,
         n_configurations: int,
         signif_level: float = 0.01,
         tables_dir: str = RANDOM_DATA_DIR_PATH,
-):
+) -> (float, int):
     """
     :param n_actives: the number of actives in the retrospective dataset
     :param n_configurations: the number of docking configurations tested (i.e. number of different sets of parameters)
@@ -23,13 +25,14 @@ def get_bonferroni_correction(
     assert isinstance(n_actives, int)
     assert n_actives >= 1
 
-    if n_actives > 50:
-        print("Warning: no tables available for {} actives, reverting to 50 actives (which is more stringent).".format(
-              n_actives))
-        n_actives = 50
+    if n_actives > MAX_TABLE_N_ACTIVES:
+        n_actives_for_calculation = MAX_TABLE_N_ACTIVES
+        print(f"Warning: no tables available for {n_actives} actives, reverting to {n_actives_for_calculation} actives for calculation (which is more stringent).")
+    else:
+        n_actives_for_calculation = n_actives
 
     threshold = float(signif_level / n_configurations)
-    file_name = os.path.join(tables_dir, f"table_{n_actives}_actives.df")
+    file_name = os.path.join(tables_dir, f"table_{n_actives_for_calculation}_actives.df")
 
     with open(file_name) as f:
         lines = f.readlines()[1:]
@@ -47,4 +50,4 @@ def get_bonferroni_correction(
     if not found:
         raise ValueError("No threshold found (probably too few actives, or too many configurations)")
 
-    return normalized_log_auc_thresh
+    return normalized_log_auc_thresh, n_actives_for_calculation
