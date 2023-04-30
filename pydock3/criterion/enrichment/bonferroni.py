@@ -1,6 +1,12 @@
 import os
+import logging
 
 from pydock3.criterion.enrichment import __file__ as ENRICHMENT_MODULE_PATH
+
+
+#
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 RANDOM_DATA_DIR_PATH = os.path.join(ENRICHMENT_MODULE_PATH, "random_classifier_probability")
@@ -27,7 +33,7 @@ def get_bonferroni_correction(
 
     if n_actives > MAX_TABLE_N_ACTIVES:
         n_actives_for_calculation = MAX_TABLE_N_ACTIVES
-        print(f"Warning: no tables available for {n_actives} actives, reverting to {n_actives_for_calculation} actives for calculation (which is more stringent).")
+        logger.warning(f"No table available for {n_actives} actives, reverting to {n_actives_for_calculation} actives for calculation (which is more strict).")
     else:
         n_actives_for_calculation = n_actives
 
@@ -48,6 +54,6 @@ def get_bonferroni_correction(
             break
 
     if not found:
-        raise ValueError("No threshold found (probably too few actives, or too many configurations)")
+        raise ValueError("No threshold found (either too few actives or too many docking configurations tested)")
 
     return normalized_log_auc_thresh, n_actives_for_calculation
