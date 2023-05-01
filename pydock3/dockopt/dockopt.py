@@ -73,7 +73,7 @@ CRITERION_CLASS_DICT = {"normalized_log_auc": NormalizedLogAUC}
 MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 
 
-def count_files_with_ext_in_tarball(tarball_path: str, ext: str):
+def count_files_with_extensions_in_tarball(tarball_path: str, extensions_to_include: List[str]):
     file_count = 0
     with tarfile.open(tarball_path, 'r:gz') as tar:
         # Get the name of the root directory inside the tarball
@@ -81,7 +81,7 @@ def count_files_with_ext_in_tarball(tarball_path: str, ext: str):
 
         for member in tar.getmembers():
             # Check if the member is a file and has the right extension
-            if member.isfile() and member.name.endswith(f".{ext.lower()}") and member.name.startswith(root_directory):
+            if member.isfile() and any([member.name.endswith(f".{ext.lower()}") for ext in extensions_to_include]) and member.name.startswith(root_directory):
                 file_count += 1
 
     return file_count
@@ -94,8 +94,9 @@ class RetrospectiveDataset(object):
         self.decoys_tgz_file_path = decoys_tgz_file_path
 
         #
-        self.num_actives = count_files_with_ext_in_tarball(self.actives_tgz_file_path, 'db2')
-        self.num_decoys = count_files_with_ext_in_tarball(self.decoys_tgz_file_path, 'db2')
+        extensions_to_include = ['db2', 'db2.gz']
+        self.num_actives = count_files_with_extensions_in_tarball(self.actives_tgz_file_path, extensions_to_include)
+        self.num_decoys = count_files_with_extensions_in_tarball(self.decoys_tgz_file_path, extensions_to_include)
 
 
 @dataclass
@@ -261,8 +262,6 @@ class Dockopt(Script):
         logger.info("Loading config file...")
         config = DockoptParametersConfiguration(config_file_path)
         logger.info("done.")
-
-        count_files_with_ext_in_tarball()
 
         #
         config_params_str = "\n".join(
