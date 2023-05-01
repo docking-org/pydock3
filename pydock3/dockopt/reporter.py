@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, NoReturn, Tuple, Union
+from typing import TYPE_CHECKING, NoReturn, List, Union, Any
 import os
 import itertools
 import re
@@ -11,6 +11,7 @@ from scipy.interpolate import griddata
 import plotly.graph_objs as go
 
 from pydock3.util import sort_list_by_another_list
+from pydock3.criterion.enrichment.bonferroni import get_bonferroni_correction
 from pydock3.files import File
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
 
@@ -63,7 +64,11 @@ class HTMLReporter(Reporter):
     def __init__(self, report_file_name: str = "report.html") -> None:
         super().__init__(report_file_name)
 
-    def write_report(self, pipeline_component: PipelineComponent, top_n_jobs_to_show=3) -> None:
+    def write_report(
+            self,
+            pipeline_component: PipelineComponent,
+            top_n_jobs_to_show: int = 3,
+    ) -> None:
         df = pipeline_component.load_results_dataframe()
 
         #
@@ -135,7 +140,7 @@ class HTMLReporter(Reporter):
             f.write(html)
 
     @staticmethod
-    def get_axis_label(param):
+    def get_axis_label(param: str):
         label = ""
         barrier = ' ↳ '
         barrier_length = len(barrier)
@@ -159,7 +164,62 @@ class HTMLReporter(Reporter):
         return label
 
     @staticmethod
-    def get_boxplot(df: pd.DataFrame, column: str, criterion_name: str, order=None, title=None) -> go.Figure:
+    def get_criterion_dist_histogram(
+            df: pd.DataFrame,
+            column_name: str,
+            pipeline_component: PipelineComponent,
+    ) -> go.Figure:
+        histogram = go.Histogram(
+            x=df[column_name],
+            histnorm="probability",
+            name="Histogram",
+            marker=dict(color="rgba(75, 0, 130, 0.8)"),
+        )
+
+        p_value = 0.01
+        min_significant_criterion = get_bonferroni_correction(
+            n_actives=pipeline_component.retrospective_dataset.num_actives,
+            n_configurations=pipeline_component.num_total_docking_configurations_thus_far,
+            signif_level=p_value,
+        )
+        vertical_line = go.Scatter(
+            x=[min_significant_criterion, min_significant_criterion],
+            y=[0, 1],
+            mode="lines",
+            name=f"x={min_significant_criterion}",
+            line=dict(color="red", width=2, dash="dot"),
+            yaxis="y2",
+        )
+
+        layout = go.Layout(
+            title=f"{column_name.lower()} distribution",
+            xaxis=dict(title=column_name),
+            yaxis=dict(title="count"),
+            yaxis2=dict(
+                title=f"p-value={p_value}",
+                overlaying="y",
+                side="right",
+                showgrid=False,
+                showline=False,
+                zeroline=False,
+                showticklabels=False,
+                ticks="",
+            ),
+            showlegend=False,
+        )
+
+        fig = go.Figure(data=[histogram, vertical_line], layout=layout)
+
+        return fig
+
+    @staticmethod
+    def get_boxplot(
+            df: pd.DataFrame,
+            column: str,
+            criterion_name: str,
+            order: Union[None, List[Any]] = None,
+            title: Union[None, str] = None,
+    ) -> go.Figure:
         if order is None:
             order = sorted(df[column].unique())
 
@@ -212,8 +272,15 @@ class HTMLReporter(Reporter):
         return fig
 
     @staticmethod
-    def get_heatmap(df: pd.DataFrame, x: str, y: str, scores: str, min_units_between: int = 20,
-                    interp_method: str = 'cubic', title=None) -> go.Figure:
+    def get_heatmap(
+            df: pd.DataFrame,
+            x: str,
+            y: str,
+            scores: str,
+            min_units_between: int = 20,
+            interp_method: str = 'cubic',
+            title: Union[None, str] = None,
+    ) -> go.Figure:
         # Extract points and scores
         points = df[[x, y]].to_numpy()
         scores_array = df[scores].to_numpy()
@@ -252,7 +319,7 @@ class HTMLReporter(Reporter):
         return fig
 
     @staticmethod
-    def get_html(figures: Union[go.Figure, str], component_id):
+    def get_html(figures: Union[go.Figure, str], component_id: str) -> str:
         divs = []
 
         for i, fig in enumerate(figures):

@@ -9,6 +9,7 @@ import logging
 import collections
 import time
 from datetime import datetime, timedelta
+import tarfile
 
 import networkx as nx
 import pandas as pd
@@ -20,6 +21,7 @@ from pydock3.util import (
     Script,
     CleanExit,
     get_hexdigest_of_persistent_md5_hash_of_tuple,
+    system_call,
 )
 from pydock3.dockopt.util import WORKING_DIR_NAME, RETRODOCK_JOBS_DIR_NAME, RESULTS_CSV_FILE_NAME, BEST_RETRODOCK_JOBS_DIR_NAME
 from pydock3.config import (
@@ -71,11 +73,35 @@ CRITERION_CLASS_DICT = {"normalized_log_auc": NormalizedLogAUC}
 MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 
 
+def count_files_with_ext_in_tarball(tarball_path: str, ext: str):
+    file_count = 0
+    with tarfile.open(tarball_path, 'r:gz') as tar:
+        # Get the name of the root directory inside the tarball
+        root_directory = tar.getnames()[0].split('/')[0]
+
+        for member in tar.getmembers():
+            # Check if the member is a file and has the right extension
+            if member.isfile() and member.name.endswith(f".{ext.lower()}") and member.name.startswith(root_directory):
+                file_count += 1
+
+    return file_count
+
+
+class RetrospectiveDataset(object):
+    def __init__(self, actives_tgz_file_path: str, decoys_tgz_file_path: str):
+        #
+        self.actives_tgz_file_path = actives_tgz_file_path
+        self.decoys_tgz_file_path = decoys_tgz_file_path
+
+        #
+        self.num_actives = count_files_with_ext_in_tarball(self.actives_tgz_file_path, 'db2')
+        self.num_decoys = count_files_with_ext_in_tarball(self.decoys_tgz_file_path, 'db2')
+
+
 @dataclass
 class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     scheduler: str
-    actives_tgz_file_path: Union[None, str] = None
-    decoys_tgz_file_path: Union[None, str] = None
+    retrospective_dataset: RetrospectiveDataset
     temp_storage_path: Union[None, str] = None
     retrodock_job_max_reattempts: int = 0
     retrodock_job_timeout_minutes: Union[None, int] = None
@@ -160,15 +186,15 @@ class Dockopt(Script):
         self,
         scheduler: str,
         job_dir_path: str = ".",
-        config_file_path: Union[str, None] = None,
-        actives_tgz_file_path: Union[str, None] = None,
-        decoys_tgz_file_path: Union[str, None] = None,
+        config_file_path: Union[None, str] = None,
+        actives_tgz_file_path: Union[None, str] = None,
+        decoys_tgz_file_path: Union[None, str] = None,
         retrodock_job_max_reattempts: int = 0,
-        retrodock_job_timeout_minutes: Union[str, None] = None,
+        retrodock_job_timeout_minutes: Union[None, str] = None,
         extra_submission_cmd_params_str: Union[None, str] = None,
         sleep_seconds_after_copying_output: int = 0,
         export_decoys_mol2: bool = False,
-        #max_scheduler_jobs_running_at_a_time: Union[str, None] = None,  # TODO
+        #max_scheduler_jobs_running_at_a_time: Union[None, str] = None,  # TODO
         components_to_run: str = "^.*$",  # default: match any string
         components_to_skip_if_results_exist: str = "^(.*\.)?\d+_step$",  # default: match only DockoptStep IDs
         components_to_force_rewrite_report: str = "^.*$",  # default: match any string
@@ -218,10 +244,12 @@ class Dockopt(Script):
             return
 
         #
+        retrospective_dataset = RetrospectiveDataset(actives_tgz_file_path, decoys_tgz_file_path)
+
+        #
         component_run_func_arg_set = DockoptPipelineComponentRunFuncArgSet(
             scheduler=scheduler,
-            actives_tgz_file_path=actives_tgz_file_path,
-            decoys_tgz_file_path=decoys_tgz_file_path,
+            retrospective_dataset=retrospective_dataset,
             temp_storage_path=temp_storage_path,
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
@@ -233,6 +261,8 @@ class Dockopt(Script):
         logger.info("Loading config file...")
         config = DockoptParametersConfiguration(config_file_path)
         logger.info("done.")
+
+        count_files_with_ext_in_tarball()
 
         #
         config_params_str = "\n".join(
@@ -326,8 +356,8 @@ class DockoptStep(PipelineComponent):
         )
 
         #
-        self.actives_tgz_file = None  # set at beginning of .run()  # TODO: make non-class var
-        self.decoys_tgz_file = None  # set at beginning of .run()  # TODO: make non-class var
+        # TODO: reconsider this
+        self.retrospective_dataset = None  # set in .run()
 
         #
         if isinstance(parameters["custom_dock_executable"], list):
@@ -726,14 +756,8 @@ class DockoptStep(PipelineComponent):
             components_to_skip_if_results_exist: str,
             components_to_force_rewrite_report: str,
         ) -> pd.DataFrame:
-        if component_run_func_arg_set.actives_tgz_file_path is not None:
-            self.actives_tgz_file = File(path=component_run_func_arg_set.actives_tgz_file_path)
-        else:
-            self.actives_tgz_file = None
-        if component_run_func_arg_set.decoys_tgz_file_path is not None:
-            self.decoys_tgz_file = File(path=component_run_func_arg_set.decoys_tgz_file_path)
-        else:
-            self.decoys_tgz_file = None
+        #
+        self.retrospective_dataset = component_run_func_arg_set.retrospective_dataset
 
         # run necessary steps to get all dock files
         logger.info("Generating dock files & INDOCK for all docking configurations...")
@@ -782,8 +806,8 @@ class DockoptStep(PipelineComponent):
         # submit retrodock jobs (one for actives, one for decoys)
         array_jobs = []
         for sub_dir_name, should_export_mol2, input_molecules_tgz_file_path in [
-            ('actives', True, component_run_func_arg_set.actives_tgz_file_path),
-            ('decoys', component_run_func_arg_set.export_decoys_mol2, component_run_func_arg_set.decoys_tgz_file_path),
+            ('actives', True, self.retrospective_dataset.actives_tgz_file_path),
+            ('decoys', component_run_func_arg_set.export_decoys_mol2, self.retrospective_dataset.decoys_tgz_file_path),
         ]:
             array_job = ArrayDockingJob(
                 name=f"dockopt_step_{step_id}_{sub_dir_name}",
