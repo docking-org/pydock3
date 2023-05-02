@@ -96,8 +96,8 @@ class RetrospectiveDataset(object):
         self.decoys_tgz_file_path = decoys_tgz_file_path
 
         #
-        self.num_actives = count_files_with_extensions_in_tarball(self.actives_tgz_file_path, EXTENSIONS_TO_INCLUDE)
-        self.num_decoys = count_files_with_extensions_in_tarball(self.decoys_tgz_file_path, EXTENSIONS_TO_INCLUDE)
+        self.num_actives = count_files_with_extensions_in_tarball(self.actives_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
+        self.num_decoys = count_files_with_extensions_in_tarball(self.decoys_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
 
 
 @dataclass
