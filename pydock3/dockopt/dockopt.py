@@ -714,7 +714,7 @@ class DockoptStep(PipelineComponent):
         logger.debug(f"Number of unique partial docking configurations after indock file generation specification: {len(all_dc_kwargs)}")
 
         #
-        self.docking_configurations = [DockingConfiguration(**dc_kwargs) for dc_kwargs in all_dc_kwargs]
+        self.docking_configurations = sorted([DockingConfiguration(**dc_kwargs) for dc_kwargs in all_dc_kwargs], key=lambda dc: getattr(dc, 'configuration_num'))
         logger.info(f"Number of unique docking configurations: {len(self.docking_configurations)}")
 
         #
