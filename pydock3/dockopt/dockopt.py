@@ -88,15 +88,16 @@ def count_files_with_extensions_in_tarball(tarball_path: str, extensions_to_incl
 
 
 class RetrospectiveDataset(object):
+    EXTENSIONS_TO_INCLUDE = ['db2', 'db2.gz']
+
     def __init__(self, actives_tgz_file_path: str, decoys_tgz_file_path: str):
         #
         self.actives_tgz_file_path = actives_tgz_file_path
         self.decoys_tgz_file_path = decoys_tgz_file_path
 
         #
-        extensions_to_include = ['db2', 'db2.gz']
-        self.num_actives = count_files_with_extensions_in_tarball(self.actives_tgz_file_path, extensions_to_include)
-        self.num_decoys = count_files_with_extensions_in_tarball(self.decoys_tgz_file_path, extensions_to_include)
+        self.num_actives = count_files_with_extensions_in_tarball(self.actives_tgz_file_path, EXTENSIONS_TO_INCLUDE)
+        self.num_decoys = count_files_with_extensions_in_tarball(self.decoys_tgz_file_path, EXTENSIONS_TO_INCLUDE)
 
 
 @dataclass
@@ -922,6 +923,15 @@ class DockoptStep(PipelineComponent):
                 logger.debug("Calculating ROC and normalized LogAUC...")
                 booleans = df["is_active"]
                 data_dict[self.criterion.name] = self.criterion.calculate(booleans)
+
+                #
+                num_actives_detected = len([1 for b in booleans if b])
+                if num_actives_detected != self.retrospective_dataset.num_actives:
+                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_actives} actives but only detected {num_actives_detected} actives while processing retrodock job for configuration # {docking_configuration.configuration_num}")
+                num_decoys_detected = len([0 for b in booleans if not b])
+                if num_decoys_detected != self.retrospective_dataset.num_decoys:
+                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_decoys} decoys but only detected {num_decoys_detected} decoys while processing retrodock job for configuration # {docking_configuration.configuration_num}")
+
                 logger.debug("done.")
 
             # save data_dict for this job
