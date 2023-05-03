@@ -54,8 +54,6 @@ class SlurmJobScheduler(JobScheduler):
         "SQUEUE_EXEC",
     ]
 
-    MAX_ARRAY_JOBS_SUBMITTED_PER_SBATCH = 100
-
     def __init__(self) -> None:
         super().__init__(name="Slurm")
 
@@ -91,12 +89,21 @@ class SlurmJobScheduler(JobScheduler):
 
         #
         procs = []
-        for contiguous_task_nums_set in contiguous_task_nums_sets:
+        max_chars_in_tasks_array_str = 200
+        curr_tasks_array_indices_str = ""
+        num_sets = len(contiguous_task_nums_sets)
+        for i, contiguous_task_nums_set in enumerate(contiguous_task_nums_sets):
             if len(contiguous_task_nums_set) == 1:
-                array_str = f"{contiguous_task_nums_set[0]}"
+                index_str = f"{contiguous_task_nums_set[0]}"
             else:
-                array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
-            command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 {extra_submission_cmd_params_str} --array={array_str} {script_path}"  # TODO: is `signal` useful / necessary?
+                index_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
+            if(len(curr_tasks_array_indices_str + index_str) >= max_chars_in_tasks_array_str) or (i == num_sets - 1):
+                curr_tasks_array_indices_str += index_str
+                command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 {extra_submission_cmd_params_str} --array={curr_tasks_array_indices_str} {script_path}"  # TODO: is `signal` useful / necessary?
+                curr_tasks_array_indices_str = ""
+            else:
+                curr_tasks_array_indices_str += index_str
+                continue
             if self.SLURM_SETTINGS:
                 if File.file_exists(self.SLURM_SETTINGS):  # TODO: move validation to __init__
                     command_str = f"source {self.SLURM_SETTINGS}; {command_str}"
