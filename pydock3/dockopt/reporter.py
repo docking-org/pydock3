@@ -74,6 +74,10 @@ class HTMLReporter(Reporter):
         #
         figures = []
 
+        # Add histogram showing signicance cutoff
+        hist = self.get_criterion_dist_histogram(df, pipeline_component.criterion.name, pipeline_component)
+        figures.append(hist)
+
         # Add plot images to figures
         df_to_iter = pipeline_component.get_top_results_dataframe().head(top_n_jobs_to_show)
 
@@ -171,7 +175,6 @@ class HTMLReporter(Reporter):
     ) -> go.Figure:
         histogram = go.Histogram(
             x=df[column_name],
-            histnorm="probability",
             name="Histogram",
             marker=dict(color="rgba(75, 0, 130, 0.8)"),
         )
@@ -184,7 +187,7 @@ class HTMLReporter(Reporter):
         )
         vertical_line = go.Scatter(
             x=[min_significant_criterion, min_significant_criterion],
-            y=[0, 1],
+            y=[0, df[column_name].count()],
             mode="lines",
             name=f"x={min_significant_criterion}",
             line=dict(color="red", width=2, dash="dot"),
