@@ -89,7 +89,7 @@ class SlurmJobScheduler(JobScheduler):
 
         #
         procs = []
-        max_chars_in_tasks_array_str = 200
+        max_chars_in_tasks_array_str = 10000
         curr_tasks_array_indices_str = ""
         num_sets = len(contiguous_task_nums_sets)
         for i, contiguous_task_nums_set in enumerate(contiguous_task_nums_sets):
