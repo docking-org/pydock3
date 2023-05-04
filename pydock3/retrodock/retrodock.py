@@ -47,7 +47,7 @@ def log_job_submission_result(job, submission_result, procs):
         logger.debug(f"Job '{job.name}' successfully submitted.")
     elif submission_result is JobSubmissionResult.FAILED:
         for proc in procs:
-            logger.info(
+            raise Exception(
                 f"Job submission failed for '{job.name}' due to error: {proc.stderr}\n"
             )
     elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE:
