@@ -301,6 +301,7 @@ class DockoptStep(PipelineComponent):
             component_id: str,
             criterion: str,
             top_n: int,
+            retrospective_dataset: RetrospectiveDataset,
             parameters: Iterable[dict],
             dock_files_to_use_from_previous_component: dict,
             blaster_files_to_copy_in: Iterable[BlasterFile],
@@ -313,6 +314,9 @@ class DockoptStep(PipelineComponent):
             top_n=top_n,
             results_manager=DockoptStepResultsManager(RESULTS_CSV_FILE_NAME),
         )
+
+        #
+        self.retrospective_dataset = retrospective_dataset
 
         #
         logger.info(f"Starting DockOpt step {self.component_id}")
@@ -355,8 +359,7 @@ class DockoptStep(PipelineComponent):
         )
 
         #
-        # TODO: reconsider this
-        self.retrospective_dataset = None  # set in .run()
+        self.retrospective_dataset = retrospective_dataset
 
         #
         if isinstance(parameters["custom_dock_executable"], list):
@@ -755,9 +758,6 @@ class DockoptStep(PipelineComponent):
             components_to_skip_if_results_exist: str,
             components_to_force_rewrite_report: str,
         ) -> pd.DataFrame:
-        #
-        self.retrospective_dataset = component_run_func_arg_set.retrospective_dataset
-
         # run necessary steps to get all dock files
         logger.info("Generating all docking configurations")
         for dc in self.docking_configurations:
@@ -1148,6 +1148,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
         criterion: str,
         top_n: int,
         components: Iterable[dict],
+        retrospective_dataset: RetrospectiveDataset,
         blaster_files_to_copy_in: Iterable[BlasterFile],
         last_component_completed: Union[PipelineComponent, None] = None,
     ) -> None:
@@ -1159,6 +1160,9 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             results_manager=DockoptStepSequenceIterationResultsManager(RESULTS_CSV_FILE_NAME),
             components=components,
         )
+
+        #
+        self.retrospective_dataset = retrospective_dataset
 
         #
         self.blaster_files_to_copy_in = blaster_files_to_copy_in
@@ -1212,6 +1216,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
                 **parameters_manager.parameters_dict,
                 'component_id': component_id,
                 'pipeline_dir_path': self.pipeline_dir.path,
+                'retrospective_dataset': self.retrospective_dataset,
                 'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
                 'last_component_completed': last_component_completed_in_sequence,
             }, component_class)
@@ -1244,6 +1249,7 @@ class DockoptStepSequence(PipelineComponentSequence):
         criterion: str,
         top_n: int,
         components: Iterable[dict],
+        retrospective_dataset: RetrospectiveDataset,
         num_iterations: int,
         max_iterations_with_no_improvement: int,
         inter_iteration_criterion: str,
@@ -1263,6 +1269,9 @@ class DockoptStepSequence(PipelineComponentSequence):
             inter_iteration_criterion=inter_iteration_criterion,
             inter_iteration_top_n=inter_iteration_top_n,
         )
+
+        #
+        self.retrospective_dataset = retrospective_dataset
 
         #
         self.blaster_files_to_copy_in = blaster_files_to_copy_in
@@ -1300,6 +1309,7 @@ class DockoptStepSequence(PipelineComponentSequence):
                 criterion=self.inter_iteration_criterion,
                 top_n=self.inter_iteration_top_n,
                 components=self.components,
+                retrospective_dataset=self.retrospective_dataset,
                 blaster_files_to_copy_in=self.blaster_files_to_copy_in,
                 last_component_completed=last_component_completed_in_sequence,
             )
@@ -1340,6 +1350,7 @@ class DockoptPipeline(Pipeline):
             criterion: str,
             top_n: int,
             components: Iterable[dict],
+            retrospective_dataset: RetrospectiveDataset,
             blaster_files_to_copy_in: Iterable[BlasterFile],
             last_component_completed: Union[PipelineComponent, None] = None,
     ) -> None:
@@ -1350,6 +1361,9 @@ class DockoptPipeline(Pipeline):
             results_manager=DockoptStepSequenceIterationResultsManager(RESULTS_CSV_FILE_NAME),
             components=components,
         )
+
+        #
+        self.retrospective_dataset = retrospective_dataset
 
         #
         self.blaster_files_to_copy_in = blaster_files_to_copy_in
@@ -1404,6 +1418,7 @@ class DockoptPipeline(Pipeline):
                 **parameters_manager.parameters_dict,
                 'component_id': component_id,
                 'pipeline_dir_path': self.pipeline_dir.path,
+                'retrospective_dataset': self.retrospective_dataset,
                 'blaster_files_to_copy_in': self.blaster_files_to_copy_in,  # TODO: is this necessary?
                 'last_component_completed': last_component_completed_in_sequence,
             }, component_class)
