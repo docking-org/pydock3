@@ -451,9 +451,10 @@ class BlasterStep(object):
         @wraps(run_func)
         def wrapper(self):
             if self.is_done:
-                logger.info(f"Skipping {self.__class__.__name__} since is_done=True")
+                logger.debug(f"Skipping {self.__class__.__name__} since is_done=True")
             else:
-                logger.info(f"Running {self.__class__.__name__} in {self.step_dir.path}")
+                outfiles_str = ', '.join([f.name for f in self.outfiles])
+                logger.info(f"Running {self.__class__.__name__} to create: {outfiles_str}")
                 self._set_up_step_dir()
                 run_func(self)
                 self._export_outfiles()
