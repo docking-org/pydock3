@@ -31,7 +31,7 @@ class LigandHetatmRenamingStep(BlasterStep):
     @BlasterStep.handle_run_func
     def run(self):
         #
-        logger.info("Renaming HETATM to ATOM")
+        logger.debug("Renaming HETATM to ATOM")
         pdb.move_columns(
             input_pdb_file_path=self.infiles.ligand_infile.path,
             output_pdb_file_path=self.outfiles.ligand_hetatm_renamed_outfile.path,

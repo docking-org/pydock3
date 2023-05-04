@@ -43,7 +43,7 @@ class ChargedReceptorDeprotonationStep(BlasterStep):
         then run script to remove nonpolar hydrogens & rename"""
 
         # deprotonate covalent residue
-        logger.info("Deprotonating covalent residue")
+        logger.debug("Deprotonating covalent residue")
         pdb_h = pdb.PDBData(
             self.infiles.charged_receptor_infile.path,
             ignore_waters=False,

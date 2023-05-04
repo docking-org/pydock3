@@ -35,7 +35,7 @@ class ReceptorMostOccupiedResiduesRenamingStep(BlasterStep):
             input_pdb_file_path=self.infiles.receptor_infile.path,
             output_pdb_file_path=self.outfiles.receptor_most_occupied_residues_renamed_outfile.path,
         )
-        logger.info("Getting the most occupied position of each residue and renaming")
+        logger.debug("Getting the most occupied position of each residue and renaming")
         pdb.most_occupied(
             pdb_file_path=self.outfiles.receptor_most_occupied_residues_renamed_outfile.path,
             outfile_path=self.outfiles.receptor_most_occupied_residues_renamed_outfile.path,
