@@ -821,7 +821,7 @@ class DockoptStep(PipelineComponent):
                 #max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,  # TODO
                 export_mol2=should_export_mol2,
             )
-            logger.info("Submitting retrodock array job for {sub_dir_name}: job_name={job_name}")
+            logger.info(f"Submitting retrodock array job for {sub_dir_name}: job_name={job_name}")
             sub_result, procs = array_job.submit_all_tasks(
                 skip_if_complete=True,
             )
