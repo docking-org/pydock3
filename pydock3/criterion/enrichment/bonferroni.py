@@ -1,7 +1,10 @@
 import os
 import logging
 
-from pydock3.criterion.enrichment import __file__ as ENRICHMENT_MODULE_PATH
+from pydock3.criterion.enrichment import __file__ as ENRICHMENT_MODULE_INIT_PATH
+
+
+ENRICHMENT_MODULE_PATH = os.path.dirname(ENRICHMENT_MODULE_INIT_PATH)
 
 
 #
