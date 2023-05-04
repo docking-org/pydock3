@@ -73,7 +73,7 @@ class Script(object):
         pass
 
 
-def get_logger_for_script(log_file_path, debug=False):
+def get_logger_for_script(log_file_path=None, debug=False):
     # get highest-level logger
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
@@ -88,10 +88,11 @@ def get_logger_for_script(log_file_path, debug=False):
     logger.addHandler(sh)
 
     #
-    fh = logging.FileHandler(log_file_path)
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(logging_formatter)
-    logger.addHandler(fh)
+    if log_file_path is not None:
+        fh = logging.FileHandler(log_file_path)
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(logging_formatter)
+        logger.addHandler(fh)
 
     return logger
 

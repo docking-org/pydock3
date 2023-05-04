@@ -31,7 +31,7 @@ SCRIPT_CLASSES_DICT = {
 
 
 def get_script_class(script_class_name, *args, **kwargs):
-    logger = get_logger_for_script("pydock3.log", debug=False)
+    logger = get_logger_for_script(debug=False)
 
     if script_class_name not in SCRIPT_CLASSES_DICT:
         logger.error(
