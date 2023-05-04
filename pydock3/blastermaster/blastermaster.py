@@ -524,9 +524,8 @@ class Blastermaster(Script):
         )
 
         # load config file
-        logger.info("Loading config file...")
+        logger.info("Loading config file")
         config = BlastermasterParametersConfiguration(config_file_path)
-        logger.info("done.")
 
         # get params as str
         config_params_str = "\n".join(
@@ -551,19 +550,17 @@ class Blastermaster(Script):
             step.run()
 
         # copy dock files to dock files directory
-        logger.info("Copying dock files to dock files directory...")
+        logger.info("Copying dock files to dock files directory")
         for dock_file in astuple(blaster_files.dock_files):
             File.copy_file(
                 dock_file.path, os.path.join(dock_files_dir.path, dock_file.name)
             )
-        logger.info("done.")
 
         # write INDOCK file
-        logger.info("Making indock file...")
+        logger.info("Making indock file")
         indock_file.write(
             blaster_files.dock_files, config.param_dict, dock_files_dir.name
         )
-        logger.info("done.")
 
 
 # TODO: flex blastermaster

@@ -260,9 +260,8 @@ class Dockopt(Script):
         )
 
         #
-        logger.info("Loading config file...")
+        logger.info("Loading config file")
         config = DockoptParametersConfiguration(config_file_path)
-        logger.info("done.")
 
         #
         config_params_str = "\n".join(
@@ -316,7 +315,7 @@ class DockoptStep(PipelineComponent):
         )
 
         #
-        logger.info(f"Starting DockOpt step {self.component_id}...")
+        logger.info(f"Starting DockOpt step {self.component_id}")
 
         #
         blaster_file_names = list(BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.values())
@@ -376,6 +375,7 @@ class DockoptStep(PipelineComponent):
         logger.debug(f"{len(sorted_indock_file_generation_flat_param_dicts)} indock file generation parametrizations:\n{sorted_indock_file_generation_flat_param_dicts}")
 
         #
+        logger.info("Generating directed acyclic graph of docking configurations")
         graph = nx.DiGraph()
 
         #
@@ -715,7 +715,6 @@ class DockoptStep(PipelineComponent):
 
         #
         self.docking_configurations = sorted([DockingConfiguration(**dc_kwargs) for dc_kwargs in all_dc_kwargs], key=lambda dc: getattr(dc, 'configuration_num'))
-        logger.info(f"Number of unique docking configurations: {len(self.docking_configurations)}")
 
         #
         if last_component_completed is not None:
@@ -729,9 +728,9 @@ class DockoptStep(PipelineComponent):
 
         #
         self.graph = graph
-        logger.debug(
-            f"Graph initialized with:\n\tNodes: {self.graph.nodes}\n\tEdges: {self.graph.edges}"
-        )
+
+        #
+        logger.info(f"Number of unique docking configurations: {len(self.docking_configurations)}")
 
     def _get_unique_partial_docking_configuration_kwargs_sorted(self, dc_kwargs_list: List[dict]) -> List[dict]:
         logger.debug(f"Getting unique partial docking configurations (sorted). # before: {len(dc_kwargs_list)}")
@@ -760,7 +759,7 @@ class DockoptStep(PipelineComponent):
         self.retrospective_dataset = component_run_func_arg_set.retrospective_dataset
 
         # run necessary steps to get all dock files
-        logger.info("Generating dock files & INDOCK for all docking configurations...")
+        logger.info("Generating all docking configurations")
         for dc in self.docking_configurations:
             # make dock files
             for dock_file_identifier in DOCK_FILE_IDENTIFIERS:
@@ -771,7 +770,6 @@ class DockoptStep(PipelineComponent):
             # make indock file now that dock files exist
             indock_file = dc.get_indock_file(self.pipeline_dir.path)
             indock_file.write(dc.get_dock_files(self.pipeline_dir.path), dc.indock_file_generation_flat_param_dict)
-        logger.info("done.")
 
         #
         step_id_file_path = os.path.join(self.component_dir.path, "step_id")
@@ -920,7 +918,6 @@ class DockoptStep(PipelineComponent):
 
             # get ROC and calculate normalized LogAUC of this job's docking set-up
             if isinstance(self.criterion, NormalizedLogAUC):
-                logger.debug("Calculating ROC and normalized LogAUC...")
                 booleans = df["is_active"]
                 data_dict[self.criterion.name] = self.criterion.calculate(booleans)
 
@@ -931,8 +928,6 @@ class DockoptStep(PipelineComponent):
                 num_decoys_detected = len([0 for b in booleans if not b])
                 if num_decoys_detected != self.retrospective_dataset.num_decoys:
                     raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_decoys} decoys but only detected {num_decoys_detected} decoys while processing retrodock job for configuration # {docking_configuration.configuration_num}")
-
-                logger.debug("done.")
 
             # save data_dict for this job
             data_dicts.append(data_dict)

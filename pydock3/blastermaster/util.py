@@ -453,7 +453,7 @@ class BlasterStep(object):
             if self.is_done:
                 logger.info(f"Skipping {self.__class__.__name__} since is_done=True")
             else:
-                logger.info(f"Running {self.__class__.__name__}")
+                logger.info(f"Running {self.__class__.__name__} in {self.step_dir.path}")
                 self._set_up_step_dir()
                 run_func(self)
                 self._export_outfiles()

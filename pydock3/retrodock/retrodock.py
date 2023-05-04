@@ -242,14 +242,13 @@ class Retrodock(Script):
             decoys_tgz_file = None
 
         # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi
-        logger.info("Writing actives_and_decoys.sdi file...")
+        logger.info("Writing actives_and_decoys.sdi file")
         retrodock_input_sdi_file = File(
             path=os.path.join(job_dir.path, "actives_and_decoys.sdi")
         )
         with open(retrodock_input_sdi_file.path, "w") as f:
             f.write(f"{actives_tgz_file.path}\n")
             f.write(f"{decoys_tgz_file.path}\n")
-        logger.info("done")
 
         #
         dock_files_dir = Dir(dock_files_dir_path)
@@ -306,12 +305,10 @@ class Retrodock(Script):
         )  # keep only the best score per molecule
 
         # get ROC and calculate normalized LogAUC of this job's docking set-up
-        logger.debug("Calculating ROC and normalized LogAUC...")
         booleans = df["is_active"].astype(bool)
         roc = ROC(booleans)
         with open("normalized_log_auc", "w") as f:
             f.write(f"{roc.normalized_log_auc}")
-        logger.debug("done.")
 
         # write ROC plot image
         roc_plot_image_path = os.path.join(job_dir.path, ROC_PLOT_FILE_NAME)
