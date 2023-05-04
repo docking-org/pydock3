@@ -44,7 +44,7 @@ CHARGE_PLOT_FILE_NAME = "charge.png"
 # TODO: add this as a decorator of `submit` method of `DockoptJob`
 def log_job_submission_result(job, submission_result, procs):
     if submission_result is JobSubmissionResult.SUCCESS:
-        logger.info(f"Job '{job.name}' successfully submitted.\n")
+        logger.debug(f"Job '{job.name}' successfully submitted.")
     elif submission_result is JobSubmissionResult.FAILED:
         for proc in procs:
             logger.info(
