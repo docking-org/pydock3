@@ -103,7 +103,6 @@ class RetrospectiveDataset(object):
 @dataclass
 class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     scheduler: str
-    retrospective_dataset: RetrospectiveDataset
     temp_storage_path: Union[None, str] = None
     retrodock_job_max_reattempts: int = 0
     retrodock_job_timeout_minutes: Union[None, int] = None
@@ -251,7 +250,6 @@ class Dockopt(Script):
         #
         component_run_func_arg_set = DockoptPipelineComponentRunFuncArgSet(
             scheduler=scheduler,
-            retrospective_dataset=retrospective_dataset,
             temp_storage_path=temp_storage_path,
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
@@ -284,6 +282,7 @@ class Dockopt(Script):
         pipeline = DockoptPipeline(
             **config.param_dict["pipeline"],
             pipeline_dir_path=job_dir_path,
+            retrospective_dataset=retrospective_dataset,
             blaster_files_to_copy_in=blaster_files_to_copy_in,
         )
         pipeline.run(
