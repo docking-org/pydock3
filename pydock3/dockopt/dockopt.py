@@ -862,7 +862,7 @@ class DockoptStep(PipelineComponent):
                             continue  # move on to next in queue without re-attempting failed task
 
                         for array_job in array_jobs:
-                            if not array_job.task_is_complete(str(docking_configuration.configuration_num)):
+                            if (not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.job_scheduler.task_is_on_queue(str(docking_configuration.configuration_num), job_name=array_job.name)):
                                 array_job.submit_task(
                                     str(docking_configuration.configuration_num),
                                     skip_if_complete=False,
