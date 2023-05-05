@@ -7,7 +7,7 @@ import multiprocessing
 from pydock3.util import Script
 
 
-def get_to_search(dock_results_dir_path):
+def get_to_search(dock_results_dir_path, mol2_regex):
 
     if os.path.isfile(dock_results_dir_path):
         with open(dock_results_dir_path, "r") as f:
@@ -22,15 +22,14 @@ def get_to_search(dock_results_dir_path):
                 "-type",
                 "f",
                 "-name",
-                "test.mol2.gz.*",
+                mol2_regex,
             ],
             stdout=sp.PIPE,
         ) as f:
             for line in f.stdout:
                 yield line.decode("utf-8").strip()
     else:
-        print(f"Supplied dock results path {dock_results_dir_path} cannot be found!")
-        sys.exit(1)
+        raise Exception(f"Supplied dock results path {dock_results_dir_path} cannot be found!")
 
 
 class MinHeap(object):
@@ -196,12 +195,12 @@ class TopPoses(Script):
         #
         super().__init__()
 
-    def run(self, dock_results_dir_path, output_file_path="top_poses.mol2.gz", top_n=10000):
+    def run(self, dock_results_dir_path, mol2_regex="test.mol2.gz.*", output_file_path="top_poses.mol2.gz", top_n=10000):
         heap = MinHeap(max_size=top_n, comparator=energy_is_greater_than_other_energy)
         processing_queue = multiprocessing.Queue(maxsize=50)
         pose_data_producer_process = multiprocessing.Process(
             target=pose_data_producer,
-            args=(processing_queue, get_to_search(dock_results_dir_path)),
+            args=(processing_queue, get_to_search(dock_results_dir_path, mol2_regex)),
         )
 
         pose_data_producer_process.start()
