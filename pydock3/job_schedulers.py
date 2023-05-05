@@ -105,9 +105,7 @@ class SlurmJobScheduler(JobScheduler):
             else:
                 continue
 
-            if job_timeout_minutes is None:
-                command_str += " --time=0"
-            else:
+            if job_timeout_minutes is not None:
                 command_str += f" --time={job_timeout_minutes}"
 
             command_str += f" {script_path}"
