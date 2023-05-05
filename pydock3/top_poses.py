@@ -192,19 +192,16 @@ def energy_is_greater_than_other_energy(m_1, m_2):
 
 
 class TopPoses(Script):
-    def __init__(self, dock_results_dir_path):
+    def __init__(self):
         #
         super().__init__()
 
-        #
-        self.dock_results_dir_path = dock_results_dir_path
-
-    def run(self, output_file_path="top_poses.mol2.gz", max_heap_size=10000):
-        heap = MinHeap(max_heap_size, comparator=energy_is_greater_than_other_energy)
+    def run(self, dock_results_dir_path, output_file_path="top_poses.mol2.gz", top_n=10000):
+        heap = MinHeap(max_size=top_n, comparator=energy_is_greater_than_other_energy)
         processing_queue = multiprocessing.Queue(maxsize=50)
         pose_data_producer_process = multiprocessing.Process(
             target=pose_data_producer,
-            args=(processing_queue, get_to_search(self.dock_results_dir_path)),
+            args=(processing_queue, get_to_search(dock_results_dir_path)),
         )
 
         pose_data_producer_process.start()
@@ -246,7 +243,7 @@ class TopPoses(Script):
                 )
                 continue
 
-            if heap.size == max_heap_size:
+            if heap.size == top_n:
                 if not hit_max:
                     print("hit max poses for heap!")
                     hit_max = True
