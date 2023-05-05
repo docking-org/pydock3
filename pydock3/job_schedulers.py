@@ -97,19 +97,25 @@ class SlurmJobScheduler(JobScheduler):
                 index_str = f"{contiguous_task_nums_set[0]}"
             else:
                 index_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
+
             curr_tasks_array_indices_str = ",".join([str(x) for x in curr_tasks_array_indices + [index_str]])
             if(len(curr_tasks_array_indices_str) >= max_chars_in_tasks_array_str) or (i == num_sets - 1):
-                command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 {extra_submission_cmd_params_str} --array={curr_tasks_array_indices_str} {script_path}"  # TODO: is `signal` useful / necessary?
+                command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 {extra_submission_cmd_params_str} --array={curr_tasks_array_indices_str}"  # TODO: is `signal` useful / necessary?
                 curr_tasks_array_indices = []
             else:
                 continue
-            if self.SLURM_SETTINGS:
-                if File.file_exists(self.SLURM_SETTINGS):  # TODO: move validation to __init__
-                    command_str = f"source {self.SLURM_SETTINGS}; {command_str}"
+
             if job_timeout_minutes is None:
                 command_str += " --time=0"
             else:
                 command_str += f" --time={job_timeout_minutes}"
+
+            command_str += f" {script_path}"
+
+            if self.SLURM_SETTINGS:
+                if File.file_exists(self.SLURM_SETTINGS):  # TODO: move validation to __init__
+                    command_str = f"source {self.SLURM_SETTINGS}; {command_str}"
+
             proc = system_call(
                 command_str, env_vars_dict=env_vars_dict
             )  # need to pass env_vars_dict here so that '--export=ALL' in command can pass along all the env vars
@@ -196,15 +202,21 @@ class SGEJobScheduler(JobScheduler):
                 array_str = f"{contiguous_task_nums_set[0]}"
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
-            command_str = f"{self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd {extra_submission_cmd_params_str} -t {array_str} {script_path}"
-            if self.SGE_SETTINGS:
-                if File.file_exists(self.SGE_SETTINGS):  # TODO: move validation to __init__
-                    command_str = f"source {self.SGE_SETTINGS}; {command_str}"
+
+            command_str = f"{self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd {extra_submission_cmd_params_str} -t {array_str}"
+
             if job_timeout_minutes is not None:
                 job_timeout_seconds = 60 * job_timeout_minutes
                 command_str += (
-                    f" -l s_rt={job_timeout_seconds} -l h_rt={job_timeout_seconds} "
+                    f" -l s_rt={job_timeout_seconds} -l h_rt={job_timeout_seconds}"
                 )
+
+            command_str += f" {script_path}"
+
+            if self.SGE_SETTINGS:
+                if File.file_exists(self.SGE_SETTINGS):  # TODO: move validation to __init__
+                    command_str = f"source {self.SGE_SETTINGS}; {command_str}"
+
             proc = system_call(
                 command_str, env_vars_dict=env_vars_dict
             )  # need to pass env_vars_dict here so that '-V' in command can pass along all the env vars
