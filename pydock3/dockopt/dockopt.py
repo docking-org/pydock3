@@ -115,6 +115,11 @@ class RetrospectiveDataset(object):
         self.num_actives = count_files_with_extensions_in_tarball(self.actives_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
         self.num_decoys = count_files_with_extensions_in_tarball(self.decoys_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
 
+        #
+        if self.num_actives == 0:
+            raise Exception(f"No actives found in tarball `{self.actives_tgz_file_path}`. Expected files with extensions: `{self.EXTENSIONS_TO_INCLUDE}`")
+        if self.num_decoys == 0:
+            raise Exception(f"No decoys found in tarball `{self.decoys_tgz_file_path}`. Expected files with extensions: `{self.EXTENSIONS_TO_INCLUDE}`")
 
 @dataclass
 class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
