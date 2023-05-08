@@ -75,14 +75,31 @@ MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 
 def count_files_with_extensions_in_tarball(tarball_path: str, extensions_to_include: List[str]):
     file_count = 0
-    with tarfile.open(tarball_path, 'r:gz') as tar:
-        # Get the name of the root directory inside the tarball
-        root_directory = tar.getnames()[0].split('/')[0]
+    root_directory = None
+    has_any_directory = False
 
+    with tarfile.open(tarball_path, 'r:gz') as tar:
+        # Iterate through the tarball members
         for member in tar.getmembers():
+            # Find the root directory if not already found
+            if root_directory is None and member.isdir():
+                root_directory = member.name
+                has_any_directory = True
+
             # Check if the member is a file and has the right extension
-            if member.isfile() and any([member.name.endswith(f".{ext.lower()}") for ext in extensions_to_include]) and member.name.startswith(root_directory):
-                file_count += 1
+            if member.isfile() and any([member.name.endswith(f".{ext.lower()}") for ext in extensions_to_include]):
+                # Check if the file is inside the root_directory
+                if has_any_directory:
+                    file_parent_directory = os.path.dirname(member.name)
+                    if file_parent_directory == root_directory:
+                        file_count += 1
+                    else:
+                        raise Exception(f"File '{member.name}' is not inside the root directory '{root_directory}'")
+                else:
+                    raise Exception("Tarball has a flat list of files without any directories.")
+
+    if root_directory is None and has_any_directory:
+        raise Exception("No root directory found in the tarball.")
 
     return file_count
 
