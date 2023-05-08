@@ -76,30 +76,29 @@ MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 def count_files_with_extensions_in_tarball(tarball_path: str, extensions_to_include: List[str]):
     file_count = 0
     root_directory = None
-    has_any_directory = False
 
     with tarfile.open(tarball_path, 'r:gz') as tar:
-        # Iterate through the tarball members
+        # Find the root directory
         for member in tar.getmembers():
-            # Find the root directory if not already found
-            if root_directory is None and member.isdir():
-                root_directory = member.name
-                has_any_directory = True
+            if member.isdir():
+                if root_directory is None:
+                    root_directory = member.name
+                else:
+                    raise Exception(f"Tarball `{tarball_path}` contains more than one directory: `{root_directory}` and `{member.name}`")
 
+        if root_directory is None:
+            raise Exception(f"No root directory found in the tarball `{tarball_path}`. All files should be placed in single directory.")
+
+        # Iterate through the tarball members again to count files with the specified extensions
+        for member in tar.getmembers():
             # Check if the member is a file and has the right extension
             if member.isfile() and any([member.name.endswith(f".{ext.lower()}") for ext in extensions_to_include]):
                 # Check if the file is inside the root_directory
-                if has_any_directory:
-                    file_parent_directory = os.path.dirname(member.name)
-                    if file_parent_directory == root_directory:
-                        file_count += 1
-                    else:
-                        raise Exception(f"File '{member.name}' is not inside the root directory '{root_directory}'")
+                file_parent_directory = os.path.dirname(member.name)
+                if file_parent_directory == root_directory:
+                    file_count += 1
                 else:
-                    raise Exception("Tarball has a flat list of files without any directories.")
-
-    if root_directory is None and has_any_directory:
-        raise Exception("No root directory found in the tarball.")
+                    raise Exception(f"File `{member.name}` is not inside the root directory `{root_directory}` of tarball `{tarball_path}`")
 
     return file_count
 
