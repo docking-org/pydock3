@@ -1264,6 +1264,10 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
 
         return df
 
+    @property
+    def num_total_docking_configurations_thus_far(self):
+        return self.last_component_completed.num_total_docking_configurations_thus_far
+
 
 class DockoptStepSequence(PipelineComponentSequence):
     def __init__(
@@ -1366,6 +1370,10 @@ class DockoptStepSequence(PipelineComponentSequence):
 
         return df
 
+    @property
+    def num_total_docking_configurations_thus_far(self):
+        return self.last_component_completed.num_total_docking_configurations_thus_far
+
 
 class DockoptPipeline(Pipeline):
     def __init__(
@@ -1465,3 +1473,7 @@ class DockoptPipeline(Pipeline):
             self.graph = nx.compose(self.graph, last_component_completed_in_sequence.graph)
 
         return df
+
+    @property
+    def num_total_docking_configurations_thus_far(self):
+        return self.last_component_completed.num_total_docking_configurations_thus_far
