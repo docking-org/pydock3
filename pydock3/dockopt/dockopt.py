@@ -158,8 +158,12 @@ class Dockopt(Script):
     def new(
         self,
         job_dir_path: str = JOB_DIR_NAME,
-        overwrite: bool = False
     ) -> None:
+        # check if job dir already exists
+        if os.path.exists(job_dir_path):
+            logger.info(f"Job directory `{job_dir_path}` already exists. Exiting.")
+            return
+
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
@@ -200,7 +204,7 @@ class Dockopt(Script):
         # write fresh config file from default file
         save_path = os.path.join(job_dir.path, self.CONFIG_FILE_NAME)
         DockoptParametersConfiguration.write_config_file(
-            save_path, self.DEFAULT_CONFIG_FILE_PATH, overwrite=overwrite
+            save_path, self.DEFAULT_CONFIG_FILE_PATH
         )
 
     @handle_run_func.__get__(0)
