@@ -6,6 +6,7 @@ from itertools import groupby
 from operator import itemgetter
 import re
 from subprocess import CompletedProcess
+import xml
 
 import xmltodict
 
@@ -233,10 +234,12 @@ class SGEJobScheduler(JobScheduler):
     def _get_qstat_xml_as_dict(self) -> dict:
         command_str = f"{self.QSTAT_EXEC} -xml"
         proc = system_call(command_str)
-        if proc.stdout is not None:
-            return xmltodict.parse(proc.stdout)
-        else:
+        if proc.stdout is None:
             raise Exception(f"Command '{command_str}' returned stdout of None. stderr: {proc.stderr}")
+        try:
+            return xmltodict.parse(proc.stdout)
+        except xml.parsers.expat.ExpatError as e:
+            raise Exception(f"Error parsing XML from command '{command_str}'. \nstdout: \n{proc.stdout}\n\nstderr: {proc.stderr}") from e
 
     def task_is_on_queue(self, task_id: Union[str, int], job_name: str) -> bool:
         task_num = int(task_id)
