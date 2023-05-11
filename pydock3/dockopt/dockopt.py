@@ -225,6 +225,9 @@ class Dockopt(Script):
         components_to_skip_if_results_exist: str = "^(.*\.)?\d+_step$",  # default: match only DockoptStep IDs
         components_to_force_rewrite_report: str = "^.*$",  # default: match any string
     ) -> None:
+        #
+        logger.info(f"Running DockOpt job in directory: {job_dir_path}")
+
         # validate args
         if config_file_path is None:
             config_file_path = os.path.join(job_dir_path, self.CONFIG_FILE_NAME)
