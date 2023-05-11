@@ -43,10 +43,19 @@ if [ "$dir_name" == "pydock3" ]; then
     # Check if pydock3 is installed
     installed_version=$(pip show pydock3 2>/dev/null | grep -oP "Version: \K.*" || echo "")
 
-    # If no version is specified, use the version from the pyproject.toml file
-    if [ -z "$specified_version" ] && [ -n "$installed_version" ]; then
+    # Exit if no version is specified and pydock3 is already installed unless --force
+    if [ -z "$specified_version" ] && [ -n "$installed_version" ] && [ -z "$force_flag" ]; then
         echo "A version of pydock3 is already installed (v${installed_version}). Exiting."
         exit 0
+    fi
+
+    if [ -z "$specified_version" ]; then
+        specified_version=$toml_version
+    else
+        if [ -n "$rebuild_flag" ] && [ "$specified_version" != "$toml_version" ]; then
+            echo "Error: Cannot build the specified version '${specified_version}' since does not match the version in pyproject.toml (${toml_version}). Exiting."
+            exit 8
+        fi
     fi
 
     # Get the dist directory path
@@ -54,16 +63,12 @@ if [ "$dir_name" == "pydock3" ]; then
 
     # Find the .whl file in the dist directory for the specified version
     if [ -d "$dist_dir" ]; then
-        latest_whl=$dist_dir/$(ls "$dist_dir" | grep "pydock3-${specified_version}.*\.whl")
+        target_whl_file=$dist_dir/$(ls "$dist_dir" | grep "pydock3-${specified_version}.*\.whl")
     else
-        latest_whl=""
+        target_whl_file=""
     fi
 
-    if [ -n "$rebuild_flag" ] && [ "$specified_version" != "$toml_version" ]; then
-        echo "Error: Cannot build the specified version '${specified_version}' since does not match the version in pyproject.toml (${toml_version}). Exiting."
-        exit 8
-    fi
-
+    #
     if [ "$installed_version" == "$specified_version" ] && [ -z "$force_flag" ]; then
         echo "The specified version '${specified_version}' is already installed. Exiting."
         exit 0
@@ -71,19 +76,23 @@ if [ "$dir_name" == "pydock3" ]; then
         pip uninstall -y pydock3
     fi
 
-    # Build the package if the latest_whl is not found and the specified_version matches the toml_version, or if the rebuild_flag is set
-    if ([ ! -f "$latest_whl" ] && [ "$specified_version" == "$toml_version" ]) || [ -n "$rebuild_flag" ]; then
+    # Build the package if the target_whl_file is not found and the specified_version matches the toml_version, or if the rebuild_flag is set
+    if [ ! -f "$target_whl_file" ]; then
+        if [ "$specified_version" != "$toml_version" ]; then 
+            echo "No .whl file found for specified version '${specified_version}' and cannot build new one since specified version does not match the version in pyproject.toml (${toml_version}). Exiting."
+            exit 7
+        fi
         poetry build -f wheel
-        latest_whl=$dist_dir/$(ls "$dist_dir" | grep "pydock3-${specified_version}.*.whl")
+        target_whl_file=$dist_dir/$(ls "$dist_dir" | grep "pydock3-${specified_version}.*.whl")
+    else 
+        if [ -n "$rebuild_flag" ]; then
+            poetry build -f wheel
+            target_whl_file=$dist_dir/$(ls "$dist_dir" | grep "pydock3-${specified_version}.*.whl")
+        fi
     fi
 
-    if [ -f "$latest_whl" ]; then
-        pip install "$latest_whl"
-        exit 0
-    else
-        echo "Error: .whl file not found for the specified version '${specified_version}'. Exiting."
-        exit 7
-    fi
+    pip install "$target_whl_file"
+    exit 0
 else
     echo "Error: The current working directory dirname is NOT 'pydock3'. Exiting."
     exit 6
