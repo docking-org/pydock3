@@ -92,15 +92,16 @@ def validate_tarball_and_count_files(tarball_path: str, extensions_to_include: L
         # Iterate through the tarball members again to count files with the specified extensions
         for member in tar.getmembers():
             # Check if the member is a file and has the right extension
-            if member.isfile() and any([member.name.endswith(f".{ext.lower()}") for ext in extensions_to_include]):
-                # Check if the file is inside the root_directory
-                file_parent_directory = os.path.dirname(member.name)
-                if file_parent_directory == root_directory:
-                    file_count += 1
+            if member.isfile():
+                if any([member.name.endswith(f".{ext.lower()}") for ext in extensions_to_include]):
+                    # Check if the file is inside the root_directory
+                    file_parent_directory = os.path.dirname(member.name)
+                    if file_parent_directory == root_directory:
+                        file_count += 1
+                    else:
+                        raise Exception(f"File `{member.name}` is not inside the root directory `{root_directory}` of tarball `{tarball_path}`")
                 else:
-                    raise Exception(f"File `{member.name}` is not inside the root directory `{root_directory}` of tarball `{tarball_path}`")
-            else:
-                raise Exception(f"Tarball `{tarball_path}` contains a file with an unsupported extension: `{member.name}`. Extension must be one of: `{extensions_to_include}`")
+                    raise Exception(f"Tarball `{tarball_path}` contains a file with an unsupported extension: `{member.name}`. Extension must be one of: `{extensions_to_include}`")
 
     return file_count
 
