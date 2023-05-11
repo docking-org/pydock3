@@ -226,6 +226,7 @@ class Dockopt(Script):
         components_to_force_rewrite_report: str = "^.*$",  # default: match any string
     ) -> None:
         #
+        job_dir_path = os.path.abspath(job_dir_path)
         logger.info(f"Running DockOpt job in directory: {job_dir_path}")
 
         # validate args
