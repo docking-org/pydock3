@@ -73,7 +73,7 @@ CRITERION_CLASS_DICT = {"normalized_log_auc": NormalizedLogAUC}
 MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 
 
-def count_files_with_extensions_in_tarball(tarball_path: str, extensions_to_include: List[str]):
+def validate_tarball_and_count_files(tarball_path: str, extensions_to_include: List[str]):
     file_count = 0
     root_directory = None
 
@@ -99,6 +99,8 @@ def count_files_with_extensions_in_tarball(tarball_path: str, extensions_to_incl
                     file_count += 1
                 else:
                     raise Exception(f"File `{member.name}` is not inside the root directory `{root_directory}` of tarball `{tarball_path}`")
+            else:
+                raise Exception(f"Tarball `{tarball_path}` contains a file with an unsupported extension: `{member.name}`. Extension must be one of: `{extensions_to_include}`")
 
     return file_count
 
@@ -112,8 +114,8 @@ class RetrospectiveDataset(object):
         self.decoys_tgz_file_path = decoys_tgz_file_path
 
         #
-        self.num_actives = count_files_with_extensions_in_tarball(self.actives_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
-        self.num_decoys = count_files_with_extensions_in_tarball(self.decoys_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
+        self.num_actives = validate_tarball_and_count_files(self.actives_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
+        self.num_decoys = validate_tarball_and_count_files(self.decoys_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
 
         #
         if self.num_actives == 0:
