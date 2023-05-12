@@ -6,6 +6,7 @@ while [[ "$#" -gt 0 ]]; do
         -v|--version) specified_version="$2"; shift;;
         -f|--force) force_flag="true";;
         -r|--rebuild) rebuild_flag="true";;
+        -g|--git-pull) git_pull_flag="true";;
         *) echo "Error: Unknown parameter passed: $1"; exit 1;;
     esac
     shift
@@ -23,6 +24,18 @@ if [ "$dir_name" == "pydock3" ]; then
     if [ ! -f "pyproject.toml" ]; then
         echo "Error: pyproject.toml file not found. Exiting."
         exit 2
+    fi
+
+    #
+    if [ -n "$git_pull_flag" ]; then
+        if ! command -v git &> /dev/null; then
+            echo "Error: git is not installed or not in the PATH. Exiting."
+            exit 10
+        fi
+        git pull
+
+        # get dock3 submodule containing `dock64` executable
+        git submodule update --init --recursive 
     fi
 
     # Get the version from pyproject.toml file
