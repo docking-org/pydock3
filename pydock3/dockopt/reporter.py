@@ -175,40 +175,67 @@ class HTMLReporter(Reporter):
     ) -> go.Figure:
         histogram = go.Histogram(
             x=df[column_name],
-            name="Histogram",
-            marker=dict(color="rgba(75, 0, 130, 0.8)"),
+            name=f"DOCK parameterizations ({pipeline_component.num_total_docking_configurations_thus_far} total)",
+            marker=dict(color="rgba(0, 0, 100, 0.8)"),
         )
 
         p_value = 0.01
-        min_significant_criterion = get_bonferroni_correction(
+        min_significant_criterion, num_actives_for_calculation = get_bonferroni_correction(
             n_actives=pipeline_component.retrospective_dataset.num_actives,
             n_configurations=pipeline_component.num_total_docking_configurations_thus_far,
             signif_level=p_value,
         )
+
+        # Compute histogram data and find the maximum count
+        hist_data, bin_edges = np.histogram(df[column_name])
+        max_count = np.max(hist_data)
+
+        # Find the index of the bin with the maximum count
+        max_bin_idx = np.argmax(hist_data)
+
+        # Calculate the height of the bin containing the vertical line
+        vline_bin_idx = np.searchsorted(bin_edges, min_significant_criterion) - 1
+        vline_bin_height = hist_data[vline_bin_idx]
+
+        # Set the y-axis range to the maximum height of either the highest bin or the bin containing the vertical line
+        y_axis_max = max(max_count, vline_bin_height) * 1.1
+
+        """
+        #
+        if pipeline_component.retrospective_dataset.num_actives > num_actives_for_calculation:
+            num_actives_str = f"num_actives > {num_actives_for_calculation}"
+        else:
+            num_actives_str = f"num_actives = {num_actives_for_calculation}"
+        """
+
+        #
         vertical_line = go.Scatter(
             x=[min_significant_criterion, min_significant_criterion],
-            y=[0, df[column_name].count()],
+            y=[0, max_count],  # Update the y-range to match the maximum count of the histogram bins
             mode="lines",
-            name=f"x={min_significant_criterion}",
+            name=f"Significance threshold: {format(min_significant_criterion, '.3f')}<br>p = {p_value}",
             line=dict(color="red", width=2, dash="dot"),
-            yaxis="y2",
         )
 
+        # Find the minimum and maximum x values from the histogram data
+        min_x = np.min([df[column_name].min(), min_significant_criterion])
+        max_x = np.max([df[column_name].max(), min_significant_criterion])
+
         layout = go.Layout(
-            title=f"{column_name.lower()} distribution",
-            xaxis=dict(title=column_name),
-            yaxis=dict(title="count"),
-            yaxis2=dict(
-                title=f"p-value={p_value}",
-                overlaying="y",
-                side="right",
-                showgrid=False,
-                showline=False,
-                zeroline=False,
-                showticklabels=False,
-                ticks="",
+            title=dict(
+                text=f"Performance of Tested DOCK Parameterizations",
+                x=0.5,  # Set the x position to 0.5 (relative coordinates)
+                xanchor="center",  # Set the x anchor to the center
             ),
-            showlegend=False,
+            xaxis=dict(
+                title=column_name,
+                range=[min_x, max_x],  # Manually set the x-axis range to include the vertical line
+            ),
+            yaxis=dict(
+                title="count",
+                range=[0, y_axis_max],  # Set the y-axis range based on the calculated maximum
+            ),
+            showlegend=True,  # Set showlegend to True to display the legend
         )
 
         fig = go.Figure(data=[histogram, vertical_line], layout=layout)
@@ -451,4 +478,3 @@ class HTMLReporter(Reporter):
         """
     
         return html
-    
