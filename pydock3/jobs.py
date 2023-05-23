@@ -32,12 +32,13 @@ class JobSubmissionResult(Enum):
     SKIPPED_BECAUSE_STILL_ON_JOB_SCHEDULER_QUEUE = 4
 
 
+"""  # TODO
 @dataclass
 class DockingJob(ABC):
     @abstractmethod
     def submit(self):
         raise NotImplementedError
-
+"""
 
 @dataclass
 class ArrayDockingJob(ABC):

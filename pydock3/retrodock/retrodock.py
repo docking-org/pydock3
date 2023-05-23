@@ -169,195 +169,205 @@ class Retrodock(Script):
                 f"The following required files were not found in current working directory. Be sure to add them manually to the job directory before running the job.\n\t{files_missing_str}"
             )
 
-    def run(
-        self,
-        scheduler,
-        job_dir_path=".",
-        dock_files_dir_path=None,
-        indock_file_path=None,
-        custom_dock_executable=None,
-        actives_tgz_file_path=None,
-        decoys_tgz_file_path=None,
-        retrodock_job_max_reattempts=0,
-        retrodock_job_timeout_minutes=None,
-        export_decoys_mol2=False,  # TODO
-        #max_scheduler_jobs_running_at_a_time=None,  # TODO
-    ) -> None:
-        # validate args
-        if dock_files_dir_path is None:
-            dock_files_dir_path = os.path.join(job_dir_path, self.DOCK_FILES_DIR_NAME)
-        if indock_file_path is None:
-            indock_file_path = os.path.join(
-                dock_files_dir_path, self.INDOCK_FILE_NAME
-            )  # TODO: come up with good placement of INDOCK file relative to dockfiles
-        if actives_tgz_file_path is None:
-            actives_tgz_file_path = os.path.join(
-                job_dir_path, self.ACTIVES_TGZ_FILE_NAME
-            )
-        if decoys_tgz_file_path is None:
-            decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
-        try:
-            File.validate_file_exists(actives_tgz_file_path)
-            File.validate_file_exists(decoys_tgz_file_path)
-        except FileNotFoundError:
-            logger.error(
-                "Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?\nNote: if you do not have actives and decoys, please use blastermaster instead of dockopt."
-            )
-            return
-        if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
-            logger.error(
-                f"scheduler flag must be one of: {list(SCHEDULER_NAME_TO_CLASS_DICT.keys())}"
-            )
-            return
+def run(
+    self,
+    scheduler,
+    job_dir_path=".",
+    dock_files_dir_path=None,
+    indock_file_path=None,
+    custom_dock_executable=None,
+    actives_tgz_file_path=None,
+    decoys_tgz_file_path=None,
+    retrodock_job_max_reattempts=0,
+    retrodock_job_timeout_minutes=None,
+    extra_submission_cmd_params_str=None,
+    sleep_seconds_after_copying_output=0,
+    export_decoys_mol2=False,
+) -> None:
+    # validate args
+    if dock_files_dir_path is None:
+        dock_files_dir_path = os.path.join(job_dir_path, self.DOCK_FILES_DIR_NAME)
+    if indock_file_path is None:
+        indock_file_path = os.path.join(
+            dock_files_dir_path, self.INDOCK_FILE_NAME
+        )
+    if actives_tgz_file_path is None:
+        actives_tgz_file_path = os.path.join(
+            job_dir_path, self.ACTIVES_TGZ_FILE_NAME
+        )
+    if decoys_tgz_file_path is None:
+        decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
+    if custom_dock_executable is None:
+        dock_executable_path = self.DEFAULT_DOCK_EXECUTABLE_PATH
+    else:
+        dock_executable_path = custom_dock_executable
 
-        #
-        try:
-            scheduler = SCHEDULER_NAME_TO_CLASS_DICT[scheduler]()
-        except KeyError:
-            logger.error(
-                f"The following environmental variables are required to use the {scheduler} job scheduler: {SCHEDULER_NAME_TO_CLASS_DICT[scheduler].REQUIRED_ENV_VAR_NAMES}"
-            )
-            return
+    try:
+        File.validate_file_exists(actives_tgz_file_path)
+        File.validate_file_exists(decoys_tgz_file_path)
+    except FileNotFoundError:
+        logger.error(
+            "Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?\nNote: if you do not have actives and decoys, please use blastermaster instead of dockopt."
+        )
+        return
+    if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
+        logger.error(
+            f"scheduler flag must be one of: {list(SCHEDULER_NAME_TO_CLASS_DICT.keys())}"
+        )
+        return
 
-        #
-        try:
-            TMPDIR = os.environ["TMPDIR"]
-        except KeyError:
-            logger.error(
-                "The following environmental variables are required to submit retrodock jobs: TMPDIR"
-            )
-            return
+    try:
+        scheduler = SCHEDULER_NAME_TO_CLASS_DICT[scheduler]()
+    except KeyError:
+        logger.error(
+            f"The following environmental variables are required to use the {scheduler} job scheduler: {SCHEDULER_NAME_TO_CLASS_DICT[scheduler].REQUIRED_ENV_VAR_NAMES}"
+        )
+        return
 
-        #
-        job_dir = Dir(job_dir_path, create=True, reset=False)
+    try:
+        TMPDIR = os.environ["TMPDIR"]
+    except KeyError:
+        logger.error(
+            "The following environmental variables are required to submit retrodock jobs: TMPDIR"
+        )
+        return
 
-        #
-        if actives_tgz_file_path is not None:
-            actives_tgz_file = File(path=actives_tgz_file_path)
+    job_dir = Dir(job_dir_path, create=True, reset=False)
+
+    if actives_tgz_file_path is not None:
+        actives_tgz_file = File(path=actives_tgz_file_path)
+    else:
+        actives_tgz_file = None
+    if decoys_tgz_file_path is not None:
+        decoys_tgz_file = File(path=decoys_tgz_file_path)
+    else:
+        decoys_tgz_file = None
+
+    dock_files_dir = Dir(dock_files_dir_path)
+    dock_files = BlasterFiles(dock_files_dir).dock_files
+    indock_file = IndockFile(indock_file_path)
+
+    array_job_docking_configurations_file_path = os.path.join(job_dir.path, "array_job_docking_configurations.txt")
+    with open(array_job_docking_configurations_file_path, 'w') as f:
+        retrodock_job_num = 1
+        dockfile_paths_str = " ".join([dock_file.path for dock_file in astuple(dock_files)])
+        f.write(f"{retrodock_job_num} {indock_file.path} {dockfile_paths_str} {dock_executable_path}\n")
+
+    #
+    actives_dir = Dir(os.path.join(job_dir.path, "actives"), create=True, reset=False)
+    actives_retrodock_job = ArrayDockingJob(
+        name=f"retrodock_job_{uuid4()}_actives",
+        job_dir=actives_dir,
+        input_molecules_tgz_file_path=actives_tgz_file_path,
+        job_scheduler=scheduler,
+        temp_storage_path=TMPDIR,
+        array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
+        job_timeout_minutes=retrodock_job_timeout_minutes,
+        extra_submission_cmd_params_str=extra_submission_cmd_params_str,
+        sleep_seconds_after_copying_output=sleep_seconds_after_copying_output,
+        export_mol2=True,
+    )
+
+    #
+    decoys_dir = Dir(os.path.join(job_dir.path, "decoys"), create=True, reset=False)
+    decoys_retrodock_job = ArrayDockingJob(
+        name=f"retrodock_job_{uuid4()}_decoys",
+        job_dir=decoys_dir,
+        input_molecules_tgz_file_path=decoys_tgz_file_path,
+        job_scheduler=scheduler,
+        temp_storage_path=TMPDIR,
+        array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
+        job_timeout_minutes=retrodock_job_timeout_minutes,
+        extra_submission_cmd_params_str=extra_submission_cmd_params_str,
+        sleep_seconds_after_copying_output=sleep_seconds_after_copying_output,
+        export_mol2=export_decoys_mol2,
+    )
+
+    retrodock_jobs = [actives_retrodock_job, decoys_retrodock_job]
+    for job in retrodock_jobs:
+        sub_result, procs = job.submit_all_tasks(skip_if_complete=True)
+        log_job_submission_result(job, sub_result, procs)
+
+    reattempts = 0
+    while not all([job.is_complete for job in retrodock_jobs]) and reattempts <= retrodock_job_max_reattempts:
+        if any([job.is_on_job_scheduler_queue for job in retrodock_jobs]):
+            time.sleep(5)
+            continue
         else:
-            actives_tgz_file = None
-        if actives_tgz_file_path is not None:
-            decoys_tgz_file = File(path=decoys_tgz_file_path)
-        else:
-            decoys_tgz_file = None
+            for job in retrodock_jobs:
+                if not job.is_complete and not job.is_on_job_scheduler_queue:
+                    sub_result, procs = job.submit_all_tasks(skip_if_complete=True)
+                    log_job_submission_result(job, sub_result, procs)
+            reattempts += 1
+    if reattempts > retrodock_job_max_reattempts:
+        raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts}) exceeded. Some jobs did not complete.")
 
-        # write actives tgz and decoys tgz file paths to actives_and_decoys.sdi
-        logger.info("Writing actives_and_decoys.sdi file")
-        retrodock_input_sdi_file = File(
-            path=os.path.join(job_dir.path, "actives_and_decoys.sdi")
-        )
-        with open(retrodock_input_sdi_file.path, "w") as f:
-            f.write(f"{actives_tgz_file.path}\n")
-            f.write(f"{decoys_tgz_file.path}\n")
+    df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+        os.path.join(actives_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
+        os.path.join(decoys_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
+    )
 
-        #
-        dock_files_dir = Dir(dock_files_dir_path)
-        dock_files = BlasterFiles(dock_files_dir).dock_files
-        indock_file = IndockFile(indock_file_path)
+    logger.info(
+        f"Retrodock job completed. Successfully loaded both OUTDOCK files."
+    )
 
-        #
-        array_job_docking_configurations_file_path = os.path.join(job_dir.path, "array_job_docking_configurations.txt")
-        with open(array_job_docking_configurations_file_path, 'w') as f:
-            retrodock_job_num = 1
-            dockfile_paths_str = " ".join([dock_file.path for dock_file in astuple(dock_files)])
-            f.write(f"{retrodock_job_num} {indock_file.path} {dockfile_paths_str} {dock_executable_path}\n")
+    df = df.sort_values(
+        by=["total_energy", "is_active"], na_position="last", ignore_index=True
+    )
+    df = df.drop_duplicates(
+        subset=["db2_file_path"], keep="first", ignore_index=True
+    )
 
-        #
-        retrodock_job = ArrayDockingJob(
-            name=f"retrodock_job_{uuid4()}",  # TODO: replace this with a hash based on docking configuration
-            job_dir=job_dir,
-            input_sdi_file=retrodock_input_sdi_file,
-            job_scheduler=scheduler,
-            dock_executable_path=dock_executable_path,
-            array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
-            temp_storage_path=TMPDIR,
-            max_reattempts=retrodock_job_max_reattempts,
-        )
-        sub_result, procs = retrodock_job.submit(
-            job_timeout_minutes=retrodock_job_timeout_minutes,
-            skip_if_complete=True,
-        )
-        log_job_submission_result(retrodock_job, sub_result, procs)
+    booleans = df["is_active"].astype(bool)
+    roc = ROC(booleans)
+    with open("normalized_log_auc", "w") as f:
+        f.write(f"{roc.normalized_log_auc}")
 
-        #
-        while not retrodock_job.is_complete:
-            #
-            if retrodock_job.is_on_job_scheduler_queue:
-                time.sleep(1)
-                continue
+    roc_plot_image_path = os.path.join(job_dir.path, ROC_PLOT_FILE_NAME)
+    roc.plot(save_path=roc_plot_image_path)
 
-        # get dataframe of actives job results and decoys job results combined
-        df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-            retrodock_job.actives_outdock_file.path, retrodock_job.decoys_outdock_file.path
-        )
+    pivot_rows = []
+    for i, row in df.iterrows():
+        for col in [
+            "total_energy",
+            "electrostatic_energy",
+            "vdw_energy",
+            "polar_desolvation_energy",
+            "apolar_desolvation_energy",
+        ]:
+            pivot_row = {"energy_term": col}
+            if row["is_active"] == 1:
+                pivot_row["active"] = str_to_float(row[col])
+                pivot_row["decoy"] = np.nan
+            else:
+                pivot_row["active"] = np.nan
+                pivot_row["decoy"] = str_to_float(row[col])
+            pivot_rows.append(pivot_row)
+    df_best_job_pivot = pd.DataFrame(pivot_rows)
+    fig, ax = joyplot(
+        data=df_best_job_pivot,
+        by="energy_term",
+        column=["active", "decoy"],
+        color=["#686de0", "#eb4d4b"],
+        legend=True,
+        alpha=0.85,
+        figsize=(12, 8),
+        ylim="own",
+    )
+    plt.title("ridgeline plot: energy terms (actives vs. decoys)")
+    plt.tight_layout()
+    plt.savefig(os.path.join(job_dir.path, ENERGY_PLOT_FILE_NAME))
+    plt.close(fig)
 
-        #
-        logger.info(
-            f"Docking job '{retrodock_job.name}' completed. Successfully loaded OUTDOCK file(s)."
-        )
-
-        # sort dataframe by total energy score
-        df = df.sort_values(
-            by=["total_energy", "is_active"], na_position="last", ignore_index=True
-        )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
-        df = df.drop_duplicates(
-            subset=["db2_file_path"], keep="first", ignore_index=True
-        )  # keep only the best score per molecule
-
-        # get ROC and calculate normalized LogAUC of this job's docking set-up
-        booleans = df["is_active"].astype(bool)
-        roc = ROC(booleans)
-        with open("normalized_log_auc", "w") as f:
-            f.write(f"{roc.normalized_log_auc}")
-
-        # write ROC plot image
-        roc_plot_image_path = os.path.join(job_dir.path, ROC_PLOT_FILE_NAME)
-        roc.plot(save_path=roc_plot_image_path)
-
-        # ridge plot for energy terms
-        pivot_rows = []
-        for i, row in df.iterrows():
-            for col in [
-                "total_energy",
-                "electrostatic_energy",
-                "vdw_energy",
-                "polar_desolvation_energy",
-                "apolar_desolvation_energy",
-            ]:
-                pivot_row = {"energy_term": col}
-                if row["is_active"] == 1:
-                    pivot_row["active"] = str_to_float(row[col])
-                    pivot_row["decoy"] = np.nan
-                else:
-                    pivot_row["active"] = np.nan
-                    pivot_row["decoy"] = str_to_float(row[col])
-                pivot_rows.append(pivot_row)
-        df_best_job_pivot = pd.DataFrame(pivot_rows)
-        fig, ax = joyplot(
-            data=df_best_job_pivot,
-            by="energy_term",
-            column=["active", "decoy"],
-            color=["#686de0", "#eb4d4b"],
-            legend=True,
-            alpha=0.85,
-            figsize=(12, 8),
-            ylim="own",
-        )
-        plt.title("ridgeline plot: energy terms (actives vs. decoys)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(job_dir.path, ENERGY_PLOT_FILE_NAME))
-        plt.close(fig)
-
-        # split violin plot of charges
-        fig = plt.figure()
-        sns.violinplot(
-            data=df,
-            x="charge",
-            y="total_energy",
-            split=True,
-            hue="activity_class",
-        )
-        plt.title("split violin plot: charge (actives vs. decoys)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME))
-        plt.close(fig)
+    fig = plt.figure()
+    sns.violinplot(
+        data=df,
+        x="charge",
+        y="total_energy",
+        split=True,
+        hue="activity_class",
+    )
+    plt.title("split violin plot: charge (actives vs. decoys)")
+    plt.tight_layout()
+    plt.savefig(os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME))
+    plt.close(fig)

@@ -839,9 +839,10 @@ class DockoptStep(PipelineComponent):
             ('decoys', component_run_func_arg_set.export_decoys_mol2, self.retrospective_dataset.decoys_tgz_file_path),
         ]:
             job_name = f"dockopt_step_{step_id}_{sub_dir_name}"
+            sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)
             array_job = ArrayDockingJob(
                 name=job_name,
-                job_dir=Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name)),
+                job_dir=sub_dir,
                 input_molecules_tgz_file_path=input_molecules_tgz_file_path,
                 job_scheduler=component_run_func_arg_set.scheduler,
                 temp_storage_path=component_run_func_arg_set.temp_storage_path,

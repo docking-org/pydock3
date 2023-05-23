@@ -16,7 +16,7 @@ logger.setLevel(logging.DEBUG)
 
 SCRIPT_CLASSES = [  # script classes are those that inherit from the Script class defined in this module
     Blastermaster,
-    # Retrodock,
+    Retrodock,
     Dockopt,
     # TopPoses,
 ]
