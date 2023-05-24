@@ -472,7 +472,9 @@ class Blastermaster(Script):
             create=True,
             reset=False,
             files_to_copy_in=blaster_file_names_in_cwd,
+            new_file_names=blaster_file_names_in_cwd,
             backup_files_to_copy_in=backup_blaster_file_paths,
+            new_backup_file_names=blaster_file_names,
         )
 
         # create dock files dir
@@ -492,8 +494,8 @@ class Blastermaster(Script):
         self,
         job_dir_path=".",
         config_file_path=None,
-        use_graph_state=True,
-        write_graph_image=False,
+        #use_graph_state=True,  # TODO
+        #write_graph_image=False,  # TODO
     ):
         # validate args
         if config_file_path is None:
@@ -506,9 +508,9 @@ class Blastermaster(Script):
 
         # load directories
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
-        working_dir = WorkingDir(
+        working_dir = WorkingDir(  # TODO: is it problematic that this used in both `new` and `run`?
             path=os.path.join(job_dir.path, self.WORKING_DIR_NAME),
-            create=True,
+            create=False,
             reset=False,
         )
         dock_files_dir = Dir(
