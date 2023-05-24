@@ -543,7 +543,7 @@ class Blastermaster(Script):
         logger.info(f"Parameters:\n{config_params_str}")
 
         # get blaster steps
-        dock_files_generation_flat_param_dict = {key.lstrip('dock_files_generation.'): value for key, value in flat_param_dict.items() if key.startswith('dock_files_generation.')}
+        dock_files_generation_flat_param_dict = {key.replace('dock_files_generation.', ''): value for key, value in flat_param_dict.items() if key.startswith('dock_files_generation.')}
         steps = get_blaster_steps(blaster_files, dock_files_generation_flat_param_dict, working_dir)
 
         # reset step dirs
@@ -565,7 +565,7 @@ class Blastermaster(Script):
 
         # write INDOCK file
         logger.info("Making indock file")
-        indock_file_generation_flat_param_dict = {key.lstrip('indock_file_generation.'): value for key, value in flat_param_dict.items() if key.startswith('indock_file_generation.')}
+        indock_file_generation_flat_param_dict = {key.replace('indock_file_generation.', ''): value for key, value in flat_param_dict.items() if key.startswith('indock_file_generation.')}
         indock_file.write(
             blaster_files.dock_files, indock_file_generation_flat_param_dict, dock_files_dir.name
         )
