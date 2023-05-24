@@ -11,7 +11,7 @@ from scipy.interpolate import griddata
 import plotly.graph_objs as go
 
 from pydock3.util import sort_list_by_another_list
-from pydock3.criterion.enrichment.bonferroni import get_bonferroni_correction
+from pydock3.criterion.enrichment.bonferroni import get_bonferroni_correction, get_random_classifier_performance_data
 from pydock3.files import File
 from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
 
@@ -173,14 +173,27 @@ class HTMLReporter(Reporter):
             column_name: str,
             pipeline_component: PipelineComponent,
     ) -> go.Figure:
+
+        #
         histogram = go.Histogram(
             x=df[column_name],
             name=f"DOCK parameterizations ({pipeline_component.num_total_docking_configurations_thus_far} total)",
-            marker=dict(color="rgba(0, 0, 100, 0.8)"),
+            marker=dict(color="rgba(0, 0, 128, 0.8)"),
         )
 
+        #
+        df_random = get_random_classifier_performance_data(n_actives=pipeline_component.retrospective_dataset.num_actives)
+        histogram_null = go.Histogram(
+            x=df_random['normalized_log_auc'],
+            y=df_random['prop'] * pipeline_component.num_total_docking_configurations_thus_far,  # scale to the number of docking configurations
+            name="Null Hypothesis",
+            marker=dict(color="rgba(128, 128, 128, 0.6)"),  # gray, somewhat transparent
+            opacity=0.6,
+        )
+
+        #
         p_value = 0.01
-        min_significant_criterion, num_actives_for_calculation = get_bonferroni_correction(
+        min_significant_criterion = get_bonferroni_correction(
             n_actives=pipeline_component.retrospective_dataset.num_actives,
             n_configurations=pipeline_component.num_total_docking_configurations_thus_far,
             signif_level=p_value,
@@ -190,23 +203,12 @@ class HTMLReporter(Reporter):
         hist_data, bin_edges = np.histogram(df[column_name])
         max_count = np.max(hist_data)
 
-        # Find the index of the bin with the maximum count
-        max_bin_idx = np.argmax(hist_data)
-
         # Calculate the height of the bin containing the vertical line
         vline_bin_idx = np.searchsorted(bin_edges, min_significant_criterion) - 1
         vline_bin_height = hist_data[vline_bin_idx]
 
         # Set the y-axis range to the maximum height of either the highest bin or the bin containing the vertical line
         y_axis_max = max(max_count, vline_bin_height) * 1.1
-
-        """
-        #
-        if pipeline_component.retrospective_dataset.num_actives > num_actives_for_calculation:
-            num_actives_str = f"num_actives > {num_actives_for_calculation}"
-        else:
-            num_actives_str = f"num_actives = {num_actives_for_calculation}"
-        """
 
         #
         vertical_line = go.Scatter(
@@ -238,7 +240,7 @@ class HTMLReporter(Reporter):
             showlegend=True,  # Set showlegend to True to display the legend
         )
 
-        fig = go.Figure(data=[histogram, vertical_line], layout=layout)
+        fig = go.Figure(data=[histogram, histogram_null, vertical_line], layout=layout)
 
         return fig
 
