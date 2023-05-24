@@ -44,6 +44,7 @@ from pydock3.blastermaster.steps.ligand_desolvation import (
 )
 from pydock3.blastermaster.config import BlastermasterParametersConfiguration
 from pydock3.util import Script, get_dataclass_as_dict
+from pydock3.config import flatten_and_parameter_cast_param_dict
 from pydock3.files import (
     Dir,
     File,
@@ -533,7 +534,9 @@ class Blastermaster(Script):
         config_params_str = "\n".join(
             [
                 f"{param_name}: {param.value}"
-                for param_name, param in config.param_dict.items()
+                for param_name, param in flatten_and_parameter_cast_param_dict(
+                    config.param_dict
+                ).items()
             ]
         )
         logger.info(f"Parameters:\n{config_params_str}")
