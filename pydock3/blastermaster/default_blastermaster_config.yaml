@@ -1,28 +1,29 @@
-receptor_protonation:
-  reduce_options: "-HIS -FLIPs"
+dock_files_generation:
+  receptor_protonation:
+    reduce_options: "-HIS -FLIPs"
 
-thin_spheres_elec:
-  use: true
-  molecular_surface_density: 1.0
-  distance_to_surface: 1.0
-  penetration: 0.0
-  distance_to_ligand: 2.0
+  thin_spheres_elec:
+    use: true
+    molecular_surface_density: 1.0
+    distance_to_surface: 1.0
+    penetration: 0.0
+    distance_to_ligand: 2.0
 
-thin_spheres_desolv:
-  use: true
-  molecular_surface_density: 1.0
-  distance_to_surface: 0.1
-  penetration: 0.0
-  distance_to_ligand: 2.0
+  thin_spheres_desolv:
+    use: true
+    molecular_surface_density: 1.0
+    distance_to_surface: 0.1
+    penetration: 0.0
+    distance_to_ligand: 2.0
 
-ligand_desolvation:
-  other_radius: 1.0
+  ligand_desolvation:
+    other_radius: 1.0
 
-covalent:
-  use: false
-  residue_num: 1
-  residue_name: CYS
-  residue_atoms: CA,CB,SG
+  covalent:
+    use: false
+    residue_num: 1
+    residue_name: CYS
+    residue_atoms: CA,CB,SG
 
 indock_file_generation:
   ligand_atom_file: split_database_index

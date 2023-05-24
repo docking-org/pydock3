@@ -1,28 +1,29 @@
-receptor_protonation:
-  reduce_options: str()
+dock_files_generation:
+  receptor_protonation:
+    reduce_options: str()
 
-thin_spheres_elec:
-  use: bool()
-  molecular_surface_density: num()
-  distance_to_surface: num()
-  penetration: num()
-  distance_to_ligand: num()
+  thin_spheres_elec:
+    use: bool()
+    molecular_surface_density: num()
+    distance_to_surface: num()
+    penetration: num()
+    distance_to_ligand: num()
 
-thin_spheres_desolv:
-  use: bool()
-  molecular_surface_density: num()
-  distance_to_surface: num()
-  penetration: num()
-  distance_to_ligand: num()
+  thin_spheres_desolv:
+    use: bool()
+    molecular_surface_density: num()
+    distance_to_surface: num()
+    penetration: num()
+    distance_to_ligand: num()
 
-ligand_desolvation:
-  other_radius: num()
+  ligand_desolvation:
+    other_radius: num()
 
-covalent:
-  use: bool()
-  residue_num: int()
-  residue_name: str()
-  residue_atoms: str()
+  covalent:
+    use: bool()
+    residue_num: int()
+    residue_name: str()
+    residue_atoms: str()
 
 indock_file_generation:
   ligand_atom_file: str()
