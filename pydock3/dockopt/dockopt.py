@@ -46,7 +46,7 @@ from pydock3.blastermaster.util import (
 from pydock3.jobs import ArrayDockingJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results import DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
 from pydock3.criterion.enrichment.logauc import NormalizedLogAUC
@@ -73,56 +73,57 @@ CRITERION_CLASS_DICT = {"normalized_log_auc": NormalizedLogAUC}
 MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
 
 
-def validate_tarball_and_count_files(tarball_path: str, extensions_to_include: List[str]):
+def extract_tarball_and_count_files(tarball_path: str, valid_extensions: List[str], extract_dir_path: str):
+    if not os.path.isfile(tarball_path):
+        raise Exception(f"Tarball `{tarball_path}` does not exist.")
+
+    if not os.path.isdir(extract_dir_path):
+        raise Exception(f"Directory `{extract_dir_path}` does not exist.")
+
     file_count = 0
-    root_directory = None
-
     with tarfile.open(tarball_path, 'r:gz') as tar:
-        # Find the root directory
         for member in tar.getmembers():
-            if member.isdir():
-                if root_directory is None:
-                    root_directory = member.name
-                else:
-                    raise Exception(f"Tarball `{tarball_path}` contains more than one directory: `{root_directory}` and `{member.name}`")
+            if member.isfile() and any([member.name.lower().endswith(f".{ext}") for ext in valid_extensions]):
+                file_count += 1
+            elif member.isfile():
+                raise Exception(f"File `{member.name}` in tarball `{tarball_path}` has an unsupported extension. Extension must be one of: `{valid_extensions}`")
 
-        if root_directory is None:
-            raise Exception(f"No root directory found in the tarball `{tarball_path}`. All files should be placed in single directory.")
-
-        # Iterate through the tarball members again to count files with the specified extensions
-        for member in tar.getmembers():
-            # Check if the member is a file and has the right extension
-            if member.isfile():
-                if any([member.name.endswith(f".{ext.lower()}") for ext in extensions_to_include]):
-                    # Check if the file is inside the root_directory
-                    file_parent_directory = os.path.dirname(member.name)
-                    if file_parent_directory == root_directory:
-                        file_count += 1
-                    else:
-                        raise Exception(f"File `{member.name}` is not inside the root directory `{root_directory}` of tarball `{tarball_path}`")
-                else:
-                    raise Exception(f"Tarball `{tarball_path}` contains a file with an unsupported extension: `{member.name}`. Extension must be one of: `{extensions_to_include}`")
+        tar.extractall(path=extract_dir_path)
 
     return file_count
 
 
 class RetrospectiveDataset(object):
-    EXTENSIONS_TO_INCLUDE = ['db2', 'db2.gz']
+    VALID_EXTENSIONS = ['db2', 'db2.gz']
 
-    def __init__(self, actives_tgz_file_path: str, decoys_tgz_file_path: str):
+    def __init__(self, positives_tgz_file_path: str, negatives_tgz_file_path: str, positives_dir_path: str, negatives_dir_path: str):
         #
-        self.actives_tgz_file_path = actives_tgz_file_path
-        self.decoys_tgz_file_path = decoys_tgz_file_path
+        if not os.path.isfile(positives_tgz_file_path):
+            raise Exception(f"Tarball `{positives_tgz_file_path}` does not exist.")
+        if not os.path.isfile(negatives_tgz_file_path):
+            raise Exception(f"Tarball `{negatives_tgz_file_path}` does not exist.")
+        if not os.path.isdir(positives_dir_path):
+            raise Exception(f"Directory `{positives_dir_path}` does not exist.")
+        if not os.path.isdir(negatives_dir_path):
+            raise Exception(f"Directory `{negatives_dir_path}` does not exist.")
 
         #
-        self.num_actives = validate_tarball_and_count_files(self.actives_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
-        self.num_decoys = validate_tarball_and_count_files(self.decoys_tgz_file_path, self.EXTENSIONS_TO_INCLUDE)
+        self.positives_tgz_file_path = positives_tgz_file_path
+        self.negatives_tgz_file_path = negatives_tgz_file_path
 
         #
-        if self.num_actives == 0:
-            raise Exception(f"No actives found in tarball `{self.actives_tgz_file_path}`. Expected files with extensions: `{self.EXTENSIONS_TO_INCLUDE}`")
-        if self.num_decoys == 0:
-            raise Exception(f"No decoys found in tarball `{self.decoys_tgz_file_path}`. Expected files with extensions: `{self.EXTENSIONS_TO_INCLUDE}`")
+        self.positives_dir_path = positives_dir_path
+        self.negatives_dir_path = negatives_dir_path
+
+        #
+        self.num_positives = extract_tarball_and_count_files(self.positives_tgz_file_path, self.VALID_EXTENSIONS, self.positives_dir_path)
+        self.num_negatives = extract_tarball_and_count_files(self.negatives_tgz_file_path, self.VALID_EXTENSIONS, self.negatives_dir_path)
+
+        #
+        if self.num_positives == 0:
+            raise Exception(f"No positives found in tarball `{self.positives_tgz_file_path}`. Expected files with extensions: `{self.VALID_EXTENSIONS}`")
+        if self.num_negatives == 0:
+            raise Exception(f"No negatives found in tarball `{self.negatives_tgz_file_path}`. Expected files with extensions: `{self.VALID_EXTENSIONS}`")
 
 @dataclass
 class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
@@ -132,15 +133,15 @@ class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     retrodock_job_timeout_minutes: Union[None, int] = None
     extra_submission_cmd_params_str: Union[None, str] = None
     sleep_seconds_after_copying_output: int = 0
-    export_decoys_mol2: bool = False
+    export_negatives_mol2: bool = False
     max_scheduler_jobs_running_at_a_time: Union[None, int] = None
 
 
 class Dockopt(Script):
     JOB_DIR_NAME = "dockopt_job"
     CONFIG_FILE_NAME = "dockopt_config.yaml"
-    ACTIVES_TGZ_FILE_NAME = "actives.tgz"
-    DECOYS_TGZ_FILE_NAME = "decoys.tgz"
+    POSITIVES_TGZ_FILE_NAME = "positives.tgz"
+    NEGATIVES_TGZ_FILE_NAME = "negatives.tgz"
     DEFAULT_CONFIG_FILE_PATH = os.path.join(
         os.path.dirname(DOCKOPT_INIT_FILE_PATH), "default_dockopt_config.yaml"
     )
@@ -187,8 +188,8 @@ class Dockopt(Script):
                 f"No blaster files detected in current working directory. Be sure to add them manually before running the job."
             )
 
-        # copy in actives and decoys TGZ files
-        tgz_files = [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]
+        # copy in positives and negatives TGZ files
+        tgz_files = [self.POSITIVES_TGZ_FILE_NAME, self.NEGATIVES_TGZ_FILE_NAME]
         tgz_file_names_in_cwd = [f for f in tgz_files if os.path.isfile(f)]
         tgz_file_names_not_in_cwd = [f for f in tgz_files if not os.path.isfile(f)]
         if tgz_file_names_in_cwd:
@@ -216,13 +217,13 @@ class Dockopt(Script):
         scheduler: str,
         job_dir_path: str = ".",
         config_file_path: Union[None, str] = None,
-        actives_tgz_file_path: Union[None, str] = None,
-        decoys_tgz_file_path: Union[None, str] = None,
+        positives_tgz_file_path: Union[None, str] = None,
+        negatives_tgz_file_path: Union[None, str] = None,
         retrodock_job_max_reattempts: int = 0,
         retrodock_job_timeout_minutes: Union[None, str] = None,
         extra_submission_cmd_params_str: Union[None, str] = None,
         sleep_seconds_after_copying_output: int = 0,
-        export_decoys_mol2: bool = False,
+        export_negatives_mol2: bool = False,
         #max_scheduler_jobs_running_at_a_time: Union[None, str] = None,  # TODO
         components_to_run: str = "^.*$",  # default: match any string
         components_to_skip_if_results_exist: str = "^(.*\.)?\d+_step$",  # default: match only DockoptStep IDs
@@ -235,21 +236,21 @@ class Dockopt(Script):
         # validate args
         if config_file_path is None:
             config_file_path = os.path.join(job_dir_path, self.CONFIG_FILE_NAME)
-        if actives_tgz_file_path is None:
-            actives_tgz_file_path = os.path.join(job_dir_path, self.ACTIVES_TGZ_FILE_NAME)
-        if decoys_tgz_file_path is None:
-            decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
+        if positives_tgz_file_path is None:
+            positives_tgz_file_path = os.path.join(job_dir_path, self.POSITIVES_TGZ_FILE_NAME)
+        if negatives_tgz_file_path is None:
+            negatives_tgz_file_path = os.path.join(job_dir_path, self.NEGATIVES_TGZ_FILE_NAME)
         try:
             File.validate_file_exists(config_file_path)
         except FileNotFoundError:
             logger.error("Config file not found. Are you in the job directory?")
             return
         try:
-            File.validate_file_exists(actives_tgz_file_path)
-            File.validate_file_exists(decoys_tgz_file_path)
+            File.validate_file_exists(positives_tgz_file_path)
+            File.validate_file_exists(negatives_tgz_file_path)
         except FileNotFoundError:
             logger.error(
-                "Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?\nNote: if you do not have actives and decoys, please use blastermaster instead of dockopt."
+                "Positives TGZ file and/or negatives TGZ file not found. Did you put them in the job directory?\nNote: if you do not have positives and negatives, please use blastermaster instead of dockopt."
             )
             return
         if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
@@ -277,7 +278,7 @@ class Dockopt(Script):
             return
 
         #
-        retrospective_dataset = RetrospectiveDataset(actives_tgz_file_path, decoys_tgz_file_path)
+        retrospective_dataset = RetrospectiveDataset(positives_tgz_file_path, negatives_tgz_file_path)
 
         #
         component_run_func_arg_set = DockoptPipelineComponentRunFuncArgSet(
@@ -286,7 +287,7 @@ class Dockopt(Script):
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
             #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
-            export_decoys_mol2=export_decoys_mol2,
+            export_negatives_mol2=export_negatives_mol2,
         )
 
         #
@@ -826,17 +827,17 @@ class DockoptStep(PipelineComponent):
                 f.write(f"{dc.configuration_num} {indock_file_path_str} {dockfile_paths_str} {dc.dock_executable_path}\n")
 
         #
-        def get_actives_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
-            return os.path.join(self.retrodock_jobs_dir.path, 'actives', str(configuration_num), 'OUTDOCK.0')
+        def get_positives_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
+            return os.path.join(self.retrodock_jobs_dir.path, 'positives', str(configuration_num), 'OUTDOCK.0')
 
-        def get_decoys_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
-            return os.path.join(self.retrodock_jobs_dir.path, 'decoys', str(configuration_num), 'OUTDOCK.0')
+        def get_negatives_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
+            return os.path.join(self.retrodock_jobs_dir.path, 'negatives', str(configuration_num), 'OUTDOCK.0')
 
-        # submit retrodock jobs (one for actives, one for decoys)
+        # submit retrodock jobs (one for positives, one for negatives)
         array_jobs = []
         for sub_dir_name, should_export_mol2, input_molecules_tgz_file_path in [
-            ('actives', True, self.retrospective_dataset.actives_tgz_file_path),
-            ('decoys', component_run_func_arg_set.export_decoys_mol2, self.retrospective_dataset.decoys_tgz_file_path),
+            ('positives', True, self.retrospective_dataset.positives_tgz_file_path),
+            ('negatives', component_run_func_arg_set.export_negatives_mol2, self.retrospective_dataset.negatives_tgz_file_path),
         ]:
             job_name = f"dockopt_step_{step_id}_{sub_dir_name}"
             sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)
@@ -907,10 +908,10 @@ class DockoptStep(PipelineComponent):
 
             # load outdock files and get dataframe
             try:
-                # get dataframe of actives job results and decoys job results combined
+                # get dataframe of positives job results and negatives job results combined
                 df = (
-                    get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-                        get_actives_outdock_file_path_for_configuration_num(docking_configuration.configuration_num), get_decoys_outdock_file_path_for_configuration_num(docking_configuration.configuration_num)
+                    get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
+                        get_positives_outdock_file_path_for_configuration_num(docking_configuration.configuration_num), get_negatives_outdock_file_path_for_configuration_num(docking_configuration.configuration_num)
                     )
                 )
             except Exception as e:  # if outdock files failed to be parsed then re-attempt task
@@ -940,8 +941,8 @@ class DockoptStep(PipelineComponent):
             # sort dataframe by total energy score
             df["total_energy"] = df["total_energy"].astype(float)
             df = df.sort_values(
-                by=["total_energy", "is_active"], na_position="last", ignore_index=True
-            )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
+                by=["total_energy", "is_positive"], na_position="last", ignore_index=True
+            )  # sorting secondarily by 'is_positive' (0 or 1) ensures that negatives are ranked before positives in case they have the same exact score (pessimistic approach)
             df = df.drop_duplicates(
                 subset=["db2_file_path"], keep="first", ignore_index=True  # TODO: replace `db2_file_path` with some kind of molecule ID
             )
@@ -951,16 +952,16 @@ class DockoptStep(PipelineComponent):
 
             # get ROC and calculate normalized LogAUC of this job's docking set-up
             if isinstance(self.criterion, NormalizedLogAUC):
-                booleans = df["is_active"]
+                booleans = df["is_positive"]
                 data_dict[self.criterion.name] = self.criterion.calculate(booleans)
 
                 #
-                num_actives_detected = len([1 for b in booleans if b])
-                if num_actives_detected != self.retrospective_dataset.num_actives:
-                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_actives} actives but only detected {num_actives_detected} actives while processing retrodock job for configuration # {docking_configuration.configuration_num}")
-                num_decoys_detected = len([0 for b in booleans if not b])
-                if num_decoys_detected != self.retrospective_dataset.num_decoys:
-                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_decoys} decoys but only detected {num_decoys_detected} decoys while processing retrodock job for configuration # {docking_configuration.configuration_num}")
+                num_positives_detected = len([1 for b in booleans if b])
+                if num_positives_detected != self.retrospective_dataset.num_positives:
+                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_positives} positives but only detected {num_positives_detected} positives while processing retrodock job for configuration # {docking_configuration.configuration_num}")
+                num_negatives_detected = len([0 for b in booleans if not b])
+                if num_negatives_detected != self.retrospective_dataset.num_negatives:
+                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_negatives} negatives but only detected {num_negatives_detected} negatives while processing retrodock job for configuration # {docking_configuration.configuration_num}")
 
             # save data_dict for this job
             data_dicts.append(data_dict)

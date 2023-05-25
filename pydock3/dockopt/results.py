@@ -17,7 +17,7 @@ from pydock3.dockopt.util import BEST_RETRODOCK_JOBS_DIR_NAME
 from pydock3.dockopt.docking_configuration import DockingConfiguration
 from pydock3.criterion.enrichment.roc import ROC
 from pydock3.dockopt.reporter import HTMLReporter
-from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files
+from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
 
@@ -121,28 +121,28 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             best_job_dockfiles_dir.copy_in_file(dc.get_indock_file(pipeline_component.pipeline_dir.path).path)
 
             #
-            src_retrodock_job_actives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "actives", str(dc.configuration_num))
-            src_retrodock_job_decoys_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "decoys", str(dc.configuration_num))
+            src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives", str(dc.configuration_num))
+            src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives", str(dc.configuration_num))
             shutil.copytree(
-                src_retrodock_job_actives_dir_path,
-                os.path.join(dst_best_job_dir_path, "actives"),
+                src_retrodock_job_positives_dir_path,
+                os.path.join(dst_best_job_dir_path, "positives"),
             )
             shutil.copytree(
-                src_retrodock_job_decoys_dir_path,
-                os.path.join(dst_best_job_dir_path, "decoys"),
+                src_retrodock_job_negatives_dir_path,
+                os.path.join(dst_best_job_dir_path, "negatives"),
             )
 
             #
             df_best_job = (
-                get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-                    actives_outdock_file_path=os.path.join(
+                get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
+                    positives_outdock_file_path=os.path.join(
                         dst_best_job_dir_path,
-                        "actives",
+                        "positives",
                         "OUTDOCK.0",
                     ),
-                    decoys_outdock_file_path=os.path.join(
+                    negatives_outdock_file_path=os.path.join(
                         dst_best_job_dir_path,
-                        "decoys",
+                        "negatives",
                         "OUTDOCK.0",
                     ),
                 )
@@ -150,9 +150,9 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
 
             # sort dataframe by total energy score
             df_best_job = df_best_job.sort_values(
-                by=["total_energy", "is_active"],
+                by=["total_energy", "is_positive"],
                 na_position="last", ignore_index=True
-            )  # sorting secondarily by 'is_active' (0 or 1) ensures that decoys are ranked before actives in case they have the same exact score (pessimistic approach)
+            )  # sorting secondarily by 'is_positive' (0 or 1) ensures that negatives are ranked before positives in case they have the same exact score (pessimistic approach)
             df_best_job = df_best_job.drop_duplicates(
                 subset=["db2_file_path"], keep="first",
                 ignore_index=True
@@ -160,7 +160,7 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
 
             # get ROC and calculate normalized LogAUC of this job's docking set-up
             # TODO: get this from Retrodock instead
-            booleans = df_best_job["is_active"].astype(bool)
+            booleans = df_best_job["is_positive"].astype(bool)
             roc = ROC(booleans)
 
             # write ROC plot image
@@ -179,25 +179,25 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
                     "apolar_desolvation_energy",
                 ]:
                     pivot_row = {"energy_term": col}
-                    if best_job_row["is_active"] == 1:
-                        pivot_row["active"] = str_to_float(best_job_row[col])
-                        pivot_row["decoy"] = np.nan
+                    if best_job_row["is_positive"] == 1:
+                        pivot_row["positive"] = str_to_float(best_job_row[col])
+                        pivot_row["negative"] = np.nan
                     else:
-                        pivot_row["active"] = np.nan
-                        pivot_row["decoy"] = str_to_float(best_job_row[col])
+                        pivot_row["positive"] = np.nan
+                        pivot_row["negative"] = str_to_float(best_job_row[col])
                     pivot_rows.append(pivot_row)
             df_best_job_pivot = pd.DataFrame(pivot_rows)
             fig, ax = joyplot(
                 data=df_best_job_pivot,
                 by="energy_term",
-                column=["active", "decoy"],
+                column=["positive", "negative"],
                 color=["#686de0", "#eb4d4b"],
                 legend=True,
                 alpha=0.85,
                 figsize=(12, 8),
                 ylim="own",
             )
-            plt.title("ridgeline plot: energy terms (actives vs. decoys)")
+            plt.title("ridgeline plot: energy terms (positives vs. negatives)")
             plt.tight_layout()
             plt.savefig(os.path.join(dst_best_job_dir_path, ENERGY_PLOT_FILE_NAME))
             plt.close(fig)
@@ -210,9 +210,9 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
                 x="charge",
                 y="total_energy",
                 split=True,
-                hue="activity_class",
+                hue="class_label",
             )
-            plt.title("split violin plot: charge (actives vs. decoys)")
+            plt.title("split violin plot: charge (positives vs. negatives)")
             plt.tight_layout()
             plt.savefig(os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME))
             plt.close(fig)

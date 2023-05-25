@@ -182,7 +182,7 @@ class HTMLReporter(Reporter):
         )
 
         #
-        df_random = get_random_classifier_performance_data(n_actives=pipeline_component.retrospective_dataset.num_actives)
+        df_random = get_random_classifier_performance_data(n_positives=pipeline_component.retrospective_dataset.num_positives)
         histogram_null = go.Histogram(
             x=df_random['normalized_log_auc'],
             y=df_random['prop'] * pipeline_component.num_total_docking_configurations_thus_far,  # scale to the number of docking configurations
@@ -194,7 +194,7 @@ class HTMLReporter(Reporter):
         #
         p_value = 0.01
         min_significant_criterion = get_bonferroni_correction(
-            n_actives=pipeline_component.retrospective_dataset.num_actives,
+            n_positives=pipeline_component.retrospective_dataset.num_positives,
             n_configurations=pipeline_component.num_total_docking_configurations_thus_far,
             signif_level=p_value,
         )

@@ -77,33 +77,33 @@ def str_to_float(s, alternative_if_uncastable=np.nan):
     return result
 
 
-def get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-    actives_outdock_file_path, decoys_outdock_file_path
+def get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
+    positives_outdock_file_path, negatives_outdock_file_path
 ):
     #
-    actives_outdock_file = OutdockFile(actives_outdock_file_path)
-    decoys_outdock_file = OutdockFile(decoys_outdock_file_path)
+    positives_outdock_file = OutdockFile(positives_outdock_file_path)
+    negatives_outdock_file = OutdockFile(negatives_outdock_file_path)
 
     #
-    actives_outdock_df = actives_outdock_file.get_dataframe()
-    decoys_outdock_df = decoys_outdock_file.get_dataframe()
+    positives_outdock_df = positives_outdock_file.get_dataframe()
+    negatives_outdock_df = negatives_outdock_file.get_dataframe()
 
-    # set is_active column based on outdock file
-    actives_outdock_df["is_active"] = [1 for _ in range(len(actives_outdock_df))]
-    decoys_outdock_df["is_active"] = [0 for _ in range(len(decoys_outdock_df))]
+    # set is_positive column based on outdock file
+    positives_outdock_df["is_positive"] = [1 for _ in range(len(positives_outdock_df))]
+    negatives_outdock_df["is_positive"] = [0 for _ in range(len(negatives_outdock_df))]
 
-    # set activity_class column based on outdock file
-    actives_outdock_df["activity_class"] = [
-        "active" for _ in range(len(actives_outdock_df))
+    # set class_label column based on outdock file
+    positives_outdock_df["class_label"] = [
+        "positive" for _ in range(len(positives_outdock_df))
     ]
-    decoys_outdock_df["activity_class"] = [
-        "decoy" for _ in range(len(decoys_outdock_df))
+    negatives_outdock_df["class_label"] = [
+        "negative" for _ in range(len(negatives_outdock_df))
     ]
 
     # build dataframe of docking results from outdock files
     df = pd.DataFrame()
-    df = pd.concat([df, actives_outdock_df], ignore_index=True)
-    df = pd.concat([df, decoys_outdock_df], ignore_index=True)
+    df = pd.concat([df, positives_outdock_df], ignore_index=True)
+    df = pd.concat([df, negatives_outdock_df], ignore_index=True)
 
     # replace relevant str columns with float equivalents & change column names
     for old_col, new_col in [
@@ -125,8 +125,8 @@ class Retrodock(Script):
     JOB_DIR_NAME = "retrodock_job"
     DOCK_FILES_DIR_NAME = "dockfiles"
     INDOCK_FILE_NAME = "INDOCK"
-    ACTIVES_TGZ_FILE_NAME = "actives.tgz"
-    DECOYS_TGZ_FILE_NAME = "decoys.tgz"
+    POSITIVES_TGZ_FILE_NAME = "positives.tgz"
+    NEGATIVES_TGZ_FILE_NAME = "negatives.tgz"
 
     def __init__(self):
         super().__init__()
@@ -157,8 +157,8 @@ class Retrodock(Script):
             for file_name in docking_configuration_file_names_required:
                 dock_files_dir.copy_in_file(file_name)
 
-        # copy in actives and decoys TGZ files
-        tgz_files = [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]
+        # copy in positives and negatives TGZ files
+        tgz_files = [self.POSITIVES_TGZ_FILE_NAME, self.NEGATIVES_TGZ_FILE_NAME]
         tgz_file_names_in_cwd = [f for f in tgz_files if os.path.isfile(f)]
         tgz_file_names_not_in_cwd = [f for f in tgz_files if not os.path.isfile(f)]
         if tgz_file_names_in_cwd:
@@ -181,13 +181,13 @@ class Retrodock(Script):
         dock_files_dir_path=None,
         indock_file_path=None,
         custom_dock_executable=None,
-        actives_tgz_file_path=None,
-        decoys_tgz_file_path=None,
+        positives_tgz_file_path=None,
+        negatives_tgz_file_path=None,
         retrodock_job_max_reattempts=0,
         retrodock_job_timeout_minutes=None,
         extra_submission_cmd_params_str=None,
         sleep_seconds_after_copying_output=0,
-        export_decoys_mol2=False,
+        export_negatives_mol2=False,
     ) -> None:
         # validate args
         if dock_files_dir_path is None:
@@ -196,23 +196,23 @@ class Retrodock(Script):
             indock_file_path = os.path.join(
                 dock_files_dir_path, self.INDOCK_FILE_NAME
             )
-        if actives_tgz_file_path is None:
-            actives_tgz_file_path = os.path.join(
-                job_dir_path, self.ACTIVES_TGZ_FILE_NAME
+        if positives_tgz_file_path is None:
+            positives_tgz_file_path = os.path.join(
+                job_dir_path, self.POSITIVES_TGZ_FILE_NAME
             )
-        if decoys_tgz_file_path is None:
-            decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
+        if negatives_tgz_file_path is None:
+            negatives_tgz_file_path = os.path.join(job_dir_path, self.NEGATIVES_TGZ_FILE_NAME)
         if custom_dock_executable is None:
             dock_executable_path = DOCK3_EXECUTABLE_PATH
         else:
             dock_executable_path = custom_dock_executable
 
         try:
-            File.validate_file_exists(actives_tgz_file_path)
-            File.validate_file_exists(decoys_tgz_file_path)
+            File.validate_file_exists(positives_tgz_file_path)
+            File.validate_file_exists(negatives_tgz_file_path)
         except FileNotFoundError:
             logger.error(
-                "Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?\nNote: if you do not have actives and decoys, please use blastermaster instead of dockopt."
+                "Positives TGZ file and/or negatives TGZ file not found. Did you put them in the job directory?\nNote: if you do not have positives and negatives, please use blastermaster instead of dockopt."
             )
             return
         if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
@@ -239,14 +239,14 @@ class Retrodock(Script):
 
         job_dir = Dir(job_dir_path, create=True, reset=False)
 
-        if actives_tgz_file_path is not None:
-            actives_tgz_file = File(path=actives_tgz_file_path)
+        if positives_tgz_file_path is not None:
+            positives_tgz_file = File(path=positives_tgz_file_path)
         else:
-            actives_tgz_file = None
-        if decoys_tgz_file_path is not None:
-            decoys_tgz_file = File(path=decoys_tgz_file_path)
+            positives_tgz_file = None
+        if negatives_tgz_file_path is not None:
+            negatives_tgz_file = File(path=negatives_tgz_file_path)
         else:
-            decoys_tgz_file = None
+            negatives_tgz_file = None
 
         dock_files_dir = Dir(dock_files_dir_path)
         dock_files = BlasterFiles(dock_files_dir).dock_files
@@ -262,11 +262,11 @@ class Retrodock(Script):
         output_dir = Dir(os.path.join(job_dir.path, "output"), create=True, reset=False)
 
         #
-        actives_dir = Dir(os.path.join(output_dir.path, "actives"), create=True, reset=False)
-        actives_retrodock_job = ArrayDockingJob(
-            name=f"retrodock_job_{uuid4()}_actives",
-            job_dir=actives_dir,
-            input_molecules_tgz_file_path=actives_tgz_file_path,
+        positives_dir = Dir(os.path.join(output_dir.path, "positives"), create=True, reset=False)
+        positives_retrodock_job = ArrayDockingJob(
+            name=f"retrodock_job_{uuid4()}_positives",
+            job_dir=positives_dir,
+            input_molecules_tgz_file_path=positives_tgz_file_path,
             job_scheduler=scheduler,
             temp_storage_path=TMPDIR,
             array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
@@ -277,21 +277,21 @@ class Retrodock(Script):
         )
 
         #
-        decoys_dir = Dir(os.path.join(output_dir.path, "decoys"), create=True, reset=False)
-        decoys_retrodock_job = ArrayDockingJob(
-            name=f"retrodock_job_{uuid4()}_decoys",
-            job_dir=decoys_dir,
-            input_molecules_tgz_file_path=decoys_tgz_file_path,
+        negatives_dir = Dir(os.path.join(output_dir.path, "negatives"), create=True, reset=False)
+        negatives_retrodock_job = ArrayDockingJob(
+            name=f"retrodock_job_{uuid4()}_negatives",
+            job_dir=negatives_dir,
+            input_molecules_tgz_file_path=negatives_tgz_file_path,
             job_scheduler=scheduler,
             temp_storage_path=TMPDIR,
             array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
             job_timeout_minutes=retrodock_job_timeout_minutes,
             extra_submission_cmd_params_str=extra_submission_cmd_params_str,
             sleep_seconds_after_copying_output=sleep_seconds_after_copying_output,
-            export_mol2=export_decoys_mol2,
+            export_mol2=export_negatives_mol2,
         )
 
-        retrodock_jobs = [actives_retrodock_job, decoys_retrodock_job]
+        retrodock_jobs = [positives_retrodock_job, negatives_retrodock_job]
         for job in retrodock_jobs:
             sub_result, procs = job.submit_all_tasks(skip_if_complete=True)
             log_job_submission_result(job, sub_result, procs)
@@ -317,17 +317,17 @@ class Retrodock(Script):
         )
 
         # load results
-        df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
-            os.path.join(actives_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
-            os.path.join(decoys_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
+        df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
+            os.path.join(positives_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
+            os.path.join(negatives_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
         )
         df = df.sort_values(
-            by=["total_energy", "is_active"], na_position="last", ignore_index=True
+            by=["total_energy", "is_positive"], na_position="last", ignore_index=True
         )
         df = df.drop_duplicates(
             subset=["db2_file_path"], keep="first", ignore_index=True
         )
-        booleans = df["is_active"].astype(bool)
+        booleans = df["is_positive"].astype(bool)
         roc = ROC(booleans)
         with open("normalized_log_auc", "w") as f:
             f.write(f"{roc.normalized_log_auc}")
@@ -345,25 +345,25 @@ class Retrodock(Script):
                 "apolar_desolvation_energy",
             ]:
                 pivot_row = {"energy_term": col}
-                if row["is_active"] == 1:
-                    pivot_row["active"] = str_to_float(row[col])
-                    pivot_row["decoy"] = np.nan
+                if row["is_positive"] == 1:
+                    pivot_row["positive"] = str_to_float(row[col])
+                    pivot_row["negative"] = np.nan
                 else:
-                    pivot_row["active"] = np.nan
-                    pivot_row["decoy"] = str_to_float(row[col])
+                    pivot_row["positive"] = np.nan
+                    pivot_row["negative"] = str_to_float(row[col])
                 pivot_rows.append(pivot_row)
         df_best_job_pivot = pd.DataFrame(pivot_rows)
         fig, ax = joyplot(
             data=df_best_job_pivot,
             by="energy_term",
-            column=["active", "decoy"],
+            column=["positive", "negative"],
             color=["#686de0", "#eb4d4b"],
             legend=True,
             alpha=0.85,
             figsize=(12, 8),
             ylim="own",
         )
-        plt.title("ridgeline plot: energy terms (actives vs. decoys)")
+        plt.title("ridgeline plot: energy terms (positives vs. negatives)")
         plt.tight_layout()
         plt.savefig(os.path.join(job_dir.path, ENERGY_PLOT_FILE_NAME))
         plt.close(fig)
@@ -374,9 +374,9 @@ class Retrodock(Script):
             x="charge",
             y="total_energy",
             split=True,
-            hue="activity_class",
+            hue="class_label",
         )
-        plt.title("split violin plot: charge (actives vs. decoys)")
+        plt.title("split violin plot: charge (positives vs. negatives)")
         plt.tight_layout()
         plt.savefig(os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME))
         plt.close(fig)
