@@ -72,13 +72,13 @@ def get_bonferroni_correction(
 
     #
     threshold = float(signif_level / n_configurations)  # Bonferroni correction
-    valid_thresholds = df_random[df_random['pval'] <= threshold]
+    valid_thresholds = df_random[df_random['pval'] <= threshold]['normalized_log_auc']
 
     #
     if valid_thresholds.empty:
         raise ValueError("No threshold found (either too few positives or too many docking configurations tested)")
 
     #
-    normalized_log_auc_thresh = valid_thresholds.index[0]
+    normalized_log_auc_thresh = valid_thresholds.iloc[0]
 
     return normalized_log_auc_thresh

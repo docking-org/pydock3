@@ -188,7 +188,6 @@ class HTMLReporter(Reporter):
             y=df_random['prop'] * pipeline_component.num_total_docking_configurations_thus_far,  # scale to the number of docking configurations
             name="Null Hypothesis",
             marker=dict(color="rgba(128, 128, 128, 0.6)"),  # gray, somewhat transparent
-            opacity=0.6,
         )
 
         #
@@ -203,12 +202,8 @@ class HTMLReporter(Reporter):
         hist_data, bin_edges = np.histogram(df[column_name])
         max_count = np.max(hist_data)
 
-        # Calculate the height of the bin containing the vertical line
-        vline_bin_idx = np.searchsorted(bin_edges, min_significant_criterion) - 1
-        vline_bin_height = hist_data[vline_bin_idx]
-
         # Set the y-axis range to the maximum height of either the highest bin or the bin containing the vertical line
-        y_axis_max = max(max_count, vline_bin_height) * 1.1
+        y_axis_max = max(max_count, max_count) * 1.1
 
         #
         vertical_line = go.Scatter(
