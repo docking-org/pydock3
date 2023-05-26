@@ -1,6 +1,13 @@
 import logging
+from typing import TYPE_CHECKING, Union, List, Tuple, Dict, Any, Optional
+
 import fire
+
 from pydock3.util import get_logger_for_script
+
+if TYPE_CHECKING:
+    from pydock3.util import Script
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -16,27 +23,28 @@ NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS = [  # non-script classes can also be use
     "SDIFile",
 ]
 
-def get_script_class(script_class_name, *args, **kwargs):
+SCRIPT_CLASSES_DICT = {
+    **{cls.__name__.lower(): cls for cls in SCRIPT_CLASSES},
+    **{cls.__name__.lower(): cls for cls in NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS},
+}
+
+def get_script_class(script_class_name, *args, **kwargs) -> Union[Script, None]:
     logger = get_logger_for_script(debug=False)
 
-    if script_class_name not in SCRIPT_CLASSES and script_class_name not in NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS:
+    if script_class_name not in SCRIPT_CLASSES_DICT:
         logger.error(
-            f"script_class_name must be one of:\n{sorted(list(SCRIPT_CLASSES + NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS))}"
+            f"script_class_name must be one of:\n{sorted(list(SCRIPT_CLASSES_DICT.keys()))}"
         )
         return
 
-    if script_class_name in SCRIPT_CLASSES:
+    if script_class_name in SCRIPT_CLASSES_DICT:
         if script_class_name == "blastermaster":
             from pydock3.blastermaster.blastermaster import Blastermaster as cls
         elif script_class_name == "retrodock":
             from pydock3.retrodock.retrodock import Retrodock as cls
         elif script_class_name == "dockopt":
             from pydock3.dockopt.dockopt import Dockopt as cls
-        else:
-            raise NotImplementedError
-
-    elif script_class_name in NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS:
-        if script_class_name == "SDIFile":
+        elif script_class_name == "SDIFile":
             from pydock3.files import SDIFile as cls
         else:
             raise NotImplementedError
