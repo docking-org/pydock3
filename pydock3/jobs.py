@@ -44,7 +44,7 @@ class DockingJob(ABC):
 class ArrayDockingJob(ABC):
     name: str
     job_dir: Dir
-    input_molecules_tgz_file_path: str
+    input_molecules_dir_path: str
     job_scheduler: JobScheduler
     temp_storage_path: str
     array_job_docking_configurations_file_path: str
@@ -102,7 +102,7 @@ class ArrayDockingJob(ABC):
             "EXPORT_DEST": self.job_dir.path,
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
-            "INPUT_TARBALL": self.input_molecules_tgz_file_path,
+            "INPUT_DIR": self.input_molecules_dir_path,
             "SLEEP_SECONDS_AFTER_COPYING_OUTPUT": str(self.sleep_seconds_after_copying_output),
         }
 
@@ -157,7 +157,7 @@ class ArrayDockingJob(ABC):
             "EXPORT_DEST": self.job_dir.path,
             "TMPDIR": self.temp_storage_path,
             "ARRAY_JOB_DOCKING_CONFIGURATIONS": self.array_job_docking_configurations_file_path,
-            "INPUT_TARBALL": self.input_molecules_tgz_file_path,
+            "INPUT_DIR": self.input_molecules_dir_path,
             "SLEEP_SECONDS_AFTER_COPYING_OUTPUT": str(self.sleep_seconds_after_copying_output),
         }
 
