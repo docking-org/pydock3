@@ -4,7 +4,7 @@
 # EXPORT_DEST
 # TMPDIR
 # ARRAY_JOB_DOCKING_CONFIGURATIONS
-# INPUT_TARBALL
+# INPUT_DIR
 # SKIP_IF_ALREADY_DONE
 
 #optional:
@@ -47,26 +47,24 @@ log TASK_ID=$TASK_ID
 log EXPORT_DEST=$EXPORT_DEST
 log TMPDIR=$TMPDIR
 log ARRAY_JOB_DOCKING_CONFIGURATIONS=$ARRAY_JOB_DOCKING_CONFIGURATIONS
-log INPUT_TARBALL=$INPUT_TARBALL
+log INPUT_DIR=$INPUT_DIR
 log EXPORT_MOL2=$EXPORT_MOL2
 log SLEEP_SECONDS_AFTER_COPYING_OUTPUT=$SLEEP_SECONDS_AFTER_COPYING_OUTPUT
 
 # validate required environmental variables
-for var in EXPORT_DEST DOCKFILES TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL; do
+for var in EXPORT_DEST DOCKFILES TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_DIR; do
 	if [[ -z var ]]; then
-		echo "One or more of the following require environmental variables are not defined: EXPORT_DEST DOCKFILES TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_TARBALL"
+		echo "One or more of the following require environmental variables are not defined: EXPORT_DEST DOCKFILES TMPDIR ARRAY_JOB_DOCKING_CONFIGURATIONS INPUT_DIR"
 		exit 1
 	fi
 done
 
 # initialize all our important variables & directories
 JOB_DIR=${TMPDIR}/$(whoami)/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}
-EXTRACT_DIR=$JOB_DIR/input/$(basename $INPUT_TARBALL)
 DOCKFILES_TEMP=$JOB_DIR/working/dockfiles
 
 #
 log JOB_DIR=$JOB_DIR
-log EXTRACT_DIR=$EXTRACT_DIR
 log DOCKFILES_TEMP=$DOCKFILES_TEMP
 
 #
@@ -74,9 +72,8 @@ OUTPUT=${EXPORT_DEST}/${TASK_ID}
 LOG_OUT=${TMPDIR}/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}.out
 LOG_ERR=${TMPDIR}/${SCHEDULER_NAME}_${JOB_ID}_${TASK_ID}.err
 
-# bring directories into existence
+# create directories
 mkdir -p $JOB_DIR/working
-mkdir -p $EXTRACT_DIR
 mkdir -p $DOCKFILES_TEMP
 
 #
@@ -107,15 +104,14 @@ else
 fi
 
 #
-log "starting input extract"
-tar -C $EXTRACT_DIR -xzf $INPUT_TARBALL
-log "ending input extract"
 mkdir $JOB_DIR/dockfiles
 for f in $DOCKFILES_TEMP/*; do
 	ln -s $f $JOB_DIR/dockfiles/$(basename $f)
 done
 rm $JOB_DIR/dockfiles/INDOCK
-find $EXTRACT_DIR -name '*.db2*' | sort > $JOB_DIR/working/split_database_index
+
+#
+find $INPUT_DIR -name '*.db2*' | sort > $JOB_DIR/working/split_database_index
 
 # tells this script to ignore SIGUSR1 interrupts
 #trap '' SIGUSR1
@@ -185,13 +181,10 @@ sigusr1=`tail OUTDOCK | grep "interrupt signal detected since last ligand- initi
 log "finished! cleaning up"
 
 # cleanup will:
-# 1. remove extracted tarfiles
-# 2. move results/restart marker to $OUTPUT (if no restart marker, remove it from $OUTPUT if present)
-# 3. move logs to $OUTPUT
-# 4. remove the working directory
+# 1. move results/restart marker to $OUTPUT (if no restart marker, remove it from $OUTPUT if present)
+# 2. move logs to $OUTPUT
+# 3. remove the working directory
 function cleanup {
-	rm -r $EXTRACT_DIR
-
 	nout=$(ls $OUTPUT | grep OUTDOCK | wc -l)
 
 	if [ $nout -ne 0 ] && ! [ -f $OUTPUT/restart ]; then

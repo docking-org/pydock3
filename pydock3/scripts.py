@@ -24,8 +24,8 @@ NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS = [  # non-script classes can also be use
 ]
 
 SCRIPT_CLASSES_DICT = {
-    **{cls.__name__.lower(): cls for cls in SCRIPT_CLASSES},
-    **{cls.__name__.lower(): cls for cls in NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS},
+    **{cls.lower(): cls for cls in SCRIPT_CLASSES},
+    **{cls.lower(): cls for cls in NON_SCRIPT_CLASSES_TO_TREAT_AS_SCRIPTS},
 }
 
 def get_script_class(script_class_name, *args, **kwargs) -> Union[Script, None]:
