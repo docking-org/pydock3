@@ -111,7 +111,7 @@ done
 rm $JOB_DIR/dockfiles/INDOCK
 
 #
-find $INPUT_DIR -name '*.db2*' | sort > $JOB_DIR/working/split_database_index
+find $INPUT_DIR -name '*.db2*' -exec realpath {} \; | sort > $JOB_DIR/working/split_database_index
 
 # tells this script to ignore SIGUSR1 interrupts
 #trap '' SIGUSR1
@@ -195,7 +195,6 @@ function cleanup {
 	fi
 
 	cp -p $JOB_DIR/working/OUTDOCK $OUTPUT/OUTDOCK.$nout
-	sleep 20  # necessary in order to prevent bug witnessed using DockOpt with Slurm on Gimel where OUTDOCK fails to appear by the time job has left queue
 
 	if $EXPORT_MOL2; then
 	  cp -p $JOB_DIR/working/test.mol2.gz $OUTPUT/test.mol2.gz.$nout
@@ -213,7 +212,7 @@ function cleanup {
 
 	rm -rf $JOB_DIR
 
-  sleep $SLEEP_SECONDS_AFTER_COPYING_OUTPUT
+  sleep $SLEEP_SECONDS_AFTER_COPYING_OUTPUT  # apparently necessary in order to prevent bug witnessed using DockOpt with Slurm on Gimel where OUTDOCK fails to appear by the time job has left queue
 }
 
 popd > /dev/null 2>&1
