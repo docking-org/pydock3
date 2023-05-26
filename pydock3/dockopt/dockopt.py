@@ -10,6 +10,7 @@ import collections
 import time
 from datetime import datetime, timedelta
 import tarfile
+import re
 
 import networkx as nx
 import pandas as pd
@@ -54,6 +55,7 @@ from pydock3.dockopt.pipeline import PipelineComponent, PipelineComponentSequenc
 from pydock3.dockopt.parameters import DockoptComponentParametersManager
 from pydock3.dockopt.docking_configuration import DockingConfiguration, DockFileCoordinates, DockFileCoordinate, IndockFileCoordinate
 from pydock3.dockopt.dock_files_modification.matching_spheres_perturbation import MatchingSpheresPerturbationStep
+from pydock3.retrodock.retrospective_dataset import RetrospectiveDataset
 
 #
 logger = logging.getLogger(__name__)
@@ -71,88 +73,6 @@ CRITERION_CLASS_DICT = {"normalized_log_auc": NormalizedLogAUC}
 
 #
 MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
-
-
-class RetrospectiveDataset(object):
-    SUPPORTED_EXTENSIONS = ['db2', 'db2.gz']
-
-    def __init__(self, positives_tgz_file_path: str, negatives_tgz_file_path: str, positives_dir_path: str, negatives_dir_path: str):
-        #
-        if not os.path.isfile(positives_tgz_file_path):
-            raise Exception(f"Tarball `{positives_tgz_file_path}` does not exist.")
-        if not os.path.isfile(negatives_tgz_file_path):
-            raise Exception(f"Tarball `{negatives_tgz_file_path}` does not exist.")
-
-        # Create directories if they don't exist
-        for dir_path in [positives_dir_path, negatives_dir_path]:
-            if not os.path.isdir(dir_path):
-                os.makedirs(dir_path)
-
-        #
-        self.positives_tgz_file_path = positives_tgz_file_path
-        self.negatives_tgz_file_path = negatives_tgz_file_path
-
-        #
-        self.positives_dir_path = positives_dir_path
-        self.negatives_dir_path = negatives_dir_path
-
-        # Check that the directories match their respective tarballs
-        for dir_path, tgz_file_path in [
-            (positives_dir_path, positives_tgz_file_path),
-            (negatives_dir_path, negatives_tgz_file_path),
-        ]:
-            if len(os.listdir(dir_path)) > 0:  # only a potential problem if dir has been extracted already and has files in it
-                if not self._check_that_directory_and_tarball_match(dir_path, tgz_file_path):
-                    raise Exception(f"Contents of directory `{dir_path}` do not match those of tarball `{tgz_file_path}`. If you made a change to the tarball, you must delete the directory and re-run.")
-
-        #
-        self.num_positives = self._extract_tarball_and_count_files(self.positives_tgz_file_path, self.SUPPORTED_EXTENSIONS, self.positives_dir_path)
-        self.num_negatives = self._extract_tarball_and_count_files(self.negatives_tgz_file_path, self.SUPPORTED_EXTENSIONS, self.negatives_dir_path)
-
-        #
-        if self.num_positives == 0:
-            raise Exception(f"No positives found in tarball `{self.positives_tgz_file_path}`. Expected files with extensions: `{self.SUPPORTED_EXTENSIONS}`")
-        if self.num_negatives == 0:
-            raise Exception(f"No negatives found in tarball `{self.negatives_tgz_file_path}`. Expected files with extensions: `{self.SUPPORTED_EXTENSIONS}`")
-
-    @staticmethod
-    def _list_tarball_contents(tarball):
-        with tarfile.open(tarball, "r:gz") as tar:
-            return sorted([tarinfo.name for tarinfo in tar])
-
-    @staticmethod
-    def _list_directory_contents(directory):
-        return sorted([f for root, dirs, files in os.walk(directory) for f in files])
-
-    @staticmethod
-    def _check_that_directory_and_tarball_match(directory, tarball):
-        tarball_contents = RetrospectiveDataset._list_tarball_contents(tarball)
-        directory_contents = RetrospectiveDataset._list_directory_contents(directory)
-        return tarball_contents == directory_contents
-
-    @staticmethod
-    def _extract_tarball_and_count_files(tarball_path: str, supported_extensions: List[str], extract_dir_path: str):
-        if not os.path.isfile(tarball_path):
-            raise Exception(f"Tarball `{tarball_path}` does not exist.")
-
-        if not os.path.isdir(extract_dir_path):
-            raise Exception(f"Directory `{extract_dir_path}` does not exist.")
-
-        file_count = 0
-        with tarfile.open(tarball_path, 'r:gz') as tar:
-            for member in tar.getmembers():
-                if member.isfile() and any([member.name.lower().endswith(f".{ext}") for ext in supported_extensions]):
-                    file_count += 1
-                elif member.isfile():
-                    raise Exception(
-                        f"File `{member.name}` in tarball `{tarball_path}` has an unsupported extension. Extension must be one of: `{supported_extensions}`")
-
-            tar.extractall(path=extract_dir_path)
-
-        if file_count == 0:
-            raise Exception(f"No files with supported extensions `{supported_extensions}` found in tarball `{tarball_path}`.")
-
-        return file_count
 
 
 @dataclass
@@ -865,16 +785,17 @@ class DockoptStep(PipelineComponent):
 
         # submit retrodock jobs (one for positives, one for negatives)
         array_jobs = []
-        for sub_dir_name, should_export_mol2, input_molecules_tgz_file_path in [
-            ('positives', True, self.retrospective_dataset.positives_tgz_file_path),
-            ('negatives', component_run_func_arg_set.export_negatives_mol2, self.retrospective_dataset.negatives_tgz_file_path),
+        skip_if_complete = re.match(components_to_skip_if_results_exist, rf"{self.component_id}") is not None
+        for sub_dir_name, should_export_mol2, input_molecules_dir_path in [
+            ('positives', True, self.retrospective_dataset.positives_dir_path),
+            ('negatives', component_run_func_arg_set.export_negatives_mol2, self.retrospective_dataset.negatives_dir_path),
         ]:
             job_name = f"dockopt_step_{step_id}_{sub_dir_name}"
-            sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)
+            sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)  # task dirs get reset in task submission
             array_job = ArrayDockingJob(
                 name=job_name,
                 job_dir=sub_dir,
-                input_molecules_tgz_file_path=input_molecules_tgz_file_path,
+                input_molecules_dir_path=input_molecules_dir_path,
                 job_scheduler=component_run_func_arg_set.scheduler,
                 temp_storage_path=component_run_func_arg_set.temp_storage_path,
                 array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
@@ -885,7 +806,7 @@ class DockoptStep(PipelineComponent):
                 export_mol2=should_export_mol2,
             )
             sub_result, procs = array_job.submit_all_tasks(
-                skip_if_complete=True,
+                skip_if_complete=skip_if_complete,
             )
             array_jobs.append(array_job)
             log_job_submission_result(array_job, sub_result, procs)
@@ -912,7 +833,13 @@ class DockoptStep(PipelineComponent):
                 datetime_now = datetime.now()
                 if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
                     datetime_queue_was_last_checked = datetime_now
-                    if any([(not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.job_scheduler.task_is_on_queue(str(docking_configuration.configuration_num), job_name=array_job.name)) for array_job in array_jobs]):
+                    if any([
+                        (not array_job.task_is_complete(str(docking_configuration.configuration_num)))
+                        and (not array_job.job_scheduler.task_is_on_queue(
+                            str(docking_configuration.configuration_num
+                        ), job_name=array_job.name))
+                        for array_job in array_jobs
+                    ]):
                         # task must have timed out / failed for one or both jobs
                         logger.warning(
                             f"Failure / time out witnessed for task {docking_configuration.configuration_num}"

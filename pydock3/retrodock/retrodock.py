@@ -3,6 +3,7 @@ import logging
 from uuid import uuid4
 import time
 from dataclasses import astuple
+from typing import List, Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,7 @@ from pydock3.files import (
     IndockFile,
     OutdockFile,
 )
+from pydock3.retrodock.retrospective_dataset import RetrospectiveDataset
 from pydock3.criterion.enrichment.roc import ROC
 from pydock3.jobs import ArrayDockingJob
 from pydock3.blastermaster.blastermaster import BlasterFiles, BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT
@@ -181,11 +183,11 @@ class Retrodock(Script):
         dock_files_dir_path=None,
         indock_file_path=None,
         custom_dock_executable=None,
-        positives_tgz_file_path=None,
-        negatives_tgz_file_path=None,
+        positives_tgz_file_path: Union[None, str] = None,
+        negatives_tgz_file_path: Union[None, str] = None,
         retrodock_job_max_reattempts=0,
-        retrodock_job_timeout_minutes=None,
-        extra_submission_cmd_params_str=None,
+        retrodock_job_timeout_minutes: Union[None, str] = None,
+        extra_submission_cmd_params_str: Union[None, str] = None,
         sleep_seconds_after_copying_output=0,
         export_negatives_mol2=False,
     ) -> None:
@@ -239,14 +241,8 @@ class Retrodock(Script):
 
         job_dir = Dir(job_dir_path, create=True, reset=False)
 
-        if positives_tgz_file_path is not None:
-            positives_tgz_file = File(path=positives_tgz_file_path)
-        else:
-            positives_tgz_file = None
-        if negatives_tgz_file_path is not None:
-            negatives_tgz_file = File(path=negatives_tgz_file_path)
-        else:
-            negatives_tgz_file = None
+        #
+        retrospective_dataset = RetrospectiveDataset(positives_tgz_file_path, negatives_tgz_file_path, 'positives', 'negatives')
 
         dock_files_dir = Dir(dock_files_dir_path)
         dock_files = BlasterFiles(dock_files_dir).dock_files
@@ -266,7 +262,7 @@ class Retrodock(Script):
         positives_retrodock_job = ArrayDockingJob(
             name=f"retrodock_job_{uuid4()}_positives",
             job_dir=positives_dir,
-            input_molecules_tgz_file_path=positives_tgz_file_path,
+            input_molecules_dir_path=retrospective_dataset.positives_dir_path,
             job_scheduler=scheduler,
             temp_storage_path=TMPDIR,
             array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
@@ -281,7 +277,7 @@ class Retrodock(Script):
         negatives_retrodock_job = ArrayDockingJob(
             name=f"retrodock_job_{uuid4()}_negatives",
             job_dir=negatives_dir,
-            input_molecules_tgz_file_path=negatives_tgz_file_path,
+            input_molecules_dir_path=retrospective_dataset.negatives_dir_path,
             job_scheduler=scheduler,
             temp_storage_path=TMPDIR,
             array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
