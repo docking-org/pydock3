@@ -3,10 +3,7 @@ from typing import TYPE_CHECKING, Union, List, Tuple, Dict, Any, Optional
 
 import fire
 
-from pydock3.util import get_logger_for_script
-
-if TYPE_CHECKING:
-    from pydock3.util import Script
+from pydock3.util import get_logger_for_script, Script
 
 
 logger = logging.getLogger(__name__)
