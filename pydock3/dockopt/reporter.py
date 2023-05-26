@@ -202,13 +202,13 @@ class HTMLReporter(Reporter):
         hist_data, bin_edges = np.histogram(df[column_name])
         max_count = np.max(hist_data)
 
-        # Set the y-axis range to the maximum height of either the highest bin or the bin containing the vertical line
-        y_axis_max = max(max_count, max_count) * 1.1
+        # Set the y-axis range to the maximum height plus a bit of room
+        y_axis_max = max_count * 1.1
 
         #
         vertical_line = go.Scatter(
             x=[min_significant_criterion, min_significant_criterion],
-            y=[0, max_count],  # Update the y-range to match the maximum count of the histogram bins
+            y=[0, y_axis_max],
             mode="lines",
             name=f"Significance threshold: {format(min_significant_criterion, '.3f')}<br>p = {p_value}",
             line=dict(color="red", width=2, dash="dot"),
