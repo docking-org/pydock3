@@ -833,6 +833,9 @@ class DockoptStep(PipelineComponent):
                 datetime_now = datetime.now()
                 if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
                     datetime_queue_was_last_checked = datetime_now
+                    for array_job in array_jobs:
+                        os.scandir(os.path.join(array_job.job_dir.path, str(docking_configuration.configuration_num)))
+                    time.sleep(0.01)
                     if any([
                         (not array_job.task_is_complete(str(docking_configuration.configuration_num)))
                         and (not array_job.job_scheduler.task_is_on_queue(
