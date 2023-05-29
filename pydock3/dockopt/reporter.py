@@ -169,40 +169,55 @@ class HTMLReporter(Reporter):
 
     @staticmethod
     def get_criterion_dist_histogram(
-            df: pd.DataFrame,
+            df_observed: pd.DataFrame,
             column_name: str,
             pipeline_component: PipelineComponent,
+            p_value: float = 0.01,
     ) -> go.Figure:
 
         #
-        histogram = go.Histogram(
-            x=df[column_name],
-            name=f"DOCK parameterizations ({pipeline_component.num_total_docking_configurations_thus_far} total)",
+        histogram_observed = go.Histogram(
+            x=df_observed[column_name],
+            name=f"Tested models ({pipeline_component.num_total_docking_configurations_thus_far} total)",
             marker=dict(color="rgba(0, 0, 128, 0.8)"),
         )
 
         #
         df_random = get_random_classifier_performance_data(n_positives=pipeline_component.retrospective_dataset.num_positives)
+        bin_size = 0.01  # TODO: figure out how to generalize all this to work with any criterion
+        bin_start_random = df_random['normalized_log_auc'].min() // bin_size * bin_size  # round down to nearest bin_size
+        bin_end_random = df_random['normalized_log_auc'].max() // bin_size * bin_size + bin_size  # round up to nearest bin_size
+        counts_random = df_random['prop'] * pipeline_component.num_total_docking_configurations_thus_far  # scale to the number of docking configurations
         histogram_null = go.Histogram(
             x=df_random['normalized_log_auc'],
-            y=df_random['prop'] * pipeline_component.num_total_docking_configurations_thus_far,  # scale to the number of docking configurations
-            name="Null Hypothesis",
+            y=counts_random,
+            xbins=dict(start=bin_start_random, end=bin_end_random, size=bin_size),
+            histfunc='sum',  # We need this to ensure y values are summed within each bin
             marker=dict(color="rgba(128, 128, 128, 0.6)"),  # gray, somewhat transparent
+            name='Null Hypothesis (random classifier)',
         )
 
         #
-        p_value = 0.01
         min_significant_criterion = get_bonferroni_correction(
             n_positives=pipeline_component.retrospective_dataset.num_positives,
             n_configurations=pipeline_component.num_total_docking_configurations_thus_far,
             signif_level=p_value,
         )
 
-        # Compute histogram data and find the maximum count
-        hist_data, bin_edges = np.histogram(df[column_name])
-        max_count = np.max(hist_data)
+        #
+        bin_start_observed = df_observed[column_name].min() // bin_size * bin_size  # round down to nearest bin_size
+        bin_end_observed = df_observed[column_name].max() // bin_size * bin_size + bin_size  # round up to nearest bin_size
+        bin_edges_observed = np.arange(bin_start_observed, bin_end_observed + bin_size, bin_size)
+        hist_data_observed, bin_edges_observed = np.histogram(df_observed[column_name], bins=bin_edges_observed)
 
-        # Set the y-axis range to the maximum height plus a bit of room
+        #
+        bin_edges_random = np.arange(bin_start_random, bin_end_random + bin_size, bin_size)
+        hist_data_random, bin_edges_random = np.histogram(df_random[column_name], bins=bin_edges_random, weights=counts_random)
+
+        #
+        max_count = max(hist_data_observed.max(), hist_data_random.max())
+
+        # Set the y-axis range to the maximum height of either the highest bin or the bin containing the vertical line
         y_axis_max = max_count * 1.1
 
         #
@@ -210,32 +225,54 @@ class HTMLReporter(Reporter):
             x=[min_significant_criterion, min_significant_criterion],
             y=[0, y_axis_max],
             mode="lines",
-            name=f"Significance threshold: {format(min_significant_criterion, '.3f')}<br>p = {p_value}",
+            name=f"Significance threshold (p = {p_value})",
             line=dict(color="red", width=2, dash="dot"),
         )
 
-        # Find the minimum and maximum x values from the histogram data
-        min_x = np.min([df[column_name].min(), min_significant_criterion])
-        max_x = np.max([df[column_name].max(), min_significant_criterion])
-
+        #
         layout = go.Layout(
+            font_family='monospace',
             title=dict(
-                text=f"Performance of Tested DOCK Parameterizations",
-                x=0.5,  # Set the x position to 0.5 (relative coordinates)
-                xanchor="center",  # Set the x anchor to the center
+                text=f"Performance of Tested Docking Models",
+                x=0.5,  # Set the x position to middle of the x-axis
+                xanchor="center",
             ),
             xaxis=dict(
-                title=column_name,
-                range=[min_x, max_x],  # Manually set the x-axis range to include the vertical line
+                title=column_name.replace('_', ' '),
+                autorange=True,
+                showgrid=True,
+                dtick=0.05,
+                ticks='outside',
+                tickcolor='black',
+                ticklen=5,
+                tickwidth=1,
             ),
             yaxis=dict(
                 title="count",
-                range=[0, y_axis_max],  # Set the y-axis range based on the calculated maximum
+                autorange=True,
+                showgrid=True,
             ),
-            showlegend=True,  # Set showlegend to True to display the legend
+            showlegend=True,
+            legend=dict(
+                bordercolor="Black",
+                borderwidth=1,
+            ),
+            annotations=[
+                dict(
+                    x=min_significant_criterion,
+                    y=y_axis_max * 0.8,  # position of the text
+                    text=f"x = {format(min_significant_criterion, '.3f')}",
+                    xanchor='left',
+                    showarrow=False,  # not pointing an arrow at the data point
+                    font=dict(
+                        color="red",
+                        size=14
+                    )
+                )
+            ],
         )
 
-        fig = go.Figure(data=[histogram, histogram_null, vertical_line], layout=layout)
+        fig = go.Figure(data=[histogram_observed, histogram_null, vertical_line], layout=layout)
 
         return fig
 
