@@ -135,8 +135,11 @@ class HTMLReporter(Reporter):
 
         for column_1, column_2 in itertools.combinations(heatmap_numeric_columns, 2):
             df_no_duplicates = df.drop_duplicates(subset=[column_1, column_2], keep="first", ignore_index=True)
-            fig = self.get_heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name)
-            figures.append(fig)
+            try:
+                fig = self.get_heatmap(df_no_duplicates, column_1, column_2, pipeline_component.criterion.name)
+                figures.append(fig)
+            except ValueError:  # if there are less than 4 unique datapoints, the heatmap cannot be generated
+                continue
 
         # Generate the HTML report
         html = self.get_html(figures, pipeline_component.component_id)
@@ -348,6 +351,11 @@ class HTMLReporter(Reporter):
         # Extract points and scores
         points = df[[x, y]].to_numpy()
         scores_array = df[scores].to_numpy()
+
+        # Check that there are enough data points to create a heatmap
+        if len(points) < 4:
+            raise ValueError(f"Insufficient data points to create a heatmap. "
+                             f"Please provide at least 4 data points, but preferably more.")
 
         # Create new x and y coordinates with the specified minimum number of grid units between any two points
         x_coords = create_new_coords(points[:, 0], min_units_between)
