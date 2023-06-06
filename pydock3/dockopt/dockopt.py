@@ -101,6 +101,8 @@ class Dockopt(Script):
 
     @staticmethod
     def handle_run_func(run_func: Callable[P, T]) -> Callable[P, T]:
+        """Decorator for run functions to handle common functionality."""
+
         @wraps(run_func)
         def wrapper(self, *args: P.args, **kwargs: P.kwargs):
             with CleanExit():
@@ -113,6 +115,8 @@ class Dockopt(Script):
         self,
         job_dir_path: str = JOB_DIR_NAME,
     ) -> None:
+        """Set up a new Dockopt job directory."""
+
         # check if job dir already exists
         if os.path.exists(job_dir_path):
             logger.info(f"Job directory `{job_dir_path}` already exists. Exiting.")
@@ -179,6 +183,8 @@ class Dockopt(Script):
         components_to_skip_if_results_exist: str = "^(.*\.)?\d+_step$",  # default: match only DockoptStep IDs
         components_to_force_rewrite_report: str = "^.*$",  # default: match any string
     ) -> None:
+        """Run DockOpt job."""
+
         #
         job_dir_path = os.path.abspath(job_dir_path)
         logger.info(f"Running DockOpt job in directory: {job_dir_path}")
@@ -718,6 +724,8 @@ class DockoptStep(PipelineComponent):
         logger.info(f"Number of unique docking configurations: {len(self.docking_configurations)}")
 
     def _get_unique_partial_docking_configuration_kwargs_sorted(self, dc_kwargs_list: List[dict]) -> List[dict]:
+        """Get unique partial docking configurations (sorted)."""
+
         logger.debug(f"Getting unique partial docking configurations (sorted). # before: {len(dc_kwargs_list)}")
         new_dc_kwargs = []
         hashes = []
@@ -740,6 +748,8 @@ class DockoptStep(PipelineComponent):
             components_to_skip_if_results_exist: str,
             components_to_force_rewrite_report: str,
         ) -> pd.DataFrame:
+        """Run this component of the pipeline."""
+
         # run necessary steps to get all dock files
         logger.info("Generating all docking configurations")
         for dc in self.docking_configurations:
@@ -964,14 +974,20 @@ class DockoptStep(PipelineComponent):
 
     @staticmethod
     def _get_infile_hash(component_id: str, infile: BlasterFile) -> str:
+        """Returns a hash of the infile's class name and original_file_in_working_dir name"""
+
         return get_hexdigest_of_persistent_md5_hash_of_tuple((component_id, infile.original_file_in_working_dir.name))
 
     @staticmethod
     def _get_outfile_hash(component_id: str, outfile: BlasterFile, step_hash: str) -> str:
+        """Returns a hash of the outfile's class name, original_file_in_working_dir name, and step_hash"""
+
         return get_hexdigest_of_persistent_md5_hash_of_tuple((component_id, outfile.original_file_in_working_dir.name, step_hash))
 
     @staticmethod
     def _get_step_hash(component_id: str, step: BlasterStep, infiles_hash: str) -> str:
+        """Returns a hash of the step's class name, step_dir name, infiles, parameters, and outfiles"""
+
         #
         parameters_dict_items_list = sorted(step.parameters._asdict().items())
         outfiles_dict_items_list = sorted(step.outfiles._asdict().items())
@@ -988,6 +1004,8 @@ class DockoptStep(PipelineComponent):
 
     @staticmethod
     def _get_graph_from_all_steps_in_order(component_id: str, steps: List[BlasterStep]) -> nx.DiGraph:
+        """Returns a graph of all steps in order of execution"""
+
         #
         graph = nx.DiGraph()
         blaster_file_hash_dict = {}
@@ -1068,6 +1086,8 @@ class DockoptStep(PipelineComponent):
 
     @staticmethod
     def _get_blaster_file_nodes(g: nx.DiGraph) -> str:
+        """Get blaster file nodes."""
+
         return [node_id for node_id, node_data in g.nodes.items() if g.nodes[node_id].get("blaster_file")]
 
     @staticmethod
@@ -1075,6 +1095,8 @@ class DockoptStep(PipelineComponent):
         blaster_file_identifier: str,
         g: nx.DiGraph,
     ) -> str:
+        """Get blaster file node with blaster file identifier blaster_file_identifier."""
+
         blaster_file_node_ids = DockoptStep._get_blaster_file_nodes(g)
         if len(blaster_file_node_ids) == 0:
             return None
@@ -1090,6 +1112,8 @@ class DockoptStep(PipelineComponent):
         file_name: str,
         g: nx.DiGraph,
     ) -> BlasterFile:
+        """Get blaster file node with same file name as file_name."""
+
         blaster_file_node_ids = DockoptStep._get_blaster_file_nodes(g)
         if len(blaster_file_node_ids) == 0:
             return None
@@ -1102,6 +1126,8 @@ class DockoptStep(PipelineComponent):
 
     @staticmethod
     def _get_dock_files_generation_flat_param_dict(graph: nx.DiGraph, dock_file_coordinates: DockFileCoordinates) -> dict:
+        """Get a flat dict of parameters needed to generate dock files from dock file nodes in graph."""
+
         dock_file_node_ids = sorted([getattr(dock_file_coordinates, field.name).node_id for field in fields(dock_file_coordinates)])
         node_ids = [node_id for dock_file_node_id in dock_file_node_ids for node_id in nx.ancestors(graph, dock_file_node_id)]
         node_ids = list(set(node_ids))
@@ -1119,6 +1145,8 @@ class DockoptStep(PipelineComponent):
         blaster_file_node: str,
         g: nx.DiGraph,
     ) -> None:
+        """Run all steps needed to create this blaster file node."""
+
         if g.nodes[blaster_file_node].get("blaster_file") is not None:
             blaster_file = g.nodes[blaster_file_node]['blaster_file']
             if not blaster_file.exists:
@@ -1181,6 +1209,8 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             components_to_skip_if_results_exist: str,
             components_to_force_rewrite_report: str,
             ) -> pd.DataFrame:
+        """Run the pipeline component sequence iteration."""
+
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1238,6 +1268,8 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
 
     @property
     def num_total_docking_configurations_thus_far(self):
+        """Returns the total number of docking configurations that have been run thus far in this iteration of the pipeline."""
+
         return self.last_component_completed.num_total_docking_configurations_thus_far
 
 
@@ -1344,6 +1376,8 @@ class DockoptStepSequence(PipelineComponentSequence):
 
     @property
     def num_total_docking_configurations_thus_far(self):
+        """Returns the total number of docking configurations that have been generated thus far in the pipeline."""
+
         return self.last_component_completed.num_total_docking_configurations_thus_far
 
 
@@ -1390,6 +1424,8 @@ class DockoptPipeline(Pipeline):
             components_to_skip_if_results_exist: str,
             components_to_force_rewrite_report: str,
             ) -> pd.DataFrame:
+        """Run the pipeline."""
+
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
         last_component_completed_in_sequence = self.last_component_completed
@@ -1448,4 +1484,6 @@ class DockoptPipeline(Pipeline):
 
     @property
     def num_total_docking_configurations_thus_far(self):
+        """Returns the total number of docking configurations that have been generated thus far in the pipeline."""
+
         return self.last_component_completed.num_total_docking_configurations_thus_far

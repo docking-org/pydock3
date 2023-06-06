@@ -82,6 +82,8 @@ def str_to_float(s, alternative_if_uncastable=np.nan):
 def get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
     positives_outdock_file_path, negatives_outdock_file_path
 ):
+    """build dataframe of docking results from outdock files"""
+
     #
     positives_outdock_file = OutdockFile(positives_outdock_file_path)
     negatives_outdock_file = OutdockFile(negatives_outdock_file_path)
@@ -138,6 +140,8 @@ class Retrodock(Script):
             job_dir_path=JOB_DIR_NAME,
             overwrite=False  # TODO: see blastermaster script for example
     ) -> None:
+        """create new job directory with dockfiles & INDOCK file"""
+
         # create job dir
         job_dir = Dir(path=job_dir_path, create=True, reset=False)
 
@@ -191,6 +195,8 @@ class Retrodock(Script):
         sleep_seconds_after_copying_output=0,
         export_negatives_mol2=False,
     ) -> None:
+        """Run RetroDock job"""
+
         # validate args
         if dock_files_dir_path is None:
             dock_files_dir_path = os.path.join(job_dir_path, self.DOCK_FILES_DIR_NAME)
@@ -306,7 +312,7 @@ class Retrodock(Script):
                         log_job_submission_result(job, sub_result, procs)
                 reattempts += 1
         if reattempts > retrodock_job_max_reattempts:
-            raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts}) exceeded. Some jobs did not complete.")
+            raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts + 1}) exceeded. Job did not complete.")
 
         logger.info(
             f"Retrodock job completed. Successfully loaded both OUTDOCK files."
