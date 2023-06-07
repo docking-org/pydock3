@@ -6,18 +6,14 @@ import glob
 import logging
 from dataclasses import fields
 
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from joypy import joyplot
 
 from pydock3.files import Dir
 from pydock3.dockopt.util import BEST_RETRODOCK_JOBS_DIR_NAME
 from pydock3.dockopt.docking_configuration import DockingConfiguration
-from pydock3.criterion.enrichment.roc import ROC
+from pydock3.jobs import OUTDOCK_FILE_NAME
 from pydock3.dockopt.reporter import HTMLReporter
-from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files
+from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_TERMS_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files, process_retrodock_job_results
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
 
@@ -133,89 +129,15 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             )
 
             #
-            df_best_job = (
-                get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
-                    positives_outdock_file_path=os.path.join(
-                        dst_best_job_dir_path,
-                        "positives",
-                        "OUTDOCK.0",
-                    ),
-                    negatives_outdock_file_path=os.path.join(
-                        dst_best_job_dir_path,
-                        "negatives",
-                        "OUTDOCK.0",
-                    ),
-                )
+            process_retrodock_job_results(
+                positives_retrodock_job_dir_path=src_retrodock_job_positives_dir_path,
+                negatives_retrodock_job_dir_path=src_retrodock_job_negatives_dir_path,
+                task_num=dc.configuration_num,
+                outdock_file_name=OUTDOCK_FILE_NAME,
+                roc_plot_save_path=os.path.join(dst_best_job_dir_path.path, ROC_PLOT_FILE_NAME),
+                energy_terms_plot_save_path=os.path.join(dst_best_job_dir_path.path, ENERGY_TERMS_PLOT_FILE_NAME),
+                charge_plot_save_path=os.path.join(dst_best_job_dir_path.path, CHARGE_PLOT_FILE_NAME),
             )
-
-            # sort dataframe by total energy score
-            df_best_job = df_best_job.sort_values(
-                by=["total_energy", "is_positive"],
-                na_position="last", ignore_index=True
-            )  # sorting secondarily by 'is_positive' (0 or 1) ensures that negatives are ranked before positives in case they have the same exact score (pessimistic approach)
-            df_best_job = df_best_job.drop_duplicates(
-                subset=["db2_file_path"], keep="first",
-                ignore_index=True
-            )  # keep only the best score per molecule
-
-            # get ROC and calculate normalized LogAUC of this job's docking set-up
-            # TODO: get this from Retrodock instead
-            booleans = df_best_job["is_positive"].astype(bool)
-            roc = ROC(booleans)
-
-            # write ROC plot image
-            roc_plot_image_path = os.path.join(dst_best_job_dir_path, ROC_PLOT_FILE_NAME)
-            roc.plot(save_path=roc_plot_image_path)
-
-            # ridge plot for energy terms
-            # TODO: get this from Retrodock instead
-            pivot_rows = []
-            for i, best_job_row in df_best_job.iterrows():
-                for col in [
-                    "total_energy",
-                    "electrostatic_energy",
-                    "vdw_energy",
-                    "polar_desolvation_energy",
-                    "apolar_desolvation_energy",
-                ]:
-                    pivot_row = {"energy_term": col}
-                    if best_job_row["is_positive"] == 1:
-                        pivot_row["positive"] = str_to_float(best_job_row[col])
-                        pivot_row["negative"] = np.nan
-                    else:
-                        pivot_row["positive"] = np.nan
-                        pivot_row["negative"] = str_to_float(best_job_row[col])
-                    pivot_rows.append(pivot_row)
-            df_best_job_pivot = pd.DataFrame(pivot_rows)
-            fig, ax = joyplot(
-                data=df_best_job_pivot,
-                by="energy_term",
-                column=["positive", "negative"],
-                color=["#686de0", "#eb4d4b"],
-                legend=True,
-                alpha=0.85,
-                figsize=(12, 8),
-                ylim="own",
-            )
-            plt.title("ridgeline plot: energy terms (positives vs. negatives)")
-            plt.tight_layout()
-            plt.savefig(os.path.join(dst_best_job_dir_path, ENERGY_PLOT_FILE_NAME))
-            plt.close(fig)
-
-            # split violin plot of charges
-            # TODO: get this from Retrodock instead
-            fig = plt.figure()
-            sns.violinplot(
-                data=df_best_job,
-                x="charge",
-                y="total_energy",
-                split=True,
-                hue="class_label",
-            )
-            plt.title("split violin plot: charge (positives vs. negatives)")
-            plt.tight_layout()
-            plt.savefig(os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME))
-            plt.close(fig)
 
 
 class DockoptStepSequenceIterationResultsManager(DockoptPipelineComponentResultsManager):

@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Tuple
 from dataclasses import dataclass
 import math
 
@@ -126,10 +126,21 @@ class ROC(object):
 
     def plot(
         self,
-        save_path: str
-    ) -> None:
-        fig, ax = plt.subplots()
-        fig.set_size_inches(8.0, 8.0)
+        save_path: Union[None, str] = None,
+        title: Union[None, str] = None,
+        figsize: Tuple[int, int] = (8, 8),
+        dpi: int = 300,
+    ) -> Tuple[plt.Figure, plt.Axes]:
+        #
+        if save_path is not None:
+            save_path = "roc.png"
+
+        #
+        if title is None:
+            title = "Linear-Log ROC Plot"
+
+        #
+        fig, ax = plt.subplots(figsize=figsize)
 
         # draw curve of random classifier for reference
         ax.semilogx(
@@ -186,9 +197,11 @@ class ROC(object):
         ax.set_yticks([float(j / 10) for j in range(0, 11)])
 
         # set title
-        ax.set_title(f"linear-log ROC plot")
+        ax.set_title(title)
 
         # save image and close
         plt.tight_layout()
-        plt.savefig(save_path)
+        plt.savefig(save_path, dpi=dpi)
         plt.close(fig)
+
+        return fig, ax

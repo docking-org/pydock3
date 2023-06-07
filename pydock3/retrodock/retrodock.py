@@ -20,7 +20,7 @@ from pydock3.files import (
 )
 from pydock3.retrodock.retrospective_dataset import RetrospectiveDataset
 from pydock3.criterion.enrichment.roc import ROC
-from pydock3.jobs import ArrayDockingJob
+from pydock3.jobs import ArrayDockingJob, OUTDOCK_FILE_NAME
 from pydock3.blastermaster.blastermaster import BlasterFiles, BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT
 from pydock3.jobs import JobSubmissionResult
 from pydock3.job_schedulers import SGEJobScheduler, SlurmJobScheduler
@@ -44,7 +44,7 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 
 #
 ROC_PLOT_FILE_NAME = "roc.png"
-ENERGY_PLOT_FILE_NAME = "energy.png"
+ENERGY_TERMS_PLOT_FILE_NAME = "energy.png"
 CHARGE_PLOT_FILE_NAME = "charge.png"
 
 
@@ -122,7 +122,148 @@ def get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
         if new_col != old_col:
             df = df.drop(old_col, axis=1)
 
+    # sort dataframe by total energy score
+    df = df.sort_values(
+        by=["total_energy", "is_positive"],
+        na_position="last",
+        ignore_index=True,
+    )  # sorting secondarily by 'is_positive' (0 or 1) ensures that negatives are ranked before positives in case they have the same exact score (pessimistic approach)
+    df = df.drop_duplicates(
+        subset=["db2_file_path"],
+        keep="first",
+        ignore_index=True
+    )  # keep only the best score per molecule
+
     return df
+
+
+def make_ridgeline_plot_of_energy_terms(
+        df: pd.DataFrame,
+        save_path: Union[None, str] = None,
+        title: Union[None, str] = None,
+        figsize: Tuple[int, int] = (8, 8),
+        dpi: int = 300,
+        alpha: float = 0.8,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """make ridgeline plot of energy terms"""
+
+    #
+    if save_path is None:
+        save_path = 'energy_terms.png'
+
+    #
+    if title is None:
+        title = "Distributions of Energy Terms (Positives vs. Negatives)"
+
+    #
+    columns = [
+        "total_energy",
+        "electrostatic_energy",
+        "vdw_energy",
+        "polar_desolvation_energy",
+        "apolar_desolvation_energy",
+    ]
+
+    #
+    pivot_rows = []
+    for i, row in df.iterrows():
+        for col in columns:
+            pivot_row = {"energy_term": col}
+            if row["is_positive"] == 1:
+                pivot_row["positive"] = str_to_float(row[col])
+                pivot_row["negative"] = np.nan
+            else:
+                pivot_row["positive"] = np.nan
+                pivot_row["negative"] = str_to_float(row[col])
+            pivot_rows.append(pivot_row)
+    df_pivot = pd.DataFrame(pivot_rows)
+    fig, ax = joyplot(
+        data=df_pivot,
+        by="energy_term",
+        column=["positive", "negative"],
+        color=["#686de0", "#eb4d4b"],
+        legend=True,
+        alpha=alpha,
+        figsize=figsize,
+        ylim="own",
+    )
+    ax.set_xlabel("Δ Energy (kcal/mol)")
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=dpi)
+    plt.close(fig)
+
+    return fig, ax
+
+
+def make_split_violin_plot_of_charge(
+        df: pd.DataFrame,
+        save_path: Union[None, str] = None,
+        title: Union[None, str] = None,
+        figsize: Tuple[int, int] = (8, 8),
+        dpi: int = 300,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """make split violin plot of charge"""
+
+    #
+    if save_path is None:
+        save_path = 'charge.png'
+
+    #
+    if title is None:
+        title = 'Distributions of Charge (Positives vs. Negatives)'
+
+    #
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.violinplot(
+        data=df,
+        x="charge",
+        y="total_energy",
+        split=True,
+        hue="class_label",
+    )
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=dpi)
+    plt.close(fig)
+
+    return fig, ax
+
+
+def process_retrodock_job_results(
+        positives_retrodock_job_dir_path: str,
+        negatives_retrodock_job_dir_path: str,
+        task_num: int,
+        outdock_file_name: str,
+        roc_plot_save_path: Union[None, str] = None,
+        energy_terms_plot_save_path: Union[None, str] = None,
+        charge_plot_save_path: Union[None, str] = None,
+):
+    """process retrodock job results"""
+
+    # set default save paths
+    if roc_plot_save_path is None:
+        roc_plot_save_path = ROC_PLOT_FILE_NAME
+    if energy_terms_plot_save_path is None:
+        energy_terms_plot_save_path = ENERGY_TERMS_PLOT_FILE_NAME
+    if charge_plot_save_path is None:
+        charge_plot_save_path = CHARGE_PLOT_FILE_NAME
+
+    # load results
+    df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
+        os.path.join(positives_retrodock_job_dir_path, str(task_num), outdock_file_name),
+        os.path.join(negatives_retrodock_job_dir_path, str(task_num), outdock_file_name),
+    )
+
+    # calculate ROC
+    roc = ROC(booleans=df["is_positive"].astype(bool))
+    with open("normalized_log_auc", "w") as f:
+        f.write(f"{roc.normalized_log_auc}")
+
+    # make plots
+    roc.plot(save_path=roc_plot_save_path)
+    make_ridgeline_plot_of_energy_terms(df, save_path=energy_terms_plot_save_path)
+    make_split_violin_plot_of_charge(df, save_path=charge_plot_save_path)
 
 
 class Retrodock(Script):
@@ -131,6 +272,8 @@ class Retrodock(Script):
     INDOCK_FILE_NAME = "INDOCK"
     POSITIVES_TGZ_FILE_NAME = "positives.tgz"
     NEGATIVES_TGZ_FILE_NAME = "negatives.tgz"
+
+    SINGLE_TASK_NUM = 1
 
     def __init__(self):
         super().__init__()
@@ -256,9 +399,8 @@ class Retrodock(Script):
 
         array_job_docking_configurations_file_path = os.path.join(job_dir.path, "array_job_docking_configurations.txt")
         with open(array_job_docking_configurations_file_path, 'w') as f:
-            retrodock_job_num = 1
             dockfile_paths_str = " ".join([dock_file.path for dock_file in astuple(dock_files)])
-            f.write(f"{retrodock_job_num} {indock_file.path} {dockfile_paths_str} {dock_executable_path}\n")
+            f.write(f"{self.SINGLE_TASK_NUM} {indock_file.path} {dockfile_paths_str} {dock_executable_path}\n")
 
         #
         output_dir = Dir(os.path.join(job_dir.path, "output"), create=True, reset=False)
@@ -318,70 +460,16 @@ class Retrodock(Script):
             f"Retrodock job completed. Successfully loaded both OUTDOCK files."
         )
 
-        # load results
-        df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
-            os.path.join(positives_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
-            os.path.join(negatives_retrodock_job.job_dir.path, '1', 'OUTDOCK.0'),
+        #
+        process_retrodock_job_results(
+            positives_retrodock_job_dir_path=positives_retrodock_job.job_dir.path,
+            negatives_retrodock_job_dir_path=negatives_retrodock_job.job_dir.path,
+            task_num=self.SINGLE_TASK_NUM,
+            outdock_file_name=OUTDOCK_FILE_NAME,
+            roc_plot_save_path=os.path.join(job_dir.path, ROC_PLOT_FILE_NAME),
+            energy_terms_plot_save_path=os.path.join(job_dir.path, ENERGY_TERMS_PLOT_FILE_NAME),
+            charge_plot_save_path=os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME),
         )
-        df = df.sort_values(
-            by=["total_energy", "is_positive"], na_position="last", ignore_index=True
-        )
-        df = df.drop_duplicates(
-            subset=["db2_file_path"], keep="first", ignore_index=True
-        )
-        booleans = df["is_positive"].astype(bool)
-        roc = ROC(booleans)
-        with open("normalized_log_auc", "w") as f:
-            f.write(f"{roc.normalized_log_auc}")
-
-        roc_plot_image_path = os.path.join(job_dir.path, ROC_PLOT_FILE_NAME)
-        roc.plot(save_path=roc_plot_image_path)
-
-        pivot_rows = []
-        for i, row in df.iterrows():
-            for col in [
-                "total_energy",
-                "electrostatic_energy",
-                "vdw_energy",
-                "polar_desolvation_energy",
-                "apolar_desolvation_energy",
-            ]:
-                pivot_row = {"energy_term": col}
-                if row["is_positive"] == 1:
-                    pivot_row["positive"] = str_to_float(row[col])
-                    pivot_row["negative"] = np.nan
-                else:
-                    pivot_row["positive"] = np.nan
-                    pivot_row["negative"] = str_to_float(row[col])
-                pivot_rows.append(pivot_row)
-        df_best_job_pivot = pd.DataFrame(pivot_rows)
-        fig, ax = joyplot(
-            data=df_best_job_pivot,
-            by="energy_term",
-            column=["positive", "negative"],
-            color=["#686de0", "#eb4d4b"],
-            legend=True,
-            alpha=0.85,
-            figsize=(12, 8),
-            ylim="own",
-        )
-        plt.title("ridgeline plot: energy terms (positives vs. negatives)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(job_dir.path, ENERGY_PLOT_FILE_NAME))
-        plt.close(fig)
-
-        fig = plt.figure()
-        sns.violinplot(
-            data=df,
-            x="charge",
-            y="total_energy",
-            split=True,
-            hue="class_label",
-        )
-        plt.title("split violin plot: charge (positives vs. negatives)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME))
-        plt.close(fig)
 
         #
         logger.info(f"Finished retrodock job")

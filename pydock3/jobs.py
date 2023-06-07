@@ -25,6 +25,10 @@ logger.setLevel(logging.DEBUG)
 
 
 #
+OUTDOCK_FILE_NAME = "OUTDOCK.0"
+
+
+#
 class JobSubmissionResult(Enum):
     SUCCESS = 1
     FAILED = 2
@@ -53,8 +57,6 @@ class ArrayDockingJob(ABC):
     sleep_seconds_after_copying_output: int = 0
     export_mol2: bool = True
     #max_reattempts: int = 0  # TODO
-
-    OUTDOCK_FILE_NAME = "OUTDOCK.0"
 
     def __post_init__(self):
         #
@@ -199,4 +201,4 @@ class ArrayDockingJob(ABC):
         )
 
     def task_is_complete(self, task_id: Union[str, int]):
-        return File.file_exists(os.path.join(self.job_dir.path, task_id, self.OUTDOCK_FILE_NAME))
+        return File.file_exists(os.path.join(self.job_dir.path, task_id, OUTDOCK_FILE_NAME))

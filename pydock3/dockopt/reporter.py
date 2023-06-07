@@ -13,7 +13,7 @@ import plotly.graph_objs as go
 from pydock3.util import sort_list_by_another_list
 from pydock3.criterion.enrichment.bonferroni import get_bonferroni_correction, get_random_classifier_performance_data
 from pydock3.files import File
-from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
+from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_TERMS_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME
 
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
@@ -93,7 +93,7 @@ class HTMLReporter(Reporter):
         for i, (_, row) in enumerate(df_to_iter.iterrows()):
             best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i + 1}_step={row['component_id']}_conf={row['configuration_num']}")
 
-            energy_plot_file_path = os.path.join(best_job_dir_path, ENERGY_PLOT_FILE_NAME)
+            energy_plot_file_path = os.path.join(best_job_dir_path, ENERGY_TERMS_PLOT_FILE_NAME)
             if os.path.exists(energy_plot_file_path):
                 figures.append(energy_plot_file_path)
 
