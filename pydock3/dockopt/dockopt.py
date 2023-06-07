@@ -799,15 +799,17 @@ class DockoptStep(PipelineComponent):
                 os.scandir(os.path.join(array_job.job_dir.path, str(docking_configuration.configuration_num)))
             time.sleep(0.01)
 
-        def array_job_failed(array_job: ArrayJob, docking_configuration: DockingConfiguration) -> bool:
-            """Check if an array job failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
-            return any([
-                (not array_job.task_is_complete(str(docking_configuration.configuration_num)))
-                and (not array_job.job_scheduler.task_is_on_queue(
-                    str(docking_configuration.configuration_num
-                ), job_name=array_job.name))
-                for array_job in array_jobs
-            ])
+        def any_of_array_jobs_failed(array_jobs: List[ArrayJob], docking_configuration: DockingConfiguration) -> bool:
+            """Check if any of the supplied array jobs failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
+
+            def array_job_failed(array_job: ArrayJob, docking_configuration: DockingConfiguration) -> bool:
+                """Check if the supplied array job failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
+                return (
+                    (not array_job.task_is_complete(str(docking_configuration.configuration_num))) and
+                    (not array_job.job_scheduler.task_is_on_queue(str(docking_configuration.configuration_num), job_name=array_job.name))
+                )
+
+            return any([array_job_failed(array_job, docking_configuration) for array_job in array_jobs])
 
         # submit retrodock jobs (one for positives, one for negatives)
         array_jobs = []
@@ -860,10 +862,10 @@ class DockoptStep(PipelineComponent):
                 if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
                     datetime_queue_was_last_checked = datetime_now
                     reset_directory_files_cache(array_jobs, docking_configuration)
-                    if array_job_failed(array_job, docking_configuration):
+                    if any_of_array_jobs_failed(array_jobs, docking_configuration):
                         # try again in case distributed file system issue is causing delay
                         reset_directory_files_cache(array_jobs, docking_configuration)
-                        if array_job_failed(array_job, docking_configuration):
+                        if any_of_array_jobs_failed(array_jobs, docking_configuration):
 
                             # task must have timed out / failed for one or both jobs
                             logger.warning(
