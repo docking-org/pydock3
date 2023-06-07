@@ -793,16 +793,16 @@ class DockoptStep(PipelineComponent):
         def get_negatives_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
             return os.path.join(self.retrodock_jobs_dir.path, 'negatives', str(configuration_num), 'OUTDOCK.0')
 
-        def reset_directory_files_cache(array_jobs: List[ArrayJob], docking_configuration: DockingConfiguration) -> None:
+        def reset_directory_files_cache(array_jobs: List[ArrayDockingJob], docking_configuration: DockingConfiguration) -> None:
             """Reset the cache of files in the directory so that we can check for new files without dealing with distributed file system issues."""
             for array_job in array_jobs:
                 os.scandir(os.path.join(array_job.job_dir.path, str(docking_configuration.configuration_num)))
             time.sleep(0.01)
 
-        def any_of_array_jobs_failed(array_jobs: List[ArrayJob], docking_configuration: DockingConfiguration) -> bool:
+        def any_of_array_jobs_failed(array_jobs: List[ArrayDockingJob], docking_configuration: DockingConfiguration) -> bool:
             """Check if any of the supplied array jobs failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
 
-            def array_job_failed(array_job: ArrayJob, docking_configuration: DockingConfiguration) -> bool:
+            def array_job_failed(array_job: ArrayDockingJob, docking_configuration: DockingConfiguration) -> bool:
                 """Check if the supplied array job failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
                 return (
                     (not array_job.task_is_complete(str(docking_configuration.configuration_num))) and
