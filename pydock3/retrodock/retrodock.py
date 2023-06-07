@@ -4,6 +4,7 @@ from uuid import uuid4
 import time
 from dataclasses import astuple
 from typing import List, Union, Tuple
+import collections
 
 import numpy as np
 import pandas as pd
@@ -46,6 +47,12 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 ROC_PLOT_FILE_NAME = "roc.png"
 ENERGY_TERMS_PLOT_FILE_NAME = "energy.png"
 CHARGE_PLOT_FILE_NAME = "charge.png"
+
+
+BINARY_CLASS_COLOR_PALETTE = collections.OrderedDict({
+    "positive": "#686de0",
+    "negative": "#eb4d4b",
+})
 
 
 # TODO: add this as a decorator of `submit` method of `DockoptJob`
@@ -181,7 +188,7 @@ def make_ridgeline_plot_of_energy_terms(
         data=df_pivot,
         by="energy_term",
         column=["positive", "negative"],
-        color=["#686de0", "#eb4d4b"],
+        color=[BINARY_CLASS_COLOR_PALETTE['positive'], BINARY_CLASS_COLOR_PALETTE['negative']],
         legend=True,
         alpha=alpha,
         figsize=figsize,
@@ -215,12 +222,19 @@ def make_split_violin_plot_of_charge(
 
     #
     fig, ax = plt.subplots(figsize=figsize)
+    c = sns.color_palette(
+        palette=[BINARY_CLASS_COLOR_PALETTE['positive'], BINARY_CLASS_COLOR_PALETTE['negative']],
+        n_colors=2,
+    )
+    palette = {'positive': c[0], 'negative': c[1]}
     sns.violinplot(
         data=df,
         x="charge",
         y="total_energy",
         split=True,
         hue="class_label",
+        inner="stick",
+        palette=palette,
     )
     plt.title(title)
     plt.tight_layout()
