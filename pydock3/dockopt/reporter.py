@@ -343,14 +343,14 @@ class HTMLReporter(Reporter):
             df: pd.DataFrame,
             x: str,
             y: str,
-            scores: str,
+            criterion_name: str,
             min_units_between: int = 20,
             interp_method: str = 'cubic',
             title: Union[None, str] = None,
     ) -> go.Figure:
         # Extract points and scores
         points = df[[x, y]].to_numpy()
-        scores_array = df[scores].to_numpy()
+        scores_array = df[criterion_name].to_numpy()
 
         # Check that there are enough data points to create a heatmap
         if len(points) < 4:
@@ -368,7 +368,7 @@ class HTMLReporter(Reporter):
         grid_scores = griddata(points, scores_array, (grid_x, grid_y), method=interp_method)
 
         # Create the heatmap
-        heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='RdBu', showscale=True, reversescale=True)
+        heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='RdBu', showscale=True, reversescale=True, colorbar=dict(title=HTMLReporter.get_axis_label(criterion_name)))
 
         # Create the scatter plot
         scatter = go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers',
