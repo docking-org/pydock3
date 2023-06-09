@@ -370,11 +370,25 @@ class HTMLReporter(Reporter):
         # Create the heatmap
         heatmap = go.Heatmap(x=x_coords, y=y_coords, z=grid_scores, colorscale='RdBu', showscale=True, reversescale=True, colorbar=dict(title=HTMLReporter.get_axis_label(criterion_name)))
 
+        # Extract the min and max values of the interpolated data
+        cmin = np.nanmin(grid_scores)
+        cmax = np.nanmax(grid_scores)
+
         # Create the scatter plot
-        scatter = go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers',
-                             marker=dict(color=scores_array, colorscale='RdBu',
-                                         reversescale=True, size=8,
-                                         line=dict(color='gray', width=1)))
+        scatter = go.Scatter(
+            x=points[:, 0],
+            y=points[:, 1],
+            mode='markers',
+            marker=dict(
+                color=scores_array,
+                colorscale='RdBu',
+                cmin=cmin,
+                cmax=cmax,
+                reversescale=True,
+                size=8,
+                line=dict(color='gray', width=1),
+            )
+        )
 
         # Combine the heatmap and scatter plot
         layout = go.Layout(

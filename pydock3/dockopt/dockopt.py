@@ -1278,6 +1278,9 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             # TODO: make sure this is memory efficient
             self.graph = nx.compose(self.graph, last_component_completed_in_sequence.graph)
 
+        #
+        self.last_component_completed = last_component_completed_in_sequence
+
         return df
 
     @property
@@ -1386,6 +1389,9 @@ class DockoptStepSequence(PipelineComponentSequence):
             else:
                 best_criterion_value_witnessed = best_criterion_value_witnessed_this_iteration
 
+        #
+        self.last_component_completed = last_component_completed_in_sequence
+
         return df
 
     @property
@@ -1493,6 +1499,9 @@ class DockoptPipeline(Pipeline):
 
             # TODO: make sure this is memory efficient
             self.graph = nx.compose(self.graph, last_component_completed_in_sequence.graph)
+
+        #
+        self.last_component_completed = last_component_completed_in_sequence
 
         return df
 
