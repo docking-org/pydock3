@@ -134,7 +134,7 @@ class ArrayDockingJob(ABC):
 
     def submit_task(
             self,
-            task_id: Union[str, int],
+            task_id: str,
             skip_if_complete: bool = True,
     ) -> Tuple[JobSubmissionResult, List[subprocess.CompletedProcess]]:
         """
@@ -200,22 +200,22 @@ class ArrayDockingJob(ABC):
             ]
         )
 
-    def task_is_complete(self, task_id: Union[str, int]):
+    def task_is_complete(self, task_id: str):
         return File.file_exists(os.path.join(self.job_dir.path, task_id, OUTDOCK_FILE_NAME))
 
-    def task_failed(self, task_id: Union[str, int]) -> bool:
+    def task_failed(self, task_id: str) -> bool:
         """Check if the supplied array job task failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
 
         def _task_failed():
             return (
-                (not self.task_is_complete(str(task_id))) and
-                (not self.job_scheduler.task_is_on_queue(str(task_id), job_name=self.name))
+                (not self.task_is_complete(task_id)) and
+                (not self.job_scheduler.task_is_on_queue(task_id, job_name=self.name))
             )
 
-        Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, str(task_id)))
+        Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, task_id))
         if _task_failed():
             # try again in case distributed file system issue is causing delay
-            Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, str(task_id)))
+            Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, task_id))
             if _task_failed():
                 return True
 

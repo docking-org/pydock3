@@ -786,23 +786,6 @@ class DockoptStep(PipelineComponent):
                 indock_file_path_str = dc.get_indock_file(self.pipeline_dir.path).path
                 f.write(f"{dc.configuration_num} {indock_file_path_str} {dockfile_paths_str} {dc.dock_executable_path}\n")
 
-        #
-        def get_positives_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
-            return os.path.join(self.retrodock_jobs_dir.path, 'positives', str(configuration_num), 'OUTDOCK.0')
-
-        def get_negatives_outdock_file_path_for_configuration_num(configuration_num: int) -> str:
-            return os.path.join(self.retrodock_jobs_dir.path, 'negatives', str(configuration_num), 'OUTDOCK.0')
-
-        def reset_directory_files_cache(array_jobs: List[ArrayDockingJob], docking_configuration: DockingConfiguration) -> None:
-            """Reset the cache of files in the directory so that we can check for new files without dealing with distributed file system issues."""
-            for array_job in array_jobs:
-                os.scandir(os.path.join(array_job.job_dir.path, str(docking_configuration.configuration_num)))
-            time.sleep(0.01)
-
-        def any_of_array_jobs_with_task_failed(array_jobs: List[ArrayDockingJob], task_id: int) -> bool:
-            """Check if any of the supplied array jobs failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
-            return any([job.task_failed(task_id) for job in array_jobs])
-
         # submit retrodock jobs (one for positives, one for negatives)
         array_jobs = []
         skip_if_complete = re.match(components_to_skip_if_results_exist, rf"{self.component_id}") is not None
@@ -839,12 +822,17 @@ class DockoptStep(PipelineComponent):
             f"Awaiting / processing retrodock job results ({len(docking_configurations_processing_queue)} tasks in total)"
         )
         data_dicts = []
-        configuration_num_to_num_reattempts_dict = collections.defaultdict(int)
+        task_id_to_num_reattempts_dict = collections.defaultdict(int)
         datetime_queue_was_last_checked = datetime.min
         while len(docking_configurations_processing_queue) > 0:
             #
             docking_configuration = docking_configurations_processing_queue.pop(0)
-            if any([not array_job.task_is_complete(str(docking_configuration.configuration_num)) for array_job in array_jobs]):  # one or both OUTDOCK files do not exist yet
+            task_id = str(docking_configuration.configuration_num)
+            positives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'positives', task_id, 'OUTDOCK.0')
+            negatives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'negatives', task_id, 'OUTDOCK.0')
+
+            #
+            if any([not array_job.task_is_complete(task_id) for array_job in array_jobs]):  # one or both OUTDOCK files do not exist yet
                 time.sleep(
                     0.01
                 )  # sleep for a bit
@@ -853,25 +841,25 @@ class DockoptStep(PipelineComponent):
                 datetime_now = datetime.now()
                 if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
                     datetime_queue_was_last_checked = datetime_now
-                    if any_of_array_jobs_with_task_failed(array_jobs, docking_configuration.configuration_num):
+                    if any([job.task_failed(task_id) for job in retrodock_jobs]):
                         # task must have timed out / failed for one or both jobs
                         logger.warning(
-                            f"Failure / time out witnessed for task {docking_configuration.configuration_num}"
+                            f"Failure / time out witnessed for task {task_id}"
                         )
-                        if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
+                        if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
                             logger.warning(
-                                f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
+                                f"Max reattempts exhausted for task {task_id}"
                             )
                             continue  # move on to next in queue without re-attempting failed task
 
                         # re-attempt relevant job(s) for incomplete task
                         for array_job in array_jobs:
-                            if (not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.job_scheduler.task_is_on_queue(str(docking_configuration.configuration_num), job_name=array_job.name)):
+                            if (not array_job.task_is_complete(task_id)) and (not array_job.job_scheduler.task_is_on_queue(task_id, job_name=array_job.name)):
                                 array_job.submit_task(
-                                    str(docking_configuration.configuration_num),
+                                    task_id,
                                     skip_if_complete=False,
                                 )
-                        configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
+                        task_id_to_num_reattempts_dict[task_id] += 1
 
                 docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
                 continue  # move on to next in queue
@@ -879,33 +867,31 @@ class DockoptStep(PipelineComponent):
             # load outdock files and get dataframe
             try:
                 # get dataframe of positives job results and negatives job results combined
-                df = (
-                    get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
-                        get_positives_outdock_file_path_for_configuration_num(docking_configuration.configuration_num), get_negatives_outdock_file_path_for_configuration_num(docking_configuration.configuration_num)
-                    )
+                df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
+                    positives_outdock_file_path, negatives_outdock_file_path
                 )
             except Exception as e:  # if outdock files failed to be parsed then re-attempt task
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
-                if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
+                if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
                     logger.warning(
-                        f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
+                        f"Max reattempts exhausted for task {task_id}"
                     )
                     continue  # move on to next in queue without re-attempting failed task
 
                 for array_job in array_jobs:
                     array_job.submit_task(
-                        str(docking_configuration.configuration_num),
+                        task_id,
                         skip_if_complete=False,
                     )  # re-attempt both jobs
-                configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
-                docking_configurations_processing_queue.append(
-                    docking_configuration
-                )  # move to back of queue
+                task_id_to_num_reattempts_dict[task_id] += 1
+
+                #
+                docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
                 continue  # move on to next in queue
 
             #
             logger.info(
-                f"Task {docking_configuration.configuration_num} completed. Successfully loaded both OUTDOCK files."
+                f"Task {task_id} completed. Successfully loaded both OUTDOCK files."
             )
 
             # sort dataframe by total energy score
@@ -928,10 +914,10 @@ class DockoptStep(PipelineComponent):
                 #
                 num_positives_detected = len([1 for b in booleans if b])
                 if num_positives_detected != self.retrospective_dataset.num_positives:
-                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_positives} positives but only detected {num_positives_detected} positives while processing retrodock job for configuration # {docking_configuration.configuration_num}")
+                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_positives} positives but only detected {num_positives_detected} positives while processing retrodock job for task {task_id}")
                 num_negatives_detected = len([0 for b in booleans if not b])
                 if num_negatives_detected != self.retrospective_dataset.num_negatives:
-                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_negatives} negatives but only detected {num_negatives_detected} negatives while processing retrodock job for configuration # {docking_configuration.configuration_num}")
+                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_negatives} negatives but only detected {num_negatives_detected} negatives while processing retrodock job for task {task_id}")
 
             # save data_dict for this job
             data_dicts.append(data_dict)
