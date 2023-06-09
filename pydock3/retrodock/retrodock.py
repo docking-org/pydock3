@@ -461,7 +461,7 @@ class Retrodock(Script):
             """Resubmit a job if it failed."""
             nonlocal max_reattempts_dict
             if max_reattempts_dict[job.name] < retrodock_job_max_reattempts:
-                sub_result, procs = job.submit_task(self.SINGLE_TASK_NUM, skip_if_complete=False)
+                sub_result, procs = job.submit_task(str(self.SINGLE_TASK_NUM), skip_if_complete=False)
                 log_job_submission_result(job, sub_result, procs)
                 max_reattempts_dict[job.name] += 1
             else:
@@ -475,7 +475,7 @@ class Retrodock(Script):
                 continue
             else:
                 for job in retrodock_jobs:
-                    if job.task_failed(self.SINGLE_TASK_NUM):
+                    if job.task_failed(str(self.SINGLE_TASK_NUM)):
                         _resubmit_job_task(job)
 
             #
