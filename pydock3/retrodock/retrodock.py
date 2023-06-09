@@ -491,6 +491,7 @@ class Retrodock(Script):
                     energy_terms_plot_save_path=os.path.join(job_dir.path, ENERGY_TERMS_PLOT_FILE_NAME),
                     charge_plot_save_path=os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME),
                 )
+                logger.info(f"Successfully loaded both OUTDOCK files and processed results.")
             except Exception as e:
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
                 for job in retrodock_jobs:
@@ -499,8 +500,6 @@ class Retrodock(Script):
             #
             if not all([job.is_complete for job in retrodock_jobs]):
                 continue
-
-        logger.info(f"Successfully loaded both OUTDOCK files.")
 
         #
         logger.info(f"Finished RetroDock job.")
