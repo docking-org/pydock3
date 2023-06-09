@@ -449,21 +449,25 @@ class Retrodock(Script):
             export_mol2=export_negatives_mol2,
         )
 
+        #
+        num_attempts_dict = collections.defaultdict(int)
+
         # submit jobs
         retrodock_jobs = [positives_retrodock_job, negatives_retrodock_job]
         for job in retrodock_jobs:
             sub_result, procs = job.submit_all_tasks(skip_if_complete=True)
             log_job_submission_result(job, sub_result, procs)
+            if sub_result == JobSubmissionResult.SUCCESS:
+                num_attempts_dict[job.name] += 1
 
         #
-        max_reattempts_dict = collections.defaultdict(int)
         def _resubmit_job_task(job: ArrayDockingJob):
             """Resubmit a job if it failed."""
-            nonlocal max_reattempts_dict
-            if max_reattempts_dict[job.name] < retrodock_job_max_reattempts:
+            nonlocal num_attempts_dict
+            if num_attempts_dict[job.name] < retrodock_job_max_reattempts + 1:
                 sub_result, procs = job.submit_task(str(self.SINGLE_TASK_NUM), skip_if_complete=False)
                 log_job_submission_result(job, sub_result, procs)
-                max_reattempts_dict[job.name] += 1
+                num_attempts_dict[job.name] += 1
             else:
                 raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts + 1}) exceeded. RetroDock did not complete.")
 
