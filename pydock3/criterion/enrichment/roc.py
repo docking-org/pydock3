@@ -201,7 +201,7 @@ class ROC(object):
 
         # save image and close
         plt.tight_layout()
-        plt.savefig(save_path, dpi=dpi)
+        plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
         plt.close(fig)
 
         return fig, ax

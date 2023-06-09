@@ -197,7 +197,7 @@ def make_ridgeline_plot_of_energy_terms(
     ax.set_xlabel("Δ Energy (kcal/mol)")
     plt.title(title)
     plt.tight_layout()
-    plt.savefig(save_path, dpi=dpi)
+    plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
     plt.close(fig)
 
     return fig, ax
@@ -238,7 +238,7 @@ def make_split_violin_plot_of_charge(
     )
     plt.title(title)
     plt.tight_layout()
-    plt.savefig(save_path, dpi=dpi)
+    plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
     plt.close(fig)
 
     return fig, ax
