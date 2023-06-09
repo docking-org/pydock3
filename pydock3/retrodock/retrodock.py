@@ -502,8 +502,8 @@ class Retrodock(Script):
                     _resubmit_job_task(job)
 
             #
-            if not all([job.is_complete for job in retrodock_jobs]):
-                continue
+            if all([job.is_complete for job in retrodock_jobs]):
+                break
 
         #
         logger.info(f"Finished RetroDock job.")
