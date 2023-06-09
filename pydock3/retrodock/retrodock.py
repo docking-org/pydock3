@@ -456,19 +456,23 @@ class Retrodock(Script):
 
         # wait for jobs to complete
         logger.info(f"Awaiting / processing retrodock job results")
-        reattempts = 0
-        while not all([job.is_complete for job in retrodock_jobs]) and reattempts <= retrodock_job_max_reattempts:
+        max_reattempts_dict = collections.defaultdict(int)
+        while not all([job.is_complete for job in retrodock_jobs]) and max_reattempts_dict[job.name] <= retrodock_job_max_reattempts:
             if any([job.is_on_job_scheduler_queue for job in retrodock_jobs]):
                 time.sleep(5)
                 continue
             else:
                 for job in retrodock_jobs:
-                    if not job.is_complete and not job.is_on_job_scheduler_queue:
-                        sub_result, procs = job.submit_all_tasks(skip_if_complete=True)
-                        log_job_submission_result(job, sub_result, procs)
-                reattempts += 1
-        if reattempts > retrodock_job_max_reattempts:
-            raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts + 1}) exceeded. Job did not complete.")
+                    if (not job.is_complete) and (not job.is_on_job_scheduler_queue):
+                        os.scandir(output_dir.path)
+                        time.sleep(1)
+                        if (not job.is_complete) and (not job.is_on_job_scheduler_queue):
+                            if max_reattempts_dict[job.name] < retrodock_job_max_reattempts:
+                                sub_result, procs = job.submit_all_tasks(skip_if_complete=False)
+                                log_job_submission_result(job, sub_result, procs)
+                                max_reattempts_dict[job.name] += 1
+                            else:
+                                raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts + 1}) exceeded. Job did not complete.")
 
         logger.info(
             f"Retrodock job completed. Successfully loaded both OUTDOCK files."
