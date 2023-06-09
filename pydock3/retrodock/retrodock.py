@@ -62,15 +62,15 @@ def log_job_submission_result(job, submission_result, procs):
     elif submission_result is JobSubmissionResult.FAILED:
         for proc in procs:
             raise Exception(
-                f"Job submission failed for '{job.name}' due to error: {proc.stderr}\n"
+                f"Job submission failed for '{job.name}' due to error: {proc.stderr}"
             )
     elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_ALREADY_COMPLETE:
         logger.info(
-            f"Job submission skipped for '{job.name}' since all its OUTDOCK files already exist.\n"
+            f"Job submission skipped for '{job.name}' since all its OUTDOCK files already exist."
         )
     elif submission_result is JobSubmissionResult.SKIPPED_BECAUSE_STILL_ON_JOB_SCHEDULER_QUEUE:
         logger.info(
-            f"Job submission skipped for '{job.name}' since it is still running from a previous submission.\n"
+            f"Job submission skipped for '{job.name}' since it is still running from a previous submission."
         )
     else:
         raise Exception(f"Unrecognized JobSubmissionResult: {submission_result}")
