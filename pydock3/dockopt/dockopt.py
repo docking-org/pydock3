@@ -799,17 +799,9 @@ class DockoptStep(PipelineComponent):
                 os.scandir(os.path.join(array_job.job_dir.path, str(docking_configuration.configuration_num)))
             time.sleep(0.01)
 
-        def any_of_array_jobs_failed(array_jobs: List[ArrayDockingJob], docking_configuration: DockingConfiguration) -> bool:
+        def any_of_array_jobs_with_task_failed(array_jobs: List[ArrayDockingJob], task_id: int) -> bool:
             """Check if any of the supplied array jobs failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
-
-            def array_job_failed(array_job: ArrayDockingJob, docking_configuration: DockingConfiguration) -> bool:
-                """Check if the supplied array job failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
-                return (
-                    (not array_job.task_is_complete(str(docking_configuration.configuration_num))) and
-                    (not array_job.job_scheduler.task_is_on_queue(str(docking_configuration.configuration_num), job_name=array_job.name))
-                )
-
-            return any([array_job_failed(array_job, docking_configuration) for array_job in array_jobs])
+            return any([job.task_failed(task_id) for job in array_jobs])
 
         # submit retrodock jobs (one for positives, one for negatives)
         array_jobs = []
@@ -861,33 +853,27 @@ class DockoptStep(PipelineComponent):
                 datetime_now = datetime.now()
                 if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
                     datetime_queue_was_last_checked = datetime_now
-                    reset_directory_files_cache(array_jobs, docking_configuration)
-                    if any_of_array_jobs_failed(array_jobs, docking_configuration):
-                        # try again in case distributed file system issue is causing delay
-                        reset_directory_files_cache(array_jobs, docking_configuration)
-                        if any_of_array_jobs_failed(array_jobs, docking_configuration):
-
-                            # task must have timed out / failed for one or both jobs
+                    if any_of_array_jobs_with_task_failed(array_jobs, docking_configuration.configuration_num):
+                        # task must have timed out / failed for one or both jobs
+                        logger.warning(
+                            f"Failure / time out witnessed for task {docking_configuration.configuration_num}"
+                        )
+                        if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
                             logger.warning(
-                                f"Failure / time out witnessed for task {docking_configuration.configuration_num}"
+                                f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
                             )
-                            if configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
-                                logger.warning(
-                                    f"Max reattempts exhausted for task {docking_configuration.configuration_num}"
+                            continue  # move on to next in queue without re-attempting failed task
+
+                        # re-attempt relevant job(s) for incomplete task
+                        for array_job in array_jobs:
+                            if (not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.job_scheduler.task_is_on_queue(str(docking_configuration.configuration_num), job_name=array_job.name)):
+                                array_job.submit_task(
+                                    str(docking_configuration.configuration_num),
+                                    skip_if_complete=False,
                                 )
-                                continue  # move on to next in queue without re-attempting failed task
+                        configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
 
-                            for array_job in array_jobs:
-                                if (not array_job.task_is_complete(str(docking_configuration.configuration_num))) and (not array_job.job_scheduler.task_is_on_queue(str(docking_configuration.configuration_num), job_name=array_job.name)):
-                                    array_job.submit_task(
-                                        str(docking_configuration.configuration_num),
-                                        skip_if_complete=False,
-                                    )  # re-attempt relevant job(s) for incomplete task
-                            configuration_num_to_num_reattempts_dict[docking_configuration.configuration_num] += 1
-
-                docking_configurations_processing_queue.append(
-                    docking_configuration
-                )  # move to back of queue
+                docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
                 continue  # move on to next in queue
 
             # load outdock files and get dataframe

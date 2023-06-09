@@ -8,6 +8,7 @@ import tarfile
 import gzip
 import re
 import uuid
+import time
 
 import numpy as np
 import pandas as pd
@@ -133,6 +134,12 @@ class Dir(FileSystemEntity):
         dst_file.copy_from(src_file_path=src_file_path, overwrite=overwrite)
 
         return dst_file
+
+    @staticmethod
+    def reset_directory_files_cache(dir_path: str) -> None:
+        """Reset the cache of files in the directory so that we can check for new files without dealing with distributed file system issues."""
+        os.scandir(dir_path)
+        time.sleep(0.01)
 
     @staticmethod
     def validate_obj_is_dir(obj):

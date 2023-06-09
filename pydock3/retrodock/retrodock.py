@@ -449,45 +449,52 @@ class Retrodock(Script):
             export_mol2=export_negatives_mol2,
         )
 
+        # submit jobs
         retrodock_jobs = [positives_retrodock_job, negatives_retrodock_job]
         for job in retrodock_jobs:
             sub_result, procs = job.submit_all_tasks(skip_if_complete=True)
             log_job_submission_result(job, sub_result, procs)
 
+        #
+        max_reattempts_dict = collections.defaultdict(int)
+        def _resubmit_job_task(job: ArrayDockingJob):
+            """Resubmit a job if it failed."""
+            nonlocal max_reattempts_dict
+            if max_reattempts_dict[job.name] < retrodock_job_max_reattempts:
+                sub_result, procs = job.submit_task(self.SINGLE_TASK_NUM, skip_if_complete=False)
+                log_job_submission_result(job, sub_result, procs)
+                max_reattempts_dict[job.name] += 1
+            else:
+                raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts + 1}) exceeded. RetroDock did not complete.")
+
         # wait for jobs to complete
         logger.info(f"Awaiting / processing retrodock job results")
-        max_reattempts_dict = collections.defaultdict(int)
         while not all([job.is_complete for job in retrodock_jobs]) and max_reattempts_dict[job.name] <= retrodock_job_max_reattempts:
             if any([job.is_on_job_scheduler_queue for job in retrodock_jobs]):
                 time.sleep(5)
                 continue
             else:
                 for job in retrodock_jobs:
-                    if (not job.is_complete) and (not job.is_on_job_scheduler_queue):
-                        os.scandir(output_dir.path)
-                        time.sleep(1)
-                        if (not job.is_complete) and (not job.is_on_job_scheduler_queue):
-                            if max_reattempts_dict[job.name] < retrodock_job_max_reattempts:
-                                sub_result, procs = job.submit_all_tasks(skip_if_complete=False)
-                                log_job_submission_result(job, sub_result, procs)
-                                max_reattempts_dict[job.name] += 1
-                            else:
-                                raise Exception(f"Max job submission attempts ({retrodock_job_max_reattempts + 1}) exceeded. Job did not complete.")
+                    if job.task_failed(self.SINGLE_TASK_NUM):
+                        _resubmit_job_task(job)
 
-        logger.info(
-            f"Retrodock job completed. Successfully loaded both OUTDOCK files."
-        )
+            #
+            try:
+                process_retrodock_job_results(
+                    positives_retrodock_job_dir_path=positives_retrodock_job.job_dir.path,
+                    negatives_retrodock_job_dir_path=negatives_retrodock_job.job_dir.path,
+                    task_num=self.SINGLE_TASK_NUM,
+                    outdock_file_name=OUTDOCK_FILE_NAME,
+                    roc_plot_save_path=os.path.join(job_dir.path, ROC_PLOT_FILE_NAME),
+                    energy_terms_plot_save_path=os.path.join(job_dir.path, ENERGY_TERMS_PLOT_FILE_NAME),
+                    charge_plot_save_path=os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
+                for job in retrodock_jobs:
+                    _resubmit_job_task(job)
 
-        #
-        process_retrodock_job_results(
-            positives_retrodock_job_dir_path=positives_retrodock_job.job_dir.path,
-            negatives_retrodock_job_dir_path=negatives_retrodock_job.job_dir.path,
-            task_num=self.SINGLE_TASK_NUM,
-            outdock_file_name=OUTDOCK_FILE_NAME,
-            roc_plot_save_path=os.path.join(job_dir.path, ROC_PLOT_FILE_NAME),
-            energy_terms_plot_save_path=os.path.join(job_dir.path, ENERGY_TERMS_PLOT_FILE_NAME),
-            charge_plot_save_path=os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME),
-        )
+        logger.info(f"Successfully loaded both OUTDOCK files.")
 
         #
-        logger.info(f"Finished retrodock job")
+        logger.info(f"Finished RetroDock job.")
