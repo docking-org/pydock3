@@ -156,7 +156,7 @@ def make_ridgeline_plot_of_energy_terms(
 
     #
     if save_path is None:
-        save_path = 'energy_terms.png'
+        save_path = ENERGY_TERMS_PLOT_FILE_NAME
 
     #
     if title is None:
@@ -214,7 +214,7 @@ def make_split_violin_plot_of_charge(
 
     #
     if save_path is None:
-        save_path = 'charge.png'
+        save_path = CHARGE_PLOT_FILE_NAME
 
     #
     if title is None:
