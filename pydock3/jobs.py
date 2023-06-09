@@ -201,6 +201,7 @@ class ArrayDockingJob(ABC):
         )
 
     def task_is_complete(self, task_id: str):
+        Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, task_id))
         return File.file_exists(os.path.join(self.job_dir.path, task_id, OUTDOCK_FILE_NAME))
 
     def task_failed(self, task_id: str) -> bool:

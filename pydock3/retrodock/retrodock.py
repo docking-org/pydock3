@@ -469,14 +469,16 @@ class Retrodock(Script):
 
         # wait for jobs to complete
         logger.info(f"Awaiting / processing retrodock job results")
-        while not all([job.is_complete for job in retrodock_jobs]) and max_reattempts_dict[job.name] <= retrodock_job_max_reattempts:
+        while True:
             if any([job.is_on_job_scheduler_queue for job in retrodock_jobs]):
                 time.sleep(5)
                 continue
             else:
-                for job in retrodock_jobs:
-                    if job.task_failed(str(self.SINGLE_TASK_NUM)):
-                        _resubmit_job_task(job)
+                if not all([job.is_complete for job in retrodock_jobs]):
+                    for job in retrodock_jobs:
+                        if job.task_failed(str(self.SINGLE_TASK_NUM)):
+                            _resubmit_job_task(job)
+                    continue
 
             #
             try:
@@ -493,6 +495,10 @@ class Retrodock(Script):
                 logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
                 for job in retrodock_jobs:
                     _resubmit_job_task(job)
+
+            #
+            if not all([job.is_complete for job in retrodock_jobs]):
+                continue
 
         logger.info(f"Successfully loaded both OUTDOCK files.")
 
