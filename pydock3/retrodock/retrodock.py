@@ -233,7 +233,7 @@ def make_split_violin_plot_of_charge(
         y="total_energy",
         split=True,
         hue="class_label",
-        inner="stick",
+        inner="quartile",
         palette=palette,
     )
     plt.title(title)
