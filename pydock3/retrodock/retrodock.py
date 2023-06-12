@@ -402,7 +402,9 @@ class Retrodock(Script):
             )
             return
 
+        # create job directory
         job_dir = Dir(job_dir_path, create=True, reset=False)
+        logger.info(f"Starting RetroDock job: {job_dir.path}")
 
         #
         retrospective_dataset = RetrospectiveDataset(positives_tgz_file_path, negatives_tgz_file_path, 'positives', 'negatives')
