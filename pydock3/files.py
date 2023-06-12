@@ -664,7 +664,8 @@ class OutdockFile(File):
             #
             header_line_index = None
             for i, line in enumerate(lines):
-                if all([column_name in line for column_name in self.COLUMN_NAMES]):
+                words = line.strip()
+                if words[0] == self.COLUMN_NAMES[0] and words[-1] == self.COLUMN_NAMES[-1]:  # TODO: unfortunately this brittle solution will have to do for now, since this is the only way to be compatible with both DOCK 3.7 and 3.8
                     header_line_index = i
                     break
             if header_line_index is None:
