@@ -841,7 +841,7 @@ class DockoptStep(PipelineComponent):
                 datetime_now = datetime.now()
                 if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
                     datetime_queue_was_last_checked = datetime_now
-                    if any([job.task_failed(task_id) for job in retrodock_jobs]):
+                    if any([job.task_failed(task_id) for job in array_jobs]):
                         # task must have timed out / failed for one or both jobs
                         logger.warning(
                             f"Failure / time out witnessed for task {task_id}"
