@@ -134,9 +134,9 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
                 negatives_retrodock_job_dir_path=src_retrodock_job_negatives_dir_path,
                 task_num=dc.configuration_num,
                 outdock_file_name=OUTDOCK_FILE_NAME,
-                roc_plot_save_path=os.path.join(dst_best_job_dir_path.path, ROC_PLOT_FILE_NAME),
-                energy_terms_plot_save_path=os.path.join(dst_best_job_dir_path.path, ENERGY_TERMS_PLOT_FILE_NAME),
-                charge_plot_save_path=os.path.join(dst_best_job_dir_path.path, CHARGE_PLOT_FILE_NAME),
+                roc_plot_save_path=os.path.join(dst_best_job_dir_path, ROC_PLOT_FILE_NAME),
+                energy_terms_plot_save_path=os.path.join(dst_best_job_dir_path, ENERGY_TERMS_PLOT_FILE_NAME),
+                charge_plot_save_path=os.path.join(dst_best_job_dir_path, CHARGE_PLOT_FILE_NAME),
             )
 
 
