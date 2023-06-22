@@ -839,27 +839,31 @@ class DockoptStep(PipelineComponent):
 
                 #
                 datetime_now = datetime.now()
-                if datetime_now > (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
-                    datetime_queue_was_last_checked = datetime_now
-                    if any([job.task_failed(task_id) for job in array_jobs]):
-                        # task must have timed out / failed for one or both jobs
-                        logger.warning(
-                            f"Failure / time out witnessed for task {task_id}"
-                        )
-                        if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
-                            logger.warning(
-                                f"Max reattempts exhausted for task {task_id}"
-                            )
-                            continue  # move on to next in queue without re-attempting failed task
+                if datetime_now < (datetime_queue_was_last_checked + timedelta(seconds=MIN_SECONDS_BETWEEN_QUEUE_CHECKS)):
+                    docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
+                    continue  # move on to next in queue in order to more efficiently use time between queue checks
 
-                        # re-attempt relevant job(s) for incomplete task
-                        for array_job in array_jobs:
-                            if (not array_job.task_is_complete(task_id)) and (not array_job.job_scheduler.task_is_on_queue(task_id, job_name=array_job.name)):
-                                array_job.submit_task(
-                                    task_id,
-                                    skip_if_complete=False,
-                                )
-                        task_id_to_num_reattempts_dict[task_id] += 1
+                #
+                datetime_queue_was_last_checked = datetime.now()
+                if any([job.task_failed(task_id) for job in array_jobs]):
+                    # task must have timed out / failed for one or both jobs
+                    logger.warning(
+                        f"Failure / time out witnessed for task {task_id}"
+                    )
+                    if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
+                        logger.warning(
+                            f"Max reattempts exhausted for task {task_id}"
+                        )
+                        continue  # move on to next in queue without re-attempting failed task
+
+                    # re-attempt relevant job(s) for incomplete task
+                    for array_job in array_jobs:
+                        if (not array_job.task_is_complete(task_id)) and (not array_job.job_scheduler.task_is_on_queue(task_id, job_name=array_job.name)):
+                            array_job.submit_task(
+                                task_id,
+                                skip_if_complete=False,
+                            )
+                    task_id_to_num_reattempts_dict[task_id] += 1
 
                 docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
                 continue  # move on to next in queue
