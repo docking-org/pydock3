@@ -26,19 +26,15 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
     def new_run(
             self, 
             *args,
-            components_to_run: str = "^.*$",  # default: match any string
-            components_to_skip_if_results_exist: str = "^.*$",  # default: match any string
-            components_to_force_rewrite_report: str = "^.*$",  # default: match any string,
+            skip_if_results_exist: bool = True,
+            force_rewrite_report: bool = False,
             **kwargs
             ) -> pd.DataFrame:
-        
-        if re.match(components_to_run, rf"{self.component_id}") is None:
-            return None
 
-        if re.match(components_to_skip_if_results_exist, rf"{self.component_id}") is not None and self.results_manager is not None:
+        if skip_if_results_exist and self.results_manager is not None:
             if self.results_manager.results_exist(self):
                 result = self.results_manager.load_results(self)
-                if re.match(components_to_force_rewrite_report, rf"{self.component_id}") is not None:
+                if force_rewrite_report:
                     self.results_manager.write_report(self)
                 return result
 
@@ -46,9 +42,8 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
         result = run(
             self, 
             *args, 
-            components_to_run=components_to_run, 
-            components_to_skip_if_results_exist=components_to_skip_if_results_exist, 
-            components_to_force_rewrite_report=components_to_force_rewrite_report, 
+            skip_if_results_exist=skip_if_results_exist,
+            force_rewrite_report=force_rewrite_report,
             **kwargs
         )
         if self.results_manager is not None:  # write results if set
@@ -101,9 +96,8 @@ class PipelineComponent(object):
     def run(
             self, 
             *args,
-            components_to_run: str = "^.*$",  # default: match any string
-            components_to_skip_if_results_exist: str = "^.*$",  # default: match any string
-            components_to_force_rewrite_report: str = "^.*$",  # default: match any string,
+            skip_if_results_exist: bool = True,
+            force_rewrite_report: bool = False,
             **kwargs
             ) -> NoReturn:
         raise NotImplementedError
