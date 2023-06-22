@@ -117,15 +117,21 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             best_job_dockfiles_dir.copy_in_file(dc.get_indock_file(pipeline_component.pipeline_dir.path).path)
 
             #
-            src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives", str(dc.configuration_num))
-            src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives", str(dc.configuration_num))
+            src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives")
+            src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives")
+
+            #
+            dst_retrodock_job_positives_dir_path = os.path.join(dst_best_job_dir_path, "positives")
+            dst_retrodock_job_negatives_dir_path = os.path.join(dst_best_job_dir_path, "negatives")
+
+            #
             shutil.copytree(
-                src_retrodock_job_positives_dir_path,
-                os.path.join(dst_best_job_dir_path, "positives"),
+                os.path.join(src_retrodock_job_positives_dir_path, str(dc.configuration_num)),
+                os.path.join(dst_retrodock_job_positives_dir_path, str(dc.configuration_num)),
             )
             shutil.copytree(
-                src_retrodock_job_negatives_dir_path,
-                os.path.join(dst_best_job_dir_path, "negatives"),
+                os.path.join(src_retrodock_job_negatives_dir_path, str(dc.configuration_num)),
+                os.path.join(dst_retrodock_job_negatives_dir_path, str(dc.configuration_num)),
             )
 
             #
