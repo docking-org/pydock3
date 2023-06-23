@@ -33,11 +33,12 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
             ) -> pd.DataFrame:
 
         if (not force_redock) and (self.results_manager is not None):
-            if self.results_manager.results_exist(self):
-                result = self.results_manager.load_results(self)
-                if force_rewrite_report:
-                    self.results_manager.write_report(self)
-                return result
+            if not force_rewrite_results:
+                if self.results_manager.results_exist(self):
+                    result = self.results_manager.load_results(self)
+                    if force_rewrite_report:
+                        self.results_manager.write_report(self)
+                    return result
 
         self.started_utc = datetime.utcnow()  # record utc datetime when `run` starts
         result = run(
