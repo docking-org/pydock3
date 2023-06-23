@@ -246,10 +246,8 @@ def make_split_violin_plot_of_charge(
 
 
 def process_retrodock_job_results(
-        positives_retrodock_job_dir_path: str,
-        negatives_retrodock_job_dir_path: str,
-        task_num: int,
-        outdock_file_name: str,
+        positives_outdock_file_path: str,
+        negatives_outdock_file_path: str,
         save_dir_path: str,
 ):
     """process retrodock job results"""
@@ -262,8 +260,8 @@ def process_retrodock_job_results(
 
     # load results
     df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
-        os.path.join(positives_retrodock_job_dir_path, str(task_num), outdock_file_name),
-        os.path.join(negatives_retrodock_job_dir_path, str(task_num), outdock_file_name),
+        positives_outdock_file_path,
+        negatives_outdock_file_path,
     )
 
     # calculate ROC
@@ -486,10 +484,8 @@ class Retrodock(Script):
             #
             try:
                 process_retrodock_job_results(
-                    positives_retrodock_job_dir_path=positives_retrodock_job.job_dir.path,
-                    negatives_retrodock_job_dir_path=negatives_retrodock_job.job_dir.path,
-                    task_num=self.SINGLE_TASK_NUM,
-                    outdock_file_name=OUTDOCK_FILE_NAME,
+                    positives_outdock_file_path=os.path.join(positives_retrodock_job.job_dir.path, str(self.SINGLE_TASK_NUM), OUTDOCK_FILE_NAME),
+                    negatives_outdock_file_path=os.path.join(negatives_retrodock_job.job_dir.path, str(self.SINGLE_TASK_NUM), OUTDOCK_FILE_NAME),
                     save_dir_path=job_dir.path,
                 )
                 logger.info(f"Successfully loaded both OUTDOCK files and processed results.")

@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn
 import os
-import shutil
 import glob
 import logging
 from dataclasses import fields
@@ -106,10 +105,11 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             dc = DockingConfiguration.from_dict(row.to_dict())
 
             #
-            dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={dc.component_id}_conf={dc.configuration_num}")
+            dst_best_job_dir = Dir(os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={dc.component_id}_conf={dc.configuration_num}"), create=True, reset=True)
             best_job_dockfiles_dir = Dir(
-                os.path.join(dst_best_job_dir_path, "dockfiles"),
-                create=True
+                os.path.join(dst_best_job_dir.path, "dockfiles"),
+                create=True,
+                reset=True,
             )  # create best job dockfiles dir
 
             # create symbolic links instead of copying in order to save time & space
@@ -121,30 +121,28 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             indock_file = dc.get_indock_file(pipeline_component.pipeline_dir.path)
             os.symlink(indock_file.path, os.path.join(best_job_dockfiles_dir.path, indock_file.name))
 
-            src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives")
-            src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives")
+            src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives", str(dc.configuration_num))
+            src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives", str(dc.configuration_num))
 
-            dst_retrodock_job_positives_dir_path = os.path.join(dst_best_job_dir_path, "positives")
-            dst_retrodock_job_negatives_dir_path = os.path.join(dst_best_job_dir_path, "negatives")
+            dst_retrodock_job_positives_dir_path = os.path.join(dst_best_job_dir.path, "positives")
+            dst_retrodock_job_negatives_dir_path = os.path.join(dst_best_job_dir.path, "negatives")
 
             os.symlink(
-                os.path.join(src_retrodock_job_positives_dir_path, str(dc.configuration_num)),
-                os.path.join(dst_retrodock_job_positives_dir_path, str(dc.configuration_num)),
+                src_retrodock_job_positives_dir_path,
+                dst_retrodock_job_positives_dir_path,
                 target_is_directory=True,
             )
             os.symlink(
-                os.path.join(src_retrodock_job_negatives_dir_path, str(dc.configuration_num)),
-                os.path.join(dst_retrodock_job_negatives_dir_path, str(dc.configuration_num)),
+                src_retrodock_job_negatives_dir_path,
+                dst_retrodock_job_negatives_dir_path,
                 target_is_directory=True,
             )
 
             # save plots and other info
             process_retrodock_job_results(
-                positives_retrodock_job_dir_path=src_retrodock_job_positives_dir_path,
-                negatives_retrodock_job_dir_path=src_retrodock_job_negatives_dir_path,
-                task_num=dc.configuration_num,
-                outdock_file_name=OUTDOCK_FILE_NAME,
-                save_dir_path=dst_best_job_dir_path,
+                positives_outdock_file_path=os.path.join(dst_retrodock_job_positives_dir_path, OUTDOCK_FILE_NAME),
+                negatives_outdock_file_path=os.path.join(dst_retrodock_job_negatives_dir_path, OUTDOCK_FILE_NAME),
+                save_dir_path=dst_best_job_dir.path,
             )
 
 
