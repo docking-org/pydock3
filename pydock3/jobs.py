@@ -232,7 +232,7 @@ class ArrayDockingJob(ABC):
         while retry < max_retries:
             try:
                 # Dynamically set the timeout for the reset_directory_cache method
-                @timeout(backoff)
+                @timeout(backoff, timeout_exception=TimeoutError)
                 def reset_directory_with_timeout(dir_path):
                     Dir.reset_directory_cache(dir_path)
 
