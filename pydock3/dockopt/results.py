@@ -116,10 +116,10 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             dock_files = dc.get_dock_files(pipeline_component.pipeline_dir.path)
             for field in fields(dock_files):
                 dock_file = getattr(dock_files, field.name)
-                os.symlink(dock_file.path, os.path.join(dst_best_job_dir_path, dock_file.name))
+                os.symlink(dock_file.path, os.path.join(best_job_dockfiles_dir.path, dock_file.name))
 
             indock_file = dc.get_indock_file(pipeline_component.pipeline_dir.path).path
-            os.symlink(indock_file.path, os.path.join(dst_best_job_dir_path, indock_file.name))
+            os.symlink(indock_file.path, os.path.join(best_job_dockfiles_dir.path, indock_file.name))
 
             src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives")
             src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives")
