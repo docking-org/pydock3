@@ -179,7 +179,8 @@ class Dockopt(Script):
         sleep_seconds_after_copying_output: int = 0,
         export_negatives_mol2: bool = False,
         #max_scheduler_jobs_running_at_a_time: Union[None, str] = None,  # TODO
-        skip_if_results_exist:bool = True,
+        force_redock: bool = False,
+        force_rewrite_results: bool = False,
         force_rewrite_report: bool = False,
     ) -> None:
         """Run DockOpt job."""
@@ -275,7 +276,8 @@ class Dockopt(Script):
         )
         pipeline.run(
             component_run_func_arg_set=component_run_func_arg_set,
-            skip_if_results_exist=skip_if_results_exist,
+            force_redock=force_redock,
+            force_rewrite_results=force_rewrite_results,
             force_rewrite_report=force_rewrite_report,
         )
 
@@ -742,7 +744,8 @@ class DockoptStep(PipelineComponent):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool,
+            force_redock: bool,
+            force_rewrite_results: bool,
             force_rewrite_report: bool,
         ) -> pd.DataFrame:
         """Run this component of the pipeline."""
@@ -805,7 +808,7 @@ class DockoptStep(PipelineComponent):
                 export_mol2=should_export_mol2,
             )
             sub_result, procs = array_job.submit_all_tasks(
-                skip_if_complete=skip_if_results_exist,
+                skip_if_complete=(not force_redock),
             )
             array_jobs.append(array_job)
             log_job_submission_result(array_job, sub_result, procs)
@@ -1191,7 +1194,8 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool,
+            force_redock: bool,
+            force_rewrite_results: bool,
             force_rewrite_report: bool,
             ) -> pd.DataFrame:
         """Run the pipeline component sequence iteration."""
@@ -1234,7 +1238,8 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
             component = component_class(**kwargs)
             component.run(
                 component_run_func_arg_set,
-                skip_if_results_exist=skip_if_results_exist,
+                force_redock=force_redock,
+                force_rewrite_results=force_rewrite_results,
                 force_rewrite_report=force_rewrite_report,
             )
 
@@ -1309,7 +1314,8 @@ class DockoptStepSequence(PipelineComponentSequence):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool,
+            force_redock: bool,
+            force_rewrite_results: bool,
             force_rewrite_report: bool,
             ) -> pd.DataFrame:
         df = pd.DataFrame()
@@ -1333,7 +1339,8 @@ class DockoptStepSequence(PipelineComponentSequence):
             )
             component.run(
                 component_run_func_arg_set,
-                skip_if_results_exist=skip_if_results_exist,
+                force_redock=force_redock,
+                force_rewrite_results=force_rewrite_results,
                 force_rewrite_report=force_rewrite_report,
             )
 
@@ -1408,7 +1415,8 @@ class DockoptPipeline(Pipeline):
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
-            skip_if_results_exist: bool,
+            force_redock: bool,
+            force_rewrite_results: bool,
             force_rewrite_report: bool,
             ) -> pd.DataFrame:
         """Run the pipeline."""
@@ -1452,7 +1460,8 @@ class DockoptPipeline(Pipeline):
             component = component_class(**kwargs)
             component.run(
                 component_run_func_arg_set,
-                skip_if_results_exist=skip_if_results_exist,
+                force_redock=force_redock,
+                force_rewrite_results=force_rewrite_results,
                 force_rewrite_report=force_rewrite_report,
             )
 

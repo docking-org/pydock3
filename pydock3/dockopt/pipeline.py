@@ -26,12 +26,13 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
     def new_run(
             self, 
             *args,
-            skip_if_results_exist: bool = True,
+            force_redock: bool = False,
+            force_rewrite_results: bool = False,
             force_rewrite_report: bool = False,
             **kwargs
             ) -> pd.DataFrame:
 
-        if skip_if_results_exist and self.results_manager is not None:
+        if (not force_redock) and (self.results_manager is not None):
             if self.results_manager.results_exist(self):
                 result = self.results_manager.load_results(self)
                 if force_rewrite_report:
@@ -42,7 +43,8 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
         result = run(
             self, 
             *args, 
-            skip_if_results_exist=skip_if_results_exist,
+            force_redock=force_redock,
+            force_rewrite_results=force_rewrite_results,
             force_rewrite_report=force_rewrite_report,
             **kwargs
         )
@@ -96,7 +98,8 @@ class PipelineComponent(object):
     def run(
             self, 
             *args,
-            skip_if_results_exist: bool = True,
+            force_redock: bool = False,
+            force_rewrite_results: bool = False,
             force_rewrite_report: bool = False,
             **kwargs
             ) -> NoReturn:
