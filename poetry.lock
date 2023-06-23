@@ -1738,6 +1738,14 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "timeout-decorator"
+version = "0.5.0"
+description = "Timeout decorator"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "tinycss2"
 version = "1.2.1"
 description = "A tiny CSS parser"
@@ -1942,7 +1950,7 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8.1,<3.11"
-content-hash = "c522a8fe6b564b9962dcff0353fe03ee4709b4ca8f0d9f308d20331e3cafd3da"
+content-hash = "fe20fbe6ec0b7665f6cf3217a96230019f5e581fd5b870fbd386b151ca62677a"
 
 [metadata.files]
 2to3 = [
@@ -3118,6 +3126,9 @@ terminado = [
 threadpoolctl = [
     {file = "threadpoolctl-3.1.0-py3-none-any.whl", hash = "sha256:8b99adda265feb6773280df41eece7b2e6561b772d21ffd52e372f999024907b"},
     {file = "threadpoolctl-3.1.0.tar.gz", hash = "sha256:a335baacfaa4400ae1f0d8e3a58d6674d2f8828e3716bb2802c44955ad391380"},
+]
+timeout-decorator = [
+    {file = "timeout-decorator-0.5.0.tar.gz", hash = "sha256:6a2f2f58db1c5b24a2cc79de6345760377ad8bdc13813f5265f6c3e63d16b3d7"},
 ]
 tinycss2 = [
     {file = "tinycss2-1.2.1-py3-none-any.whl", hash = "sha256:2b80a96d41e7c3914b8cda8bc7f705a4d9c49275616e886103dd839dfc847847"},

@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 
+from timeout_decorator import timeout
+
 from pydock3.files import Dir, File
 from pydock3.job_schedulers import JobScheduler
 
@@ -201,8 +203,10 @@ class ArrayDockingJob(ABC):
         )
 
     def task_is_complete(self, task_id: str):
-        Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, task_id))
-        return File.file_exists(os.path.join(self.job_dir.path, task_id, OUTDOCK_FILE_NAME))
+        task_dir_path = os.path.join(self.job_dir.path, task_id)
+        self.reset_directory_cache_with_exponential_backoff(task_dir_path)
+
+        return File.file_exists(os.path.join(task_dir_path, OUTDOCK_FILE_NAME))
 
     def task_failed(self, task_id: str) -> bool:
         """Check if the supplied array job task failed (i.e., outdock file did not appear despite job being absent from the job scheduler queue)."""
@@ -213,11 +217,37 @@ class ArrayDockingJob(ABC):
                 (not self.job_scheduler.task_is_on_queue(task_id, job_name=self.name))
             )
 
-        Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, task_id))
+        task_dir_path = os.path.join(self.job_dir.path, task_id)
+
+        self.reset_directory_cache_with_exponential_backoff(task_dir_path)
         if _task_failed():
             # try again in case distributed file system issue is causing delay
-            Dir.reset_directory_files_cache(os.path.join(self.job_dir.path, task_id))
+            self.reset_directory_cache_with_exponential_backoff(task_dir_path)
             if _task_failed():
                 return True
 
         return False
+
+    def reset_directory_cache_with_exponential_backoff(self, dir_path, max_retries=5):
+        retry = 0
+        backoff = 1  # Initial backoff duration in seconds
+
+        while retry < max_retries:
+            try:
+                # Dynamically set the timeout for the reset_directory_cache method
+                @timeout(backoff)
+                def reset_directory_with_timeout(dir_path):
+                    Dir.reset_directory_cache(dir_path)
+
+                # Try resetting the directory
+                reset_directory_with_timeout(dir_path)
+
+                # If successful, exit the loop
+                return
+            except TimeoutError:
+                # If a timeout occurs, print message and retry with doubled timeout
+                logger.warning(f"Timeout occurred while attempting to reset directory cache. Retrying with {backoff * 2} seconds timeout...")
+                backoff *= 2  # Double the backoff duration
+                retry += 1
+
+        raise TimeoutError("Failed to reset directory after max retries.")

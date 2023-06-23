@@ -31,6 +31,7 @@ xmltodict = "^0.13.0"
 plotly = "^5.14.1"
 pillow = "^9.5.0"
 tornado = "^6.3.2"
+timeout-decorator = "^0.5.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^2.18.1"

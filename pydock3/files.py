@@ -136,7 +136,7 @@ class Dir(FileSystemEntity):
         return dst_file
 
     @staticmethod
-    def reset_directory_files_cache(dir_path: str) -> None:
+    def reset_directory_cache(dir_path: str) -> None:
         """Reset the cache of files in the directory so that we can check for new files without dealing with distributed file system issues."""
         os.scandir(dir_path)
         time.sleep(0.01)
