@@ -167,10 +167,9 @@ class DockoptStepSequenceIterationResultsManager(DockoptPipelineComponentResults
                 pipeline_component.best_retrodock_jobs_dir.path,
                 f"rank={i + 1}_step={dc.component_id}_conf={dc.configuration_num}",
             )
-            shutil.copytree(
-                src_best_job_dir_path,
-                dst_best_job_dir_path,
-            )
+
+            # create a symbolic link instead of copying in order to save time & space
+            os.symlink(src_best_job_dir_path, dst_best_job_dir_path, target_is_directory=True)
 
 
 class DockoptStepSequenceResultsManager(DockoptPipelineComponentResultsManager):
@@ -196,7 +195,6 @@ class DockoptStepSequenceResultsManager(DockoptPipelineComponentResultsManager):
                 pipeline_component.best_retrodock_jobs_dir.path,
                 f"rank={i + 1}_step={dc.component_id}_conf={dc.configuration_num}",
             )
-            shutil.copytree(
-                src_best_job_dir_path,
-                dst_best_job_dir_path,
-            )
+
+            # create a symbolic link instead of copying in order to save time & space
+            os.symlink(src_best_job_dir_path, dst_best_job_dir_path, target_is_directory=True)
