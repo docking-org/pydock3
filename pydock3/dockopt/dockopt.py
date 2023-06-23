@@ -751,7 +751,7 @@ class DockoptStep(PipelineComponent):
         """Run this component of the pipeline."""
 
         # run necessary steps to get all dock files
-        logger.info("Generating all docking configurations")
+        logger.info("Generating docking configurations")
         for dc in self.docking_configurations:
             # make dock files
             for dock_file_identifier in DOCK_FILE_IDENTIFIERS:
@@ -847,11 +847,11 @@ class DockoptStep(PipelineComponent):
                 if any([job.task_failed(task_id) for job in array_jobs]):
                     # task must have timed out / failed for one or both jobs
                     logger.warning(
-                        f"Failure / time out witnessed for task {task_id}"
+                        f"Failure / time-out witnessed for task {task_id}"
                     )
                     if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
                         logger.warning(
-                            f"Max reattempts exhausted for task {task_id}"
+                            f"Maximum allowed attempts ({component_run_func_arg_set.retrodock_job_max_reattempts + 1}) exhausted for task {task_id}"
                         )
                         continue  # move on to next in queue without re-attempting failed task
 
@@ -874,10 +874,10 @@ class DockoptStep(PipelineComponent):
                     positives_outdock_file_path, negatives_outdock_file_path
                 )
             except Exception as e:  # if outdock files failed to be parsed then re-attempt task
-                logger.warning(f"Failed to parse outdock file(s) due to error: {e}")
+                logger.warning(f"Failed to parse outdock file due to error: {e}")
                 if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
                     logger.warning(
-                        f"Max reattempts exhausted for task {task_id}"
+                        f"Maximum allowed attempts ({component_run_func_arg_set.retrodock_job_max_reattempts + 1}) exhausted for task {task_id}"
                     )
                     continue  # move on to next in queue without re-attempting failed task
 
@@ -894,7 +894,7 @@ class DockoptStep(PipelineComponent):
 
             #
             logger.info(
-                f"Task {task_id} completed. Successfully loaded both OUTDOCK files."
+                f"Task {task_id} complete. Loaded both OUTDOCK files."
             )
 
             # sort dataframe by total energy score
@@ -932,7 +932,7 @@ class DockoptStep(PipelineComponent):
         )
         if num_tasks_successful == 0:
             raise Exception(
-                "All tasks failed. Something is wrong. Please check logs."
+                "All tasks failed. Something is wrong."
             )
 
         # make dataframe of optimization job results
