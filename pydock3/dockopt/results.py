@@ -105,36 +105,40 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             #
             dc = DockingConfiguration.from_dict(row.to_dict())
 
-            # copy docking configuration files to best jobs dir
+            #
             dst_best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={dc.component_id}_conf={dc.configuration_num}")
             best_job_dockfiles_dir = Dir(
                 os.path.join(dst_best_job_dir_path, "dockfiles"),
                 create=True
-            )
+            )  # create best job dockfiles dir
+
+            # create symbolic links instead of copying in order to save time & space
             dock_files = dc.get_dock_files(pipeline_component.pipeline_dir.path)
             for field in fields(dock_files):
-                best_job_dockfiles_dir.copy_in_file(getattr(dock_files, field.name).path)
-            best_job_dockfiles_dir.copy_in_file(dc.get_indock_file(pipeline_component.pipeline_dir.path).path)
+                dock_file = getattr(dock_files, field.name)
+                os.symlink(dock_file.path, os.path.join(dst_best_job_dir_path, dock_file.name))
 
-            #
+            indock_file = dc.get_indock_file(pipeline_component.pipeline_dir.path).path
+            os.symlink(indock_file.path, os.path.join(dst_best_job_dir_path, indock_file.name))
+
             src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives")
             src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives")
 
-            #
             dst_retrodock_job_positives_dir_path = os.path.join(dst_best_job_dir_path, "positives")
             dst_retrodock_job_negatives_dir_path = os.path.join(dst_best_job_dir_path, "negatives")
 
-            #
-            shutil.copytree(
+            os.symlink(
                 os.path.join(src_retrodock_job_positives_dir_path, str(dc.configuration_num)),
                 os.path.join(dst_retrodock_job_positives_dir_path, str(dc.configuration_num)),
+                target_is_directory=True,
             )
-            shutil.copytree(
+            os.symlink(
                 os.path.join(src_retrodock_job_negatives_dir_path, str(dc.configuration_num)),
                 os.path.join(dst_retrodock_job_negatives_dir_path, str(dc.configuration_num)),
+                target_is_directory=True,
             )
 
-            #
+            # save plots and other info
             process_retrodock_job_results(
                 positives_retrodock_job_dir_path=src_retrodock_job_positives_dir_path,
                 negatives_retrodock_job_dir_path=src_retrodock_job_negatives_dir_path,
