@@ -72,8 +72,7 @@ class ArrayDockingJob(ABC):
             task_id_to_num_attempts_so_far_dict[task_id] = 0
 
         # create log dirs
-        self.out_log_dir = Dir(os.path.join(self.job_dir.path, "out_logs"), create=True, reset=False)
-        self.err_log_dir = Dir(os.path.join(self.job_dir.path, "err_logs"), create=True, reset=False)
+        self.log_dir = Dir(os.path.join(self.job_dir.path, "logs"), create=True, reset=False)
 
     def submit_all_tasks(
             self,
@@ -121,8 +120,7 @@ class ArrayDockingJob(ABC):
             job_name=self.name,
             script_path=DOCK_RUN_SCRIPT_PATH,
             env_vars_dict=env_vars_dict,
-            out_log_dir_path=self.out_log_dir.path,
-            err_log_dir_path=self.err_log_dir.path,
+            log_dir_path=self.log_dir.path,
             task_ids=task_ids_to_submit,
             job_timeout_minutes=self.job_timeout_minutes,
             extra_submission_cmd_params_str=self.extra_submission_cmd_params_str,
@@ -176,8 +174,7 @@ class ArrayDockingJob(ABC):
             job_name=self.name,
             script_path=DOCK_RUN_SCRIPT_PATH,
             env_vars_dict=env_vars_dict,
-            out_log_dir_path=self.out_log_dir.path,
-            err_log_dir_path=self.err_log_dir.path,
+            log_dir_path=self.log_dir.path,
             task_ids=task_ids_to_submit,
             job_timeout_minutes=self.job_timeout_minutes,
             extra_submission_cmd_params_str=self.extra_submission_cmd_params_str,

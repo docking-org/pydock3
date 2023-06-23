@@ -30,8 +30,7 @@ class JobScheduler(ABC):
             job_name: str,
             script_path: str,
             env_vars_dict: dict,
-            out_log_dir_path: str,
-            err_log_dir_path: str,
+            log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
             extra_submission_cmd_params_str: [str, None] = None
@@ -74,8 +73,7 @@ class SlurmJobScheduler(JobScheduler):
             job_name: str,
             script_path: str,
             env_vars_dict: dict,
-            out_log_dir_path: str,
-            err_log_dir_path: str,
+            log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
             extra_submission_cmd_params_str: [str, None] = None,
@@ -101,7 +99,7 @@ class SlurmJobScheduler(JobScheduler):
 
             curr_tasks_array_indices_str = ",".join([str(x) for x in curr_tasks_array_indices + [index_str]])
             if(len(curr_tasks_array_indices_str) >= max_chars_in_tasks_array_str) or (i == num_sets - 1):
-                command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {out_log_dir_path}/{job_name}_%A_%a.out -e {err_log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 {extra_submission_cmd_params_str} --array={curr_tasks_array_indices_str}"  # TODO: is `signal` useful / necessary?
+                command_str = f"{self.SBATCH_EXEC} --export=ALL -J {job_name} -o {log_dir_path}/{job_name}_%A_%a.out -e {log_dir_path}/{job_name}_%A_%a.err --signal=B:USR1@120 {extra_submission_cmd_params_str} --array={curr_tasks_array_indices_str}"  # TODO: is `signal` useful / necessary?
                 curr_tasks_array_indices = []
             else:
                 continue
@@ -176,8 +174,7 @@ class SGEJobScheduler(JobScheduler):
             job_name: str,
             script_path: str,
             env_vars_dict: dict,
-            out_log_dir_path: str,
-            err_log_dir_path: str,
+            log_dir_path: str,
             task_ids: Iterable[Union[str, int]],
             job_timeout_minutes: Union[int, None] = None,
             extra_submission_cmd_params_str: [str, None] = None,
@@ -202,7 +199,7 @@ class SGEJobScheduler(JobScheduler):
             else:
                 array_str = f"{contiguous_task_nums_set[0]}-{contiguous_task_nums_set[-1]}"
 
-            command_str = f"{self.QSUB_EXEC} -V -N {job_name} -o {out_log_dir_path} -e {err_log_dir_path} -cwd {extra_submission_cmd_params_str} -t {array_str}"
+            command_str = f"{self.QSUB_EXEC} -V -N {job_name} -o {log_dir_path} -e {log_dir_path} -cwd {extra_submission_cmd_params_str} -t {array_str}"
 
             if job_timeout_minutes is not None:
                 job_timeout_seconds = 60 * job_timeout_minutes
