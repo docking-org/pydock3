@@ -44,6 +44,7 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 }
 
 #
+NORMALIZED_LOG_AUC_FILE_NAME = "normalized_log_auc.txt"
 ROC_PLOT_FILE_NAME = "roc.png"
 ENERGY_TERMS_PLOT_FILE_NAME = "energy.png"
 CHARGE_PLOT_FILE_NAME = "charge.png"
@@ -249,19 +250,15 @@ def process_retrodock_job_results(
         negatives_retrodock_job_dir_path: str,
         task_num: int,
         outdock_file_name: str,
-        roc_plot_save_path: Union[None, str] = None,
-        energy_terms_plot_save_path: Union[None, str] = None,
-        charge_plot_save_path: Union[None, str] = None,
+        save_dir_path: str,
 ):
     """process retrodock job results"""
 
-    # set default save paths
-    if roc_plot_save_path is None:
-        roc_plot_save_path = ROC_PLOT_FILE_NAME
-    if energy_terms_plot_save_path is None:
-        energy_terms_plot_save_path = ENERGY_TERMS_PLOT_FILE_NAME
-    if charge_plot_save_path is None:
-        charge_plot_save_path = CHARGE_PLOT_FILE_NAME
+    # set save file paths
+    normalized_log_auc_save_path = os.path.join(save_dir_path, NORMALIZED_LOG_AUC_FILE_NAME)
+    roc_plot_save_path = os.path.join(save_dir_path, ROC_PLOT_FILE_NAME)
+    energy_terms_plot_save_path = os.path.join(save_dir_path, ENERGY_TERMS_PLOT_FILE_NAME)
+    charge_plot_save_path = os.path.join(save_dir_path, CHARGE_PLOT_FILE_NAME)
 
     # load results
     df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
@@ -271,7 +268,7 @@ def process_retrodock_job_results(
 
     # calculate ROC
     roc = ROC(booleans=df["is_positive"].astype(bool))
-    with open("normalized_log_auc", "w") as f:
+    with open(normalized_log_auc_save_path, "w") as f:
         f.write(f"{roc.normalized_log_auc}")
 
     # make plots
@@ -493,9 +490,7 @@ class Retrodock(Script):
                     negatives_retrodock_job_dir_path=negatives_retrodock_job.job_dir.path,
                     task_num=self.SINGLE_TASK_NUM,
                     outdock_file_name=OUTDOCK_FILE_NAME,
-                    roc_plot_save_path=os.path.join(job_dir.path, ROC_PLOT_FILE_NAME),
-                    energy_terms_plot_save_path=os.path.join(job_dir.path, ENERGY_TERMS_PLOT_FILE_NAME),
-                    charge_plot_save_path=os.path.join(job_dir.path, CHARGE_PLOT_FILE_NAME),
+                    save_dir_path=job_dir.path,
                 )
                 logger.info(f"Successfully loaded both OUTDOCK files and processed results.")
             except Exception as e:

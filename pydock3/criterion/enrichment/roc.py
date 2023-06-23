@@ -132,10 +132,6 @@ class ROC(object):
         dpi: int = 300,
     ) -> Tuple[plt.Figure, plt.Axes]:
         #
-        if save_path is not None:
-            save_path = "roc.png"
-
-        #
         if title is None:
             title = "Linear-Log ROC Plot"
 
@@ -201,7 +197,12 @@ class ROC(object):
 
         # save image and close
         plt.tight_layout()
-        plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
+
+        #
+        if save_path is not None:
+            plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
+
+        #
         plt.close(fig)
 
         return fig, ax
