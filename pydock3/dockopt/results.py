@@ -105,7 +105,7 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             dc = DockingConfiguration.from_dict(row.to_dict())
 
             #
-            dst_best_job_dir = Dir(os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={dc.component_id}_conf={dc.configuration_num}"), create=True, reset=True)
+            dst_best_job_dir = Dir(os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}-step={dc.component_id}-conf={dc.configuration_num}"), create=True, reset=True)
             best_job_dockfiles_dir = Dir(
                 os.path.join(dst_best_job_dir.path, "dockfiles"),
                 create=True,
@@ -164,10 +164,10 @@ class DockoptStepSequenceIterationResultsManager(DockoptPipelineComponentResults
             dc = DockingConfiguration.from_dict(row.to_dict())
 
             #
-            src_best_job_dir_path, = tuple(glob.glob(os.path.join(pipeline_component.pipeline_dir.path, *dc.component_id.split('.'), BEST_RETRODOCK_JOBS_DIR_NAME, f"rank=*_step={dc.component_id}_conf={dc.configuration_num}")))
+            src_best_job_dir_path, = tuple(glob.glob(os.path.join(pipeline_component.pipeline_dir.path, *dc.component_id.split('.'), BEST_RETRODOCK_JOBS_DIR_NAME, f"rank=*-step={dc.component_id}-conf={dc.configuration_num}")))
             dst_best_job_dir_path = os.path.join(
                 pipeline_component.best_retrodock_jobs_dir.path,
-                f"rank={i + 1}_step={dc.component_id}_conf={dc.configuration_num}",
+                f"rank={i + 1}-step={dc.component_id}-conf={dc.configuration_num}",
             )
 
             # create a symbolic link instead of copying in order to save time & space
@@ -192,10 +192,10 @@ class DockoptStepSequenceResultsManager(DockoptPipelineComponentResultsManager):
             dc = DockingConfiguration.from_dict(row.to_dict())
 
             #
-            src_best_job_dir_path, = tuple(glob.glob(os.path.join(pipeline_component.pipeline_dir.path, *dc.component_id.split('.'), BEST_RETRODOCK_JOBS_DIR_NAME, f"rank=*_step={dc.component_id}_conf={dc.configuration_num}")))
+            src_best_job_dir_path, = tuple(glob.glob(os.path.join(pipeline_component.pipeline_dir.path, *dc.component_id.split('.'), BEST_RETRODOCK_JOBS_DIR_NAME, f"rank=*-step={dc.component_id}-conf={dc.configuration_num}")))
             dst_best_job_dir_path = os.path.join(
                 pipeline_component.best_retrodock_jobs_dir.path,
-                f"rank={i + 1}_step={dc.component_id}_conf={dc.configuration_num}",
+                f"rank={i + 1}-step={dc.component_id}-conf={dc.configuration_num}",
             )
 
             # create a symbolic link instead of copying in order to save time & space

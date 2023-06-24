@@ -60,6 +60,10 @@ def create_new_coords(coords: np.ndarray, min_units_between: int) -> np.ndarray:
     return np.array(new_coords)
 
 
+def get_formatted_dir_name_for_best_job(rank, step_id, configuration_num):
+    return f"rank={rank}-step={step_id}-conf={configuration_num}"
+
+
 class HTMLReporter(Reporter):
     def __init__(self, report_file_name: str = "report.html") -> None:
         super().__init__(report_file_name)
@@ -83,23 +87,19 @@ class HTMLReporter(Reporter):
 
         # ROC plot images
         for i, (_, row) in enumerate(df_to_iter.iterrows()):
-            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i+1}_step={row['component_id']}_conf={row['configuration_num']}")
+            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, get_formatted_dir_name_for_best_job(
+                rank=i+1,
+                step_id=row["component_id"],
+                configuration_num=row["configuration_num"]
+            ))
 
             roc_file_path = os.path.join(best_job_dir_path, ROC_PLOT_FILE_NAME)
             if os.path.exists(roc_file_path):
                 figures.append(roc_file_path)
 
-        # Energy plot images
-        for i, (_, row) in enumerate(df_to_iter.iterrows()):
-            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i + 1}_step={row['component_id']}_conf={row['configuration_num']}")
-
             energy_plot_file_path = os.path.join(best_job_dir_path, ENERGY_TERMS_PLOT_FILE_NAME)
             if os.path.exists(energy_plot_file_path):
                 figures.append(energy_plot_file_path)
-
-        # Charge plot images
-        for i, (_, row) in enumerate(df_to_iter.iterrows()):
-            best_job_dir_path = os.path.join(pipeline_component.best_retrodock_jobs_dir.path, f"rank={i + 1}_step={row['component_id']}_conf={row['configuration_num']}")
 
             charge_plot_file_path = os.path.join(best_job_dir_path, CHARGE_PLOT_FILE_NAME)
             if os.path.exists(charge_plot_file_path):
@@ -417,9 +417,9 @@ class HTMLReporter(Reporter):
                 file_name = File.get_file_name_of_file(image_path)
 
                 # Extract the substrings
-                first_piece, rest_of_str = parent_dir.split("_step=")
+                first_piece, rest_of_str = parent_dir.split("-step=")
                 rank_str = first_piece.replace("rank=", '')
-                step_str, conf_str = rest_of_str.split("_conf=")
+                step_str, conf_str = rest_of_str.split("-conf=")
 
                 with open(image_path, "rb") as image_file:
                     encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
