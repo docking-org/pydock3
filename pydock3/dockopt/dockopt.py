@@ -310,9 +310,6 @@ class DockoptStep(PipelineComponent):
         self.retrospective_dataset = retrospective_dataset
 
         #
-        logger.info(f"Starting DockOpt step: {self.component_id}")
-
-        #
         blaster_file_names = list(BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.values())
         backup_blaster_file_paths = [
             os.path.join(DEFAULT_FILES_DIR_PATH, blaster_file_name)
@@ -958,9 +955,6 @@ class DockoptStep(PipelineComponent):
         # make dataframe of optimization job results
         logger.info("Making dataframe of results")
         df = pd.DataFrame(data=data_dicts)
-
-        #
-        logger.info(f"Finished DockOpt step: {self.component_id}")
 
         return df
 

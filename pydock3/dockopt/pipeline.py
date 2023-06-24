@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, NoReturn, Iterable, Union
 from datetime import datetime
 import os
 import functools
-import re
+import logging
 
 import pandas as pd
 
@@ -14,6 +14,12 @@ if TYPE_CHECKING:
     from pydock3.dockopt.results import ResultsManager
 
 
+#
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
+#
 CRITERION_DICT = {
     "normalized_log_auc": NormalizedLogAUC
 }
@@ -35,12 +41,15 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
         if (not force_redock) and (self.results_manager is not None):
             if not force_rewrite_results:
                 if self.results_manager.results_exist(self):
+                    logger.info("Loading existing results")
                     result = self.results_manager.load_results(self)
                     if force_rewrite_report:
+                        logger.info("Writing report")
                         self.results_manager.write_report(self)
                     return result
 
         self.started_utc = datetime.utcnow()  # record utc datetime when `run` starts
+        logger.info(f"Starting pipeline component {self.component_id}")
         result = run(
             self, 
             *args, 
@@ -50,9 +59,12 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
             **kwargs
         )
         if self.results_manager is not None:  # write results if set
+            logger.info("Writing results")
             self.results_manager.write_results(self, result)
+            logger.info("Writing report")
             self.results_manager.write_report(self)
         self.finished_utc = datetime.utcnow()  # record utc datetime when `run` finishes
+        logger.info(f"Finished pipeline component {self.component_id}")
 
         return result
 
