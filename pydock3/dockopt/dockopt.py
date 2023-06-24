@@ -175,6 +175,7 @@ class Dockopt(Script):
         positives_tgz_file_path: Union[None, str] = None,
         negatives_tgz_file_path: Union[None, str] = None,
         retrodock_job_max_reattempts: int = 0,
+        allow_failed_retrodock_jobs: bool = False,
         retrodock_job_timeout_minutes: Union[None, str] = None,
         extra_submission_cmd_params_str: Union[None, str] = None,
         sleep_seconds_after_copying_output: int = 0,
@@ -242,7 +243,7 @@ class Dockopt(Script):
             scheduler=scheduler,
             temp_storage_path=temp_storage_path,
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
-            allow_failed_retrodock_jobs=False,
+            allow_failed_retrodock_jobs=allow_failed_retrodock_jobs,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
             #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
             export_negatives_mol2=export_negatives_mol2,
