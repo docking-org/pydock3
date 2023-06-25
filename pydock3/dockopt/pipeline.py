@@ -49,7 +49,7 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
                     return result
 
         self.started_utc = datetime.utcnow()  # record utc datetime when `run` starts
-        logger.info(f"Starting pipeline component {self.component_id}")
+        logger.info(f"Starting pipeline component '{self.component_id}'")
         result = run(
             self, 
             *args, 
@@ -64,7 +64,7 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
             logger.info("Writing report")
             self.results_manager.write_report(self)
         self.finished_utc = datetime.utcnow()  # record utc datetime when `run` finishes
-        logger.info(f"Finished pipeline component {self.component_id}")
+        logger.info(f"Finished pipeline component '{self.component_id}'")
 
         return result
 
@@ -196,6 +196,7 @@ class Pipeline(PipelineComponent):
             criterion=criterion,
             top_n=top_n,
             results_manager=results_manager,
+            is_pipeline=True,
         )
 
         #
