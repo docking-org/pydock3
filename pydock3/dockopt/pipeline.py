@@ -81,12 +81,14 @@ class PipelineComponent(object):
             criterion: str,
             top_n: int,
             results_manager: ResultsManager,
+            is_pipeline: bool = False,
     ):
         #
         self.pipeline_dir = Dir(pipeline_dir_path)
         self.component_id = component_id
         self.top_n = top_n
         self.results_manager = results_manager
+        self.is_pipeline = is_pipeline
 
         #
         if criterion in CRITERION_DICT:
@@ -103,7 +105,7 @@ class PipelineComponent(object):
 
     @property
     def component_dir(self):
-        if self.component_id is None:  # component is pipeline
+        if self.is_pipeline:
             return self.pipeline_dir
         else:
             return Dir(os.path.join(self.pipeline_dir.path, *self.component_id.split('.')))
@@ -178,6 +180,8 @@ class PipelineComponentSequence(PipelineComponent):
 
 
 class Pipeline(PipelineComponent):
+    PIPELINE_COMPONENT_ID = "pipeline"
+
     def __init__(
             self,
             pipeline_dir_path: str,
@@ -188,7 +192,7 @@ class Pipeline(PipelineComponent):
     ):
         super().__init__(
             pipeline_dir_path=pipeline_dir_path,
-            component_id=None,
+            component_id=self.PIPELINE_COMPONENT_ID,
             criterion=criterion,
             top_n=top_n,
             results_manager=results_manager,
