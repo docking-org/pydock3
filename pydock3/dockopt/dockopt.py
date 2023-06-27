@@ -829,7 +829,7 @@ class DockoptStep(PipelineComponent):
         datetime_queue_was_last_checked = datetime.min
         while len(docking_configurations_processing_queue) > 0:
             #
-            docking_configuration = docking_configurations_processing_queue.pop(0)
+            docking_configuration= collections.deque.popleft(docking_configurations_processing_queue)
             task_id = str(docking_configuration.configuration_num)
             positives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'positives', task_id, 'OUTDOCK.0')
             negatives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'negatives', task_id, 'OUTDOCK.0')
@@ -873,6 +873,9 @@ class DockoptStep(PipelineComponent):
                                     )
                             task_id_to_num_reattempts_dict[task_id] += 1
                             task_id_to_num_task_output_detection_failed_attempts_dict[task_id] = 0  # reset task failures counter
+                            logger.info(
+                                f"Re-attempting task {task_id} (attempt {task_id_to_num_reattempts_dict[task_id] + 1} of at most {component_run_func_arg_set.retrodock_job_max_reattempts + 1})"
+                            )
                     else:
                         # task must have timed out / failed for one or both jobs
                         logger.warning(
@@ -917,6 +920,9 @@ class DockoptStep(PipelineComponent):
                                     skip_if_complete=False,
                                 )  # re-attempt both jobs
                             task_id_to_num_reattempts_dict[task_id] += 1
+                            logger.info(
+                                f"Re-attempting task {task_id} (attempt {task_id_to_num_reattempts_dict[task_id] + 1} of at most {component_run_func_arg_set.retrodock_job_max_reattempts + 1})"
+                            )
                     else:
                         logger.warning(
                             f"Failed to load output for task {task_id}. Will move on in queue and re-attempt once it cycles back around."
