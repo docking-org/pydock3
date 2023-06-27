@@ -818,12 +818,14 @@ class DockoptStep(PipelineComponent):
 
         # process results of docking jobs
         logger.info(
-            f"Awaiting / processing retrodock job results ({len(docking_configurations_processing_queue)} tasks in total)"
+            f"Awaiting / processing ({len(docking_configurations_processing_queue)} tasks in total)"
         )
         data_dicts = []
         task_id_to_num_reattempts_dict = collections.defaultdict(int)
         task_id_to_num_task_output_detection_failed_attempts_dict = collections.defaultdict(int)
+        task_id_to_num_task_output_loading_failed_attempts_dict = collections.defaultdict(int)
         max_task_output_detection_reattempts = 1
+        max_task_output_loading_reattempts = 1
         datetime_queue_was_last_checked = datetime.min
         while len(docking_configurations_processing_queue) > 0:
             #
@@ -847,6 +849,7 @@ class DockoptStep(PipelineComponent):
                 #
                 datetime_queue_was_last_checked = datetime.now()
                 if any([job.task_failed(task_id) for job in array_jobs]):
+                    logger.warning(f"Failed to detect output for task {task_id}")
                     task_id_to_num_task_output_detection_failed_attempts_dict[task_id] += 1
 
                     #
@@ -855,32 +858,28 @@ class DockoptStep(PipelineComponent):
                             logger.warning(
                                 f"Maximum allowed attempts ({component_run_func_arg_set.retrodock_job_max_reattempts + 1}) exhausted for task {task_id}"
                             )
-
-                            #
                             if not component_run_func_arg_set.allow_failed_retrodock_jobs:
                                 raise Exception(
                                     f"Failed to complete task {task_id} after {component_run_func_arg_set.retrodock_job_max_reattempts + 1} attempts."
                                 )
-
                             continue  # move on to next in queue without re-attempting failed task
+                        else:
+                            # re-attempt incomplete task(s)
+                            for array_job in array_jobs:
+                                if array_job.task_failed(task_id):
+                                    array_job.submit_task(
+                                        task_id,
+                                        skip_if_complete=False,
+                                    )
+                            task_id_to_num_reattempts_dict[task_id] += 1
+                            task_id_to_num_task_output_detection_failed_attempts_dict[task_id] = 0  # reset task failures counter
                     else:
                         # task must have timed out / failed for one or both jobs
                         logger.warning(
-                            f"Failed to load results for task {task_id}. Will move on in queue and re-attempt once it cycles back around."
+                            f"Failed to detect output for task {task_id}. Will move on in queue and re-attempt once it cycles back around."
                         )
-                        docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
-                        continue  # move on to next in queue
 
-                    # re-attempt relevant job(s) for incomplete task
-                    for array_job in array_jobs:
-                        if (not array_job.task_is_complete(task_id)) and (not array_job.job_scheduler.task_is_on_queue(task_id, job_name=array_job.name)):
-                            array_job.submit_task(
-                                task_id,
-                                skip_if_complete=False,
-                            )
-                    task_id_to_num_reattempts_dict[task_id] += 1
-                    task_id_to_num_task_output_detection_failed_attempts_dict[task_id] = 0  # reset task failures counter
-
+                #
                 docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
                 continue  # move on to next in queue
 
@@ -891,23 +890,41 @@ class DockoptStep(PipelineComponent):
                     positives_outdock_file_path, negatives_outdock_file_path
                 )
             except Exception as e:  # if outdock files failed to be parsed then re-attempt task
-                logger.warning(f"Failed to parse outdock file due to error: {e}")
-                if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
-                    logger.warning(
-                        f"Maximum allowed attempts ({component_run_func_arg_set.retrodock_job_max_reattempts + 1}) exhausted for task {task_id}"
+                try:
+                    time.sleep(0.01)  # sleep for a bit and try again
+                    df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
+                        positives_outdock_file_path, negatives_outdock_file_path
                     )
-                    continue  # move on to next in queue without re-attempting failed task
+                except Exception as e:
+                    logger.warning(f"Failed to load output for task {task_id} due to error: {e}")
+                    task_id_to_num_task_output_loading_failed_attempts_dict[task_id] += 1
 
-                for array_job in array_jobs:
-                    array_job.submit_task(
-                        task_id,
-                        skip_if_complete=False,
-                    )  # re-attempt both jobs
-                task_id_to_num_reattempts_dict[task_id] += 1
+                    #
+                    if task_id_to_num_task_output_loading_failed_attempts_dict[task_id] > max_task_output_detection_reattempts:
+                        if task_id_to_num_reattempts_dict[task_id] + 1 > component_run_func_arg_set.retrodock_job_max_reattempts:
+                            logger.warning(
+                                f"Maximum allowed attempts ({component_run_func_arg_set.retrodock_job_max_reattempts + 1}) exhausted for task {task_id}"
+                            )
+                            if not component_run_func_arg_set.allow_failed_retrodock_jobs:
+                                raise Exception(
+                                    f"Failed to complete task {task_id} after {component_run_func_arg_set.retrodock_job_max_reattempts + 1} attempts."
+                                )
+                            continue  # move on to next in queue without re-attempting failed task
+                        else:
+                            for array_job in array_jobs:
+                                array_job.submit_task(
+                                    task_id,
+                                    skip_if_complete=False,
+                                )  # re-attempt both jobs
+                            task_id_to_num_reattempts_dict[task_id] += 1
+                    else:
+                        logger.warning(
+                            f"Failed to load output for task {task_id}. Will move on in queue and re-attempt once it cycles back around."
+                        )
 
-                #
-                docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
-                continue  # move on to next in queue
+                    #
+                    docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
+                    continue  # move on to next in queue
 
             #
             logger.info(
@@ -947,6 +964,15 @@ class DockoptStep(PipelineComponent):
         logger.info(
             f"Finished {num_tasks_successful} out of {len(self.docking_configurations)} tasks."
         )
+
+        #
+        if num_tasks_successful != len(self.docking_configurations):
+            if not component_run_func_arg_set.allow_failed_retrodock_jobs:
+                raise Exception(
+                    f"Failed {len(self.docking_configurations) - num_tasks_successful} out of {len(self.docking_configurations)} tasks. Failed tasks are not allowed. Exiting."
+                )
+
+        #
         if num_tasks_successful == 0:
             raise Exception(
                 "All tasks failed. Something is wrong."
