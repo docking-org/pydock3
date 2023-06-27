@@ -814,7 +814,7 @@ class DockoptStep(PipelineComponent):
             log_job_submission_result(array_job, sub_result, procs)
 
         # make a queue of tuples containing job-relevant data for processing
-        docking_configurations_processing_queue = deepcopy(self.docking_configurations)
+        docking_configurations_processing_queue = collections.deque(deepcopy(self.docking_configurations))
 
         # process results of docking jobs
         logger.info(
@@ -829,7 +829,7 @@ class DockoptStep(PipelineComponent):
         datetime_queue_was_last_checked = datetime.min
         while len(docking_configurations_processing_queue) > 0:
             #
-            docking_configuration= collections.deque.popleft(docking_configurations_processing_queue)
+            docking_configuration = docking_configurations_processing_queue.popleft()
             task_id = str(docking_configuration.configuration_num)
             positives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'positives', task_id, 'OUTDOCK.0')
             negatives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'negatives', task_id, 'OUTDOCK.0')
