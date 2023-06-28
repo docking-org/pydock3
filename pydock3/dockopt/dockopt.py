@@ -881,6 +881,7 @@ class DockoptStep(PipelineComponent):
                         logger.warning(
                             f"Failed to detect output for task {task_id}. Will move on in queue and re-attempt once it cycles back around."
                         )
+                        time.sleep(1)
 
                 #
                 docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
@@ -927,6 +928,7 @@ class DockoptStep(PipelineComponent):
                         logger.warning(
                             f"Failed to load output for task {task_id}. Will move on in queue and re-attempt once it cycles back around."
                         )
+                        time.sleep(1)
 
                     #
                     docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
