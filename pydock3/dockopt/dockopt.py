@@ -36,6 +36,7 @@ from pydock3.files import (
     INDOCK_FILE_NAME,
     Dir,
     File,
+    OutdockFile,
 )
 from pydock3.blastermaster.util import (
     BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT,
@@ -915,11 +916,14 @@ class DockoptStep(PipelineComponent):
                                 )
                             continue  # move on to next in queue without re-attempting failed task
                         else:
-                            for array_job in array_jobs:
-                                array_job.submit_task(
-                                    task_id,
-                                    skip_if_complete=False,
-                                )  # re-attempt both jobs
+                            for array_job, outdock_file_path in zip(array_jobs, [positives_outdock_file_path, negatives_outdock_file_path]):
+                                try:
+                                    _ = OutdockFile(outdock_file_path).get_dataframe()  # only resubmit if outdock file can't be loaded
+                                except Exception as e:
+                                    array_job.submit_task(
+                                        task_id,
+                                        skip_if_complete=False,
+                                    )
                             task_id_to_num_reattempts_dict[task_id] += 1
                             logger.info(
                                 f"Re-attempting task {task_id} (attempt {task_id_to_num_reattempts_dict[task_id] + 1} of at most {component_run_func_arg_set.retrodock_job_max_reattempts + 1})"
