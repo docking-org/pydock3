@@ -74,7 +74,8 @@ CRITERION_CLASS_DICT = {"normalized_log_auc": NormalizedLogAUC}
 
 #
 MIN_SECONDS_BETWEEN_QUEUE_CHECKS = 2
-
+MIN_SECONDS_BETWEEN_TASK_OUTPUT_DETECTION_REATTEMPTS = 30
+MAX_SECONDS_BETWEEN_TASK_OUTPUT_LOADING_REATTEMPTS = 30
 
 @dataclass
 class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
@@ -828,6 +829,8 @@ class DockoptStep(PipelineComponent):
         max_task_output_detection_reattempts = 1
         max_task_output_loading_reattempts = 1
         datetime_queue_was_last_checked = datetime.min
+        task_id_to_datetime_task_output_detection_was_last_attempted_dict = {str(d.configuration_num): datetime.min for d in docking_configurations_processing_queue}
+        task_id_to_datetime_task_output_loading_was_last_attempted_dict = {str(d.configuration_num): datetime.min for d in docking_configurations_processing_queue}
         while len(docking_configurations_processing_queue) > 0:
             #
             docking_configuration = docking_configurations_processing_queue.popleft()
@@ -850,8 +853,16 @@ class DockoptStep(PipelineComponent):
                 #
                 datetime_queue_was_last_checked = datetime.now()
                 if any([job.task_failed(task_id) for job in array_jobs]):
-                    logger.warning(f"Failed to detect output for task {task_id}")
+                    #
+                    if datetime.now() < (task_id_to_datetime_task_output_detection_was_last_attempted_dict[task_id] + timedelta(seconds=MIN_SECONDS_BETWEEN_TASK_OUTPUT_DETECTION_REATTEMPTS)):
+                        task_id_to_datetime_task_output_detection_was_last_attempted_dict[task_id] = datetime.now()
+                        docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
+                        continue  # move on to next in queue in order to more efficiently use time between queue checks
+                    task_id_to_datetime_task_output_detection_was_last_attempted_dict[task_id] = datetime.now()
+
+                    #
                     task_id_to_num_task_output_detection_failed_attempts_dict[task_id] += 1
+                    logger.warning(f"Failed to detect output for task {task_id}")
 
                     #
                     if task_id_to_num_task_output_detection_failed_attempts_dict[task_id] > max_task_output_detection_reattempts:
@@ -901,8 +912,16 @@ class DockoptStep(PipelineComponent):
                         positives_outdock_file_path, negatives_outdock_file_path
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to load output for task {task_id} due to error: {e}")
+                    #
+                    if datetime.now() < (task_id_to_datetime_task_output_loading_was_last_attempted_dict[task_id] + timedelta(seconds=MIN_SECONDS_BETWEEN_TASK_OUTPUT_LOADING_REATTEMPTS)):
+                        task_id_to_datetime_task_output_loading_was_last_attempted_dict[task_id] = datetime.now()
+                        docking_configurations_processing_queue.append(docking_configuration)  # move to back of queue
+                        continue  # move on to next in queue in order to more efficiently use time between queue checks
+                    task_id_to_datetime_task_output_loading_was_last_attempted_dict[task_id] = datetime.now()
+
+                    #
                     task_id_to_num_task_output_loading_failed_attempts_dict[task_id] += 1
+                    logger.warning(f"Failed to load output for task {task_id} due to error: {e}")
 
                     #
                     if task_id_to_num_task_output_loading_failed_attempts_dict[task_id] > max_task_output_detection_reattempts:
