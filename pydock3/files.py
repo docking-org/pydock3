@@ -112,14 +112,7 @@ class Dir(FileSystemEntity):
                 logger.debug(f"Created directory {self}")
 
     def delete(self):
-        if os.path.exists(self.path):
-            '''
-            shutil.rmtree(self.path, ignore_errors=True)
-            while os.path.isdir(self.path):  # TODO: hmmm. is this valid?
-                pass
-            '''
-            system_call(f"rm -rf {self.path}")
-            logger.debug(f"Deleted directory {self}.")
+        self.delete_dir(self.path)
 
     def reset(self):
         self.create(reset=True)
@@ -134,6 +127,17 @@ class Dir(FileSystemEntity):
         dst_file.copy_from(src_file_path=src_file_path, overwrite=overwrite)
 
         return dst_file
+
+    @staticmethod
+    def delete_dir(dir_path):
+        if os.path.exists(dir_path):
+            '''
+            shutil.rmtree(dir_path, ignore_errors=True)
+            while os.path.isdir(dir_path):  # TODO: hmmm. is this valid?
+                pass
+            '''
+            system_call(f"rm -rf {dir_path}")
+            logger.debug(f"Deleted directory `{dir_path}`.")
 
     @staticmethod
     def reset_directory_cache(dir_path: str) -> None:
