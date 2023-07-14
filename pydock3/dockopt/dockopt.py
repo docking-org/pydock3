@@ -87,6 +87,7 @@ class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     extra_submission_cmd_params_str: Union[None, str] = None
     sleep_seconds_after_copying_output: int = 0
     export_negatives_mol2: bool = False
+    delete_intermediate_files: bool = False
     max_scheduler_jobs_running_at_a_time: Union[None, int] = None
 
 
@@ -182,6 +183,7 @@ class Dockopt(Script):
         extra_submission_cmd_params_str: Union[None, str] = None,
         sleep_seconds_after_copying_output: int = 0,
         export_negatives_mol2: bool = False,
+        delete_intermediate_files: bool = False,
         #max_scheduler_jobs_running_at_a_time: Union[None, str] = None,  # TODO
         force_redock: bool = False,
         force_rewrite_results: bool = False,
@@ -249,6 +251,7 @@ class Dockopt(Script):
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
             #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
             export_negatives_mol2=export_negatives_mol2,
+            delete_intermediate_files=delete_intermediate_files,
         )
 
         #
@@ -1012,6 +1015,36 @@ class DockoptStep(PipelineComponent):
         # make dataframe of optimization job results
         logger.info("Making dataframe of results")
         df = pd.DataFrame(data=data_dicts)
+
+        #
+        if component_run_func_arg_set.delete_intermediate_files:
+            logger.info("Deleting intermediate files...")
+
+            # Sorting dataframe to ensure we have the top_n rows correctly
+            df.sort_values(by=self.criterion.name, ascending=False, inplace=True)
+
+            # Get the list of directories we want to keep
+            keep_dirs = df.head(top_n)['configuration_num'].apply(str).tolist()
+
+            # Deleting directories not in top_n
+            for class_identifier in ['positives', 'negatives']:
+                class_dir = os.path.join(self.retrodock_jobs_dir.path, class_identifier)
+                for dir_name in os.listdir(class_dir):
+                    if dir_name not in keep_dirs:
+                        Dir.delete_dir(os.path.join(class_dir, dir_name))
+
+            # Deleting files from working not present in the top_n rows
+            # We'll need a list of files to keep
+            keep_files = []
+            for _, row in df.head(top_n).iterrows():
+                for column in row.index:
+                    if column.startswith("dock_files.") or column.startswith("indock_file."):
+                        keep_files.append(row[column])
+
+            # Deleting files not in keep_files
+            for file_name in os.listdir(self.working_dir.path):
+                if file_name not in keep_files:
+                    os.remove(os.path.join(self.working_dir.path, file_name))
 
         return df
 
