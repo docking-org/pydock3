@@ -253,9 +253,11 @@ class Dockopt(Script):
             allow_failed_retrodock_jobs=allow_failed_retrodock_jobs,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
             max_task_array_size=max_task_array_size,
-            #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
+            extra_submission_cmd_params_str=extra_submission_cmd_params_str,
+            sleep_seconds_after_copying_output=sleep_seconds_after_copying_output,
             export_negatives_mol2=export_negatives_mol2,
             delete_intermediate_files=delete_intermediate_files,
+            #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
         )
 
         #
