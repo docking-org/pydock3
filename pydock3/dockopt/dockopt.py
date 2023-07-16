@@ -84,6 +84,7 @@ class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     retrodock_job_max_reattempts: int = 0
     allow_failed_retrodock_jobs: bool = False
     retrodock_job_timeout_minutes: Union[None, int] = None
+    max_task_array_size: Union[None, int] = None
     extra_submission_cmd_params_str: Union[None, str] = None
     sleep_seconds_after_copying_output: int = 0
     export_negatives_mol2: bool = False
@@ -180,6 +181,7 @@ class Dockopt(Script):
         retrodock_job_max_reattempts: int = 0,
         allow_failed_retrodock_jobs: bool = False,
         retrodock_job_timeout_minutes: Union[None, str] = None,
+        max_task_array_size: Union[None, int] = None,
         extra_submission_cmd_params_str: Union[None, str] = None,
         sleep_seconds_after_copying_output: int = 0,
         export_negatives_mol2: bool = False,
@@ -249,6 +251,7 @@ class Dockopt(Script):
             retrodock_job_max_reattempts=retrodock_job_max_reattempts,
             allow_failed_retrodock_jobs=allow_failed_retrodock_jobs,
             retrodock_job_timeout_minutes=retrodock_job_timeout_minutes,
+            max_task_array_size=max_task_array_size,
             #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
             export_negatives_mol2=export_negatives_mol2,
             delete_intermediate_files=delete_intermediate_files,
@@ -782,41 +785,50 @@ class DockoptStep(PipelineComponent):
             with open(step_id_file_path, "w") as f:
                 f.write(f"{step_id}\n")
 
-        #
-        array_job_docking_configurations_file_path = os.path.join(self.component_dir.path, "array_job_docking_configurations.txt")
-        with open(array_job_docking_configurations_file_path, 'w') as f:
-            for dc in self.docking_configurations:
-                dock_files = dc.get_dock_files(self.pipeline_dir.path)
-                dockfile_paths_str = " ".join([getattr(dock_files, field.name).path for field in fields(dock_files)])
-                indock_file_path_str = dc.get_indock_file(self.pipeline_dir.path).path
-                f.write(f"{dc.configuration_num} {indock_file_path_str} {dockfile_paths_str} {dc.dock_executable_path}\n")
+        # Split self.docking_configurations into chunks of size max_task_array_size
+        docking_configurations_chunks = [self.docking_configurations[i:i + component_run_func_arg_set.max_task_array_size] for i in
+                                         range(0, len(self.docking_configurations), component_run_func_arg_set.max_task_array_size)]
 
-        # submit retrodock jobs (one for positives, one for negatives)
-        array_jobs = []
-        for sub_dir_name, should_export_mol2, input_molecules_dir_path in [
-            ('positives', True, self.retrospective_dataset.positives_dir_path),
-            ('negatives', component_run_func_arg_set.export_negatives_mol2, self.retrospective_dataset.negatives_dir_path),
-        ]:
-            job_name = f"dockopt_step_{step_id}_{sub_dir_name}"
-            sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)  # task dirs get reset in task submission
-            array_job = ArrayDockingJob(
-                name=job_name,
-                job_dir=sub_dir,
-                input_molecules_dir_path=input_molecules_dir_path,
-                job_scheduler=component_run_func_arg_set.scheduler,
-                temp_storage_path=component_run_func_arg_set.temp_storage_path,
-                array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
-                job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
-                extra_submission_cmd_params_str=component_run_func_arg_set.extra_submission_cmd_params_str,
-                sleep_seconds_after_copying_output=component_run_func_arg_set.sleep_seconds_after_copying_output,
-                #max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,  # TODO
-                export_mol2=should_export_mol2,
-            )
-            sub_result, procs = array_job.submit_all_tasks(
-                skip_if_complete=(not force_redock),
-            )
-            array_jobs.append(array_job)
-            log_job_submission_result(array_job, sub_result, procs)
+        chunk_to_array_jobs = {}
+        array_job_specs_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, 'array_job_specs'), create=True, reset=False)
+        for i, docking_configurations in enumerate(docking_configurations_chunks):
+            array_job_docking_configurations_file_path = os.path.join(array_job_specs_dir.path, f"array_job_docking_configurations_{i+1}.txt")
+            with open(array_job_docking_configurations_file_path, 'w') as f:
+                for dc in docking_configurations:
+                    dock_files = dc.get_dock_files(self.pipeline_dir.path)
+                    dockfile_paths_str = " ".join([getattr(dock_files, field.name).path for field in fields(dock_files)])
+                    indock_file_path_str = dc.get_indock_file(self.pipeline_dir.path).path
+                    f.write(f"{dc.configuration_num} {indock_file_path_str} {dockfile_paths_str} {dc.dock_executable_path}\n")
+
+            # submit retrodock jobs (one for positives, one for negatives)
+            chunk_array_jobs = []
+            for sub_dir_name, should_export_mol2, input_molecules_dir_path in [
+                ('positives', True, self.retrospective_dataset.positives_dir_path),
+                ('negatives', component_run_func_arg_set.export_negatives_mol2,
+                 self.retrospective_dataset.negatives_dir_path),
+            ]:
+                job_name = f"dockopt_step_{step_id}_{sub_dir_name}_{i}"
+                sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)  # task dirs get reset in task submission
+                array_job = ArrayDockingJob(
+                    name=job_name,
+                    job_dir=sub_dir,
+                    input_molecules_dir_path=input_molecules_dir_path,
+                    job_scheduler=component_run_func_arg_set.scheduler,
+                    temp_storage_path=component_run_func_arg_set.temp_storage_path,
+                    array_job_docking_configurations_file_path=array_job_docking_configurations_file_path,
+                    job_timeout_minutes=component_run_func_arg_set.retrodock_job_timeout_minutes,
+                    extra_submission_cmd_params_str=component_run_func_arg_set.extra_submission_cmd_params_str,
+                    sleep_seconds_after_copying_output=component_run_func_arg_set.sleep_seconds_after_copying_output,
+                    # max_reattempts=component_run_func_arg_set.retrodock_job_max_reattempts,  # TODO
+                    export_mol2=should_export_mol2,
+                )
+                sub_result, procs = array_job.submit_all_tasks(
+                    skip_if_complete=(not force_redock),
+                )
+                chunk_array_jobs.append(array_job)
+                log_job_submission_result(array_job, sub_result, procs)
+
+            chunk_to_array_jobs[i] = chunk_array_jobs
 
         # make a queue of tuples containing job-relevant data for processing
         docking_configurations_processing_queue = collections.deque(deepcopy(self.docking_configurations))
@@ -835,9 +847,11 @@ class DockoptStep(PipelineComponent):
         task_id_to_datetime_task_output_detection_was_last_attempted_dict = {str(d.configuration_num): datetime.min for d in docking_configurations_processing_queue}
         task_id_to_datetime_task_output_loading_was_last_attempted_dict = {str(d.configuration_num): datetime.min for d in docking_configurations_processing_queue}
         while len(docking_configurations_processing_queue) > 0:
-            #
             docking_configuration = docking_configurations_processing_queue.popleft()
             task_id = str(docking_configuration.configuration_num)
+            chunk_id = (int(task_id) - 1) // component_run_func_arg_set.max_task_array_size  # Determine which chunk this task belongs to
+            array_jobs = chunk_to_array_jobs[chunk_id]  # Get the corresponding array jobs for this task
+
             positives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'positives', task_id, 'OUTDOCK.0')
             negatives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'negatives', task_id, 'OUTDOCK.0')
 
