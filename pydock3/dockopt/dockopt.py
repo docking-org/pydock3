@@ -1,3 +1,4 @@
+import sys
 import uuid
 from typing import Union, Iterable, List, Callable
 import itertools
@@ -786,8 +787,12 @@ class DockoptStep(PipelineComponent):
                 f.write(f"{step_id}\n")
 
         # Split self.docking_configurations into chunks of size max_task_array_size
-        docking_configurations_chunks = [self.docking_configurations[i:i + component_run_func_arg_set.max_task_array_size] for i in
-                                         range(0, len(self.docking_configurations), component_run_func_arg_set.max_task_array_size)]
+        if component_run_func_arg_set.max_task_array_size is None:
+            max_task_array_size = sys.maxsize
+        else:
+            max_task_array_size = component_run_func_arg_set.max_task_array_size
+        docking_configurations_chunks = [self.docking_configurations[i:i + max_task_array_size] for i in
+                                         range(0, len(self.docking_configurations), max_task_array_size)]
 
         chunk_to_array_jobs = {}
         array_job_specs_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, 'array_job_specs'), create=True, reset=False)
@@ -849,7 +854,7 @@ class DockoptStep(PipelineComponent):
         while len(docking_configurations_processing_queue) > 0:
             docking_configuration = docking_configurations_processing_queue.popleft()
             task_id = str(docking_configuration.configuration_num)
-            chunk_id = (int(task_id) - 1) // component_run_func_arg_set.max_task_array_size  # Determine which chunk this task belongs to
+            chunk_id = (int(task_id) - 1) // max_task_array_size  # Determine which chunk this task belongs to
             array_jobs = chunk_to_array_jobs[chunk_id]  # Get the corresponding array jobs for this task
 
             positives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'positives', task_id, 'OUTDOCK.0')
