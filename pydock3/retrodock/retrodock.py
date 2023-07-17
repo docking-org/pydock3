@@ -197,7 +197,10 @@ def make_ridgeline_plot_of_energy_terms(
     )
     ax[-1].set_xlabel("Δ Energy (kcal/mol)")  # set x-axis label on last subplot to ensure it appears at bottom of plot
     plt.title(title)
-    plt.tight_layout()
+    try:
+        plt.tight_layout()
+    except UserWarning:
+        pass
     plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
     plt.close(fig)
 
@@ -238,7 +241,10 @@ def make_split_violin_plot_of_charge(
         palette=palette,
     )
     plt.title(title)
-    plt.tight_layout()
+    try:
+        plt.tight_layout()
+    except UserWarning:
+        pass
     plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
     plt.close(fig)
 

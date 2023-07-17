@@ -196,7 +196,10 @@ class ROC(object):
         ax.set_title(title)
 
         # save image and close
-        plt.tight_layout()
+        try:
+            plt.tight_layout()
+        except UserWarning:
+            pass
 
         #
         if save_path is not None:
