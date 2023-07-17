@@ -814,7 +814,7 @@ class DockoptStep(PipelineComponent):
                 ('negatives', component_run_func_arg_set.export_negatives_mol2,
                  self.retrospective_dataset.negatives_dir_path),
             ]:
-                job_name = f"dockopt_step_{step_id}_{sub_dir_name}_{i}"
+                job_name = f"dockopt_step_{step_id}_{sub_dir_name}_{i+1}"
                 sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)  # task dirs get reset in task submission
                 array_job = ArrayDockingJob(
                     name=job_name,
