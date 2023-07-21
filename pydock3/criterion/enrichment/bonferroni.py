@@ -13,7 +13,7 @@ logger.setLevel(logging.DEBUG)
 #
 ENRICHMENT_MODULE_PATH = os.path.dirname(ENRICHMENT_MODULE_INIT_PATH)
 RANDOM_DATA_DIR_PATH = os.path.join(ENRICHMENT_MODULE_PATH, "random_classifier_probability")
-MAX_TABLE_N_POSITIVES = 50
+MAX_TABLE_N_POSITIVES = 100
 
 
 def get_random_classifier_performance_data(
