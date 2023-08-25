@@ -1046,7 +1046,7 @@ class DockoptStep(PipelineComponent):
             df.sort_values(by=self.criterion.name, ascending=False, inplace=True)
 
             # Get the list of directories we want to keep
-            keep_dirs = df.head(top_n)['configuration_num'].apply(str).tolist()
+            keep_dirs = df.head(self.top_n)['configuration_num'].apply(str).tolist()
 
             # Deleting directories not in top_n
             for class_identifier in ['positives', 'negatives']:
@@ -1062,7 +1062,7 @@ class DockoptStep(PipelineComponent):
             # Deleting files from working not present in the top_n rows
             # We'll need a list of files to keep
             keep_files = []
-            for _, row in df.head(top_n).iterrows():
+            for _, row in df.head(self.top_n).iterrows():
                 for column in row.index:
                     if column.startswith("dock_files.") or column.startswith("indock_file."):
                         keep_files.append(row[column])
