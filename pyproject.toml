@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "pydock3"
-version = "1.0.0"
-description = ""
-authors = ["Ian Scott Knight <isk@alumni.stanford.edu>"]
-license = "Proprietary"
+version = "0.1.0rc1"
+description = "pydock3 is a Python package that serves as a wrapper around the Fortran program UCSF DOCK that also provides tools to help standardize and automate the computational methods employed in molecular docking. It is specifically tailored to work with DOCK 3.8 and later versions, but is intended to have utility beyond this scope."
+authors = ["Ian Scott Knight <ian.knight@ucsf.edu>"]
+license = "GPL-3.0-or-later"
 include = []
 
 

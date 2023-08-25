@@ -1051,9 +1051,13 @@ class DockoptStep(PipelineComponent):
             # Deleting directories not in top_n
             for class_identifier in ['positives', 'negatives']:
                 class_dir = os.path.join(self.retrodock_jobs_dir.path, class_identifier)
-                for dir_name in os.listdir(class_dir):
-                    if dir_name not in keep_dirs:
-                        Dir.delete_dir(os.path.join(class_dir, dir_name))
+                for obj in os.listdir(class_dir):
+                    obj_path = os.path.join(class_dir, obj)
+                    if obj not in keep_dirs:
+                        if os.path.isdir(obj_path):
+                            shutil.rmtree(obj_path)
+                        elif os.path.isfile(obj_path):
+                            os.remove(obj_path)
 
             # Deleting files from working not present in the top_n rows
             # We'll need a list of files to keep
@@ -1064,9 +1068,13 @@ class DockoptStep(PipelineComponent):
                         keep_files.append(row[column])
 
             # Deleting files not in keep_files
-            for file_name in os.listdir(self.working_dir.path):
-                if file_name not in keep_files:
-                    os.remove(os.path.join(self.working_dir.path, file_name))
+            for obj in os.listdir(self.working_dir.path):
+                obj_path = os.path.join(self.working_dir.path, obj)
+                if obj not in keep_files:
+                    if os.path.isfile(obj_path):
+                        os.remove(obj_path)
+                    elif os.path.isdir(obj_path):
+                        shutil.rmtree(obj_path)
 
         return df
 
