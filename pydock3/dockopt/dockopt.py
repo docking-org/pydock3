@@ -12,6 +12,7 @@ import time
 from datetime import datetime, timedelta
 import tarfile
 import re
+import shutil
 
 import networkx as nx
 import pandas as pd
