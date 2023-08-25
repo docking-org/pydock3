@@ -1076,6 +1076,8 @@ class DockoptStep(PipelineComponent):
                     elif os.path.isdir(obj_path):
                         shutil.rmtree(obj_path)
 
+            logger.info("done.")
+
         return df
 
     @staticmethod
