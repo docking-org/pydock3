@@ -1,4 +1,4 @@
-enr_score density prop cumul pval
+normalized_log_auc density prop cumul pval
 -0.076 1e-06 1e-09 1e-09 1.0
 -0.075 0.0 0.0 1e-09 1.0
 -0.074 1e-05 1e-08 1.1000000000000001e-08 0.99999999
