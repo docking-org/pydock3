@@ -44,7 +44,7 @@ SCHEDULER_NAME_TO_CLASS_DICT = {
 }
 
 #
-NORMALIZED_LOG_AUC_FILE_NAME = "normalized_log_auc.txt"
+NORMALIZED_LOG_AUC_FILE_NAME = "normalized_log_auc"
 ROC_PLOT_FILE_NAME = "roc.png"
 ENERGY_TERMS_PLOT_FILE_NAME = "energy.png"
 CHARGE_PLOT_FILE_NAME = "charge.png"
@@ -273,7 +273,7 @@ def process_retrodock_job_results(
     # calculate ROC
     roc = ROC(booleans=df["is_positive"].astype(bool))
     with open(normalized_log_auc_save_path, "w") as f:
-        f.write(f"{roc.normalized_log_auc}")
+        f.write(f"{roc.normalized_log_auc}\n")
 
     # make plots
     roc.plot(save_path=roc_plot_save_path)
