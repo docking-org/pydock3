@@ -26,6 +26,18 @@ logger.setLevel(logging.DEBUG)
 INDOCK_FILE_NAME = "INDOCK"
 
 
+def create_relative_symlink(target: str, link_name: str, target_is_directory: bool) -> None:
+    # Convert target and link_name to absolute paths
+    target_absolute = pathlib.Path(target).resolve()
+    link_name_absolute = pathlib.Path(link_name).resolve()
+
+    # Calculate the relative path from link_name to target
+    target_relative = os.path.relpath(target_absolute, start=link_name_absolute.parent)
+
+    # Create the symbolic link
+    os.symlink(target_relative, link_name_absolute, target_is_directory=target_is_directory)
+
+
 class FileSystemEntity(object):
     """E.g., file, directory, symlink"""
 

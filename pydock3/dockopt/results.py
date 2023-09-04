@@ -7,7 +7,7 @@ from dataclasses import fields
 
 import pandas as pd
 
-from pydock3.files import Dir
+from pydock3.files import Dir, create_relative_symlink
 from pydock3.dockopt.util import BEST_RETRODOCK_JOBS_DIR_NAME
 from pydock3.dockopt.docking_configuration import DockingConfiguration
 from pydock3.jobs import OUTDOCK_FILE_NAME
@@ -116,10 +116,10 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             dock_files = dc.get_dock_files(pipeline_component.pipeline_dir.path)
             for field in fields(dock_files):
                 dock_file = getattr(dock_files, field.name)
-                os.symlink(dock_file.path, os.path.join(best_job_dockfiles_dir.path, dock_file.name))
+                create_relative_symlink(dock_file.path, os.path.join(best_job_dockfiles_dir.path, dock_file.name), target_is_directory=False)
 
             indock_file = dc.get_indock_file(pipeline_component.pipeline_dir.path)
-            os.symlink(indock_file.path, os.path.join(best_job_dockfiles_dir.path, indock_file.name))
+            create_relative_symlink(indock_file.path, os.path.join(best_job_dockfiles_dir.path, indock_file.name), target_is_directory=False)
 
             src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives", str(dc.configuration_num))
             src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives", str(dc.configuration_num))
@@ -127,12 +127,12 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             dst_retrodock_job_positives_dir_path = os.path.join(dst_best_job_dir.path, "positives")
             dst_retrodock_job_negatives_dir_path = os.path.join(dst_best_job_dir.path, "negatives")
 
-            os.symlink(
+            create_relative_symlink(
                 src_retrodock_job_positives_dir_path,
                 dst_retrodock_job_positives_dir_path,
                 target_is_directory=True,
             )
-            os.symlink(
+            create_relative_symlink(
                 src_retrodock_job_negatives_dir_path,
                 dst_retrodock_job_negatives_dir_path,
                 target_is_directory=True,
@@ -171,7 +171,7 @@ class DockoptStepSequenceIterationResultsManager(DockoptPipelineComponentResults
             )
 
             # create a symbolic link instead of copying in order to save time & space
-            os.symlink(src_best_job_dir_path, dst_best_job_dir_path, target_is_directory=True)
+            create_relative_symlink(src_best_job_dir_path, dst_best_job_dir_path, target_is_directory=True)
 
 
 class DockoptStepSequenceResultsManager(DockoptPipelineComponentResultsManager):
@@ -199,4 +199,4 @@ class DockoptStepSequenceResultsManager(DockoptPipelineComponentResultsManager):
             )
 
             # create a symbolic link instead of copying in order to save time & space
-            os.symlink(src_best_job_dir_path, dst_best_job_dir_path, target_is_directory=True)
+            create_relative_symlink(src_best_job_dir_path, dst_best_job_dir_path, target_is_directory=True)
