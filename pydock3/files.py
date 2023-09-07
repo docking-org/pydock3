@@ -926,123 +926,74 @@ def remove_trailing_comment_block(lines: List[str]) -> List[str]:
 
 
 class Mol2DataRecord(object):
-    """
-    Represents a data record in a Mol2 records set, representing a particular piece of information about a given
-    molecule. Each record contains a header identifying the record type and a set of data rows. An optional set of
-    comment lines may appear before the header.
-    """
-
     def __init__(self, record_lines: List[str]):
-        """
-        Initializes a Mol2DataRecord instance.
-
-        Parameters:
-        -----------
-        header : str
-            Header of the Mol2 record.
-        data_rows : list of list of str
-            List of data rows in the Mol2 record.
-        comment_lines : list of str
-            List of comments found before the header line in the Mol2 record.
-        """
-
-        #
-        header, data_rows, comment_lines = self.parse_record_lines(record_lines)
-
+        header, data_rows = self.parse_record_lines(record_lines)
         self.header = header
         self.data_rows = data_rows
-        self.comment_lines = comment_lines
 
     def __str__(self):
         return get_text_block(
             rows=self.data_rows,
-            header="\n".join(self.comment_lines + [self.header]),
+            header=self.header,
             column_alignment='left',
-            num_spaces_between_columns=3,
-            num_spaces_before_line=0,
+            num_spaces_between_columns=4,
+            num_spaces_before_line=4,
         )
+
+    def __repr__(self):
+        return self.__str__()
+
+    @staticmethod
+    def parse_record_lines(record_lines: List[str]) -> Tuple[str, List[List[str]]]:
+        header = record_lines[0].strip()
+        data_rows = [line.split() for line in record_lines[1:]]
+        return header, data_rows
 
     @staticmethod
     def line_is_valid_starting_line_to_mol2_data_record(line: str) -> bool:
         """Returns True if the line is a valid starting line to a mol2 data record."""
         return line.strip().startswith(MOL2_HEADER_INDICATOR) or line.strip().startswith("#")
 
-    @staticmethod
-    def parse_record_lines(record_lines: List[str]) -> Tuple[str, List[List[str]], List[str]]:
-        """Parses a list of lines into the header, data rows, and comment lines of a Mol2DataRecord."""
-
-        #
-        leading_comment_block_end_index = get_leading_comment_block_end_index(record_lines)
-        if leading_comment_block_end_index is None:
-            comment_lines = []
-            remaining_lines = record_lines
-        else:
-            comment_lines = record_lines[:leading_comment_block_end_index + 1]
-            if len(record_lines) < leading_comment_block_end_index + 1:
-                remaining_lines = []
-            else:
-                remaining_lines = record_lines[leading_comment_block_end_index + 1:]
-
-        #
-        header = remaining_lines[0].strip()
-
-        # Validate the record headers
-        mol2_header_values = [h.value for h in Mol2Headers]
-        if header not in mol2_header_values:
-            raise ValueError(f"Unknown record header: {header}\nValid headers are: {mol2_header_values}")
-
-        #
-        data_rows = [line.split() for line in remaining_lines[1:]]
-
-        return header, data_rows, comment_lines
-
 
 class Mol2Block(object):
-    """
-    Represents a single molecule block in a Mol2 file, encapsulating information about a single molecule. Such sets are
-    commonly referred to as "Mol2 blocks", as they are represented as contiguous text blocks in the Mol2 file. Each set
-    contains records of unique data record types, such as molecule, atom, and bond records.
-    """
+    def __init__(self, mol2_block_lines: List[str]) -> None:
+        leading_comment_block_end_index = get_leading_comment_block_end_index(mol2_block_lines)
+        if leading_comment_block_end_index is None:
+            self.comment_lines = []
+            remaining_lines = mol2_block_lines
+        else:
+            if len(mol2_block_lines) <= leading_comment_block_end_index + 1:
+                raise ValueError(f"No records found in the supplied mol2 block lines: {mol2_block_lines}")
+            self.comment_lines = mol2_block_lines[:leading_comment_block_end_index + 1]
+            remaining_lines = mol2_block_lines[leading_comment_block_end_index + 1:]
 
-    def __init__(
-            self,
-            mol2_block_lines: List[str],
-    ) -> None:
-        """
-        Initializes a Mol2Block instance from a list of lines that make up the Mol2 block.
-
-        Parameters:
-        -----------
-        mol2_block_lines: List[str]
-            The lines of the Mol2 file that make up the Mol2 block to be encapsulated by this Mol2Block instance.
-        """
-        
-        # Validate that there is only one record of each type
+        # Validate the records
         mol2_headers = [h.value for h in Mol2Headers]
         for header in mol2_headers:
-            count = len([line for line in mol2_block_lines if line.strip() == header])
+            count = len([line for line in remaining_lines if line.strip() == header])
             if count > 1:
-                raise ValueError(f"More than one record of type {header} found in the supplied mol2 block lines.")
+                raise ValueError(f"More than one data record of type {header} found in the supplied mol2 block lines.")
 
-        # Loop through each header type to find and store the corresponding records
+        # Parse the records
         records_dict = collections.OrderedDict()
-        for record in self.split_mol2_block_into_data_records(mol2_block_lines):
-            records_dict[record.header] = record
-
-        self.records = records_dict
+        for record in self.split_mol2_block_into_data_records(remaining_lines):
+            record_type_name = record.header.replace(MOL2_HEADER_INDICATOR, '').strip()  # e.g., "@<TRIPOS>ATOM" -> "ATOM"
+            records_dict[record_type_name] = record
+        self.data_records = records_dict
 
     def __str__(self):
-        return "\n".join([str(record) for record in self.records.values()])
+        return "\n".join(self.comment_lines + [str(record) for record in self.data_records.values()])
+
+    def __repr__(self):
+        return self.__str__()
 
     @staticmethod
     def split_mol2_block_into_data_records(mol2_block_lines: List[str]) -> List[Mol2DataRecord]:
         """Splits the supplied mol2 block into its component data records."""
 
-        #
         if not Mol2DataRecord.line_is_valid_starting_line_to_mol2_data_record(mol2_block_lines[0]):
             raise ValueError("The first line of the supplied mol2 block is not a valid record header or comment.")
 
-        #
         records = []
         n = 1
         should_break = False
@@ -1053,14 +1004,13 @@ class Mol2Block(object):
                 end = len(mol2_block_lines)
                 should_break = True
 
-            record_lines = extract_trailing_comment_block(mol2_block_lines[:start]) + remove_trailing_comment_block(mol2_block_lines[start:end])
+            record_lines = extract_trailing_comment_block(mol2_block_lines[:start]) + remove_trailing_comment_block(
+                mol2_block_lines[start:end])
             records.append(Mol2DataRecord(record_lines))
 
             if should_break:
                 break
-
             n += 1
-
         return records
 
 
@@ -1068,7 +1018,7 @@ class Mol2File(File):
     def __init__(self, path):
         super().__init__(path=path)
 
-        self.mol2_blocks = self.read_mol2_blocks(self.path)
+        self.blocks = self.read_mol2_blocks(self.path)
 
     @staticmethod
     def read_mol2_blocks(mol2_file_path) -> List[Mol2Block]:
@@ -1240,11 +1190,11 @@ class Mol2File(File):
         #
         with open(write_path, "w") as f:
             new_mol2_blocks = []
-            for mol2_block in copy.deepcopy(self.mol2_blocks):
+            for mol2_block in copy.deepcopy(self.blocks):
                 #
                 new_molecule_record_data_rows = []
-                new_molecule_record_data_rows.append(mol2_block.records[Mol2Headers.MOLECULE.value].data_rows[0])
-                molecule_row = mol2_block.records[Mol2Headers.MOLECULE.value].data_rows[1]
+                new_molecule_record_data_rows.append(mol2_block.data_records[Mol2Headers.MOLECULE.name].data_rows[0])
+                molecule_row = mol2_block.data_records[Mol2Headers.MOLECULE.name].data_rows[1]
                 if bidirectional:
                     multiplier = (2 * num_applications) + 1
                 else:
@@ -1254,12 +1204,12 @@ class Mol2File(File):
                     int(molecule_row[1]) * multiplier,
                 ] + molecule_row[2:]
                 new_molecule_record_data_rows.append(new_molecule_row)
-                if len(mol2_block.records[Mol2Headers.MOLECULE.value].data_rows) > 2:
-                    new_molecule_record_data_rows += mol2_block.records[Mol2Headers.MOLECULE.value].data_rows[2:]
+                if len(mol2_block.data_records[Mol2Headers.MOLECULE.name].data_rows) > 2:
+                    new_molecule_record_data_rows += mol2_block.data_records[Mol2Headers.MOLECULE.name].data_rows[2:]
 
                 #
                 atom_element_to_id_nums_dict = collections.defaultdict(list)
-                atom_names = [atom_row[1] for atom_row in mol2_block.records[Mol2Headers.ATOM.value].data_rows]
+                atom_names = [atom_row[1] for atom_row in mol2_block.data_records[Mol2Headers.ATOM.name].data_rows]
                 for atom_name in atom_names:
                     element, id_num = [
                         token for token in re.split(r"(\d+)", atom_name) if token
@@ -1267,9 +1217,9 @@ class Mol2File(File):
                     atom_element_to_id_nums_dict[element].append(int(id_num))
 
                 #
-                num_atoms = len(mol2_block.records[Mol2Headers.ATOM.value].data_rows)
+                num_atoms = len(mol2_block.data_records[Mol2Headers.ATOM.name].data_rows)
                 new_atom_record_data_rows = []
-                for atom_row in mol2_block.records[Mol2Headers.ATOM.value].data_rows:
+                for atom_row in mol2_block.data_records[Mol2Headers.ATOM.name].data_rows:
                     new_atom_record_data_rows.append(atom_row)
 
                 def apply_to_atoms(rot_mat: np.ndarray, transl_vec: np.ndarray, n: int, num_app: int) -> None:
@@ -1298,7 +1248,7 @@ class Mol2File(File):
                       defined and appropriately populated in the outer scope.
                     """
 
-                    for atom_row in mol2_block.records[Mol2Headers.ATOM.value].data_rows:
+                    for atom_row in mol2_block.data_records[Mol2Headers.ATOM.name].data_rows:
                         atom_id = atom_row[0]
                         new_atom_id = f"{int(atom_id) + (n * num_atoms)}"
                         atom_name = atom_row[1]
@@ -1336,9 +1286,9 @@ class Mol2File(File):
                         )
 
                 #
-                num_bonds = len(mol2_block.records[Mol2Headers.BOND.value].data_rows)
+                num_bonds = len(mol2_block.data_records[Mol2Headers.BOND.name].data_rows)
                 new_bond_record_data_rows = []
-                for bond_row in mol2_block.records[Mol2Headers.BOND.value].data_rows:
+                for bond_row in mol2_block.data_records[Mol2Headers.BOND.name].data_rows:
                     new_bond_record_data_rows.append(bond_row)
 
                 def apply_to_bonds(n):
@@ -1360,7 +1310,7 @@ class Mol2File(File):
                     - Assumes `num_atoms` and `num_bonds` are defined and appropriately populated in the outer scope.
                     """
 
-                    for bond_row in mol2_block.records[Mol2Headers.BOND.value].data_rows:
+                    for bond_row in mol2_block.data_records[Mol2Headers.BOND.name].data_rows:
                         new_bond_row = (
                             [int(bond_row[1]) + (n * num_bonds)]
                             + [int(num) + (n * num_atoms) for num in bond_row[1:3]]
@@ -1378,9 +1328,9 @@ class Mol2File(File):
                         apply_to_bonds(n)
 
                 #
-                mol2_block.records[Mol2Headers.MOLECULE.value].data_rows = new_molecule_record_data_rows
-                mol2_block.records[Mol2Headers.ATOM.value].data_rows = new_atom_record_data_rows
-                mol2_block.records[Mol2Headers.BOND.value].data_rows = new_bond_record_data_rows
+                mol2_block.data_records[Mol2Headers.MOLECULE.name].data_rows = new_molecule_record_data_rows
+                mol2_block.data_records[Mol2Headers.ATOM.name].data_rows = new_atom_record_data_rows
+                mol2_block.data_records[Mol2Headers.BOND.name].data_rows = new_bond_record_data_rows
 
                 #
                 new_mol2_blocks.append(mol2_block)
@@ -1392,7 +1342,10 @@ class Mol2File(File):
         """
         Returns string representation of the Mol2RecordSet object as would be written to a .mol2 file.
         """
-        return Mol2File.get_mol2_blocks_as_string(self.mol2_blocks)
+        return Mol2File.get_mol2_blocks_as_string(self.blocks)
+
+    def __repr__(self):
+        return self.__str__()
 
     @staticmethod
     def get_mol2_blocks_as_string(mol2_blocks: List[Mol2Block]) -> str:
