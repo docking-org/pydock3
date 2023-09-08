@@ -1,4 +1,4 @@
-from typing import Iterable, Union
+from typing import Iterable, Union, Optional
 
 from pydock3.criterion.criterion import Criterion
 from pydock3.criterion.enrichment.roc import ROC
@@ -15,7 +15,7 @@ class NormalizedLogAUC(Criterion):
     def calculate(
         self,
         booleans: Iterable[bool],
-        image_save_path: Union[None, str] = None
+        image_save_path: Optional[str] = None
     ) -> float:
         roc = ROC(booleans)
 

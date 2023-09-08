@@ -1,4 +1,4 @@
-from typing import Iterable, Tuple, Union
+from typing import Iterable, Tuple, Union, Optional
 from dataclasses import dataclass
 import math
 
@@ -126,8 +126,8 @@ class ROC(object):
 
     def plot(
         self,
-        save_path: Union[None, str] = None,
-        title: Union[None, str] = None,
+        save_path: Optional[str] = None,
+        title: Optional[str] = None,
         figsize: Tuple[int, int] = (8, 8),
         dpi: int = 300,
     ) -> Tuple[plt.Figure, plt.Axes]:
