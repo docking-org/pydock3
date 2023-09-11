@@ -26,7 +26,7 @@ def add_sorting_of_results_dataframe_by_criterion_to_write_results_method(_cls: 
     write_results = getattr(_cls, "write_results")
 
     def new_write_results(self, pipeline_component, results_dataframe):
-        return write_results(self, pipeline_component, results_dataframe.sort_values(by=pipeline_component.criterion.name, ascending=False, ignore_index=True))
+        return write_results(self, pipeline_component, results_dataframe.sort_values(by=[pipeline_component.criterion.name, 'configuration_num'], ascending=[False, True], ignore_index=True))
 
     setattr(_cls, "write_results", new_write_results)
 
