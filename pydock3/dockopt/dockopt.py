@@ -1,6 +1,6 @@
 import sys
 import uuid
-from typing import Union, Iterable, List, Callable
+from typing import Union, Iterable, List, Callable, Optional, Tuple, Dict, Any, Set
 import itertools
 import os
 from functools import wraps
@@ -50,7 +50,7 @@ from pydock3.blastermaster.util import (
 from pydock3.jobs import ArrayDockingJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files, sort_by_energy_and_drop_duplicate_molecules
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results import DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
 from pydock3.criterion.enrichment.logauc import NormalizedLogAUC
@@ -83,16 +83,16 @@ MIN_SECONDS_BETWEEN_TASK_OUTPUT_LOADING_REATTEMPTS = 30
 @dataclass
 class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     scheduler: str
-    temp_storage_path: Union[None, str] = None
+    temp_storage_path: Optional[str] = None
     retrodock_job_max_reattempts: int = 0
     allow_failed_retrodock_jobs: bool = False
-    retrodock_job_timeout_minutes: Union[None, int] = None
-    max_task_array_size: Union[None, int] = None
-    extra_submission_cmd_params_str: Union[None, str] = None
+    retrodock_job_timeout_minutes: Optional[int] = None
+    max_task_array_size: Optional[int] = None
+    extra_submission_cmd_params_str: Optional[str] = None
     sleep_seconds_after_copying_output: int = 0
     export_negatives_mol2: bool = False
     delete_intermediate_files: bool = False
-    max_scheduler_jobs_running_at_a_time: Union[None, int] = None
+    max_scheduler_jobs_running_at_a_time: Optional[int] = None
 
 
 class Dockopt(Script):
@@ -178,18 +178,18 @@ class Dockopt(Script):
         self,
         scheduler: str,
         job_dir_path: str = ".",
-        config_file_path: Union[None, str] = None,
-        positives_tgz_file_path: Union[None, str] = None,
-        negatives_tgz_file_path: Union[None, str] = None,
+        config_file_path: Optional[str] = None,
+        positives_tgz_file_path: Optional[str] = None,
+        negatives_tgz_file_path: Optional[str] = None,
         retrodock_job_max_reattempts: int = 0,
         allow_failed_retrodock_jobs: bool = False,
-        retrodock_job_timeout_minutes: Union[None, str] = None,
-        max_task_array_size: Union[None, int] = None,
-        extra_submission_cmd_params_str: Union[None, str] = None,
+        retrodock_job_timeout_minutes: Optional[str] = None,
+        max_task_array_size: Optional[int] = None,
+        extra_submission_cmd_params_str: Optional[str] = None,
         sleep_seconds_after_copying_output: int = 0,
         export_negatives_mol2: bool = False,
         delete_intermediate_files: bool = False,
-        #max_scheduler_jobs_running_at_a_time: Union[None, str] = None,  # TODO
+        #max_scheduler_jobs_running_at_a_time: Optional[str] = None,  # TODO
         force_redock: bool = False,
         force_rewrite_results: bool = False,
         force_rewrite_report: bool = False,
@@ -988,30 +988,27 @@ class DockoptStep(PipelineComponent):
                 f"Task {task_id} complete. Loaded both OUTDOCK files."
             )
 
-            # sort dataframe by total energy score
-            df["total_energy"] = df["total_energy"].astype(float)
-            df = df.sort_values(
-                by=["total_energy", "is_positive"], na_position="last", ignore_index=True
-            )  # sorting secondarily by 'is_positive' (0 or 1) ensures that negatives are ranked before positives in case they have the same exact score (pessimistic approach)
-            df = df.drop_duplicates(
-                subset=["db2_file_path"], keep="first", ignore_index=True  # TODO: replace `db2_file_path` with some kind of molecule ID
-            )
+            # validate scored molecules
+            num_positive_db2_files_scored = df[df['is_positive'].astype(bool)]['db2_file_path'].nunique()
+            num_negative_db2_files_scored = df[~df['is_positive'].astype(bool)]['db2_file_path'].nunique()
+
+            if num_positive_db2_files_scored != self.retrospective_dataset.num_db2_files_in_positive_class:
+                raise Exception(
+                    f"Retrospective dataset has {self.retrospective_dataset.num_db2_files_in_positive_class} DB2 files in positive class but only detected {num_positive_db2_files_scored} while processing retrodock job for task {task_id}")
+            if num_negative_db2_files_scored != self.retrospective_dataset.num_db2_files_in_negative_class:
+                raise Exception(
+                    f"Retrospective dataset has {self.retrospective_dataset.num_db2_files_in_negative_class} DB2 files in negative class but only detected {num_negative_db2_files_scored} while processing retrodock job for task {task_id}")
+
+            # sort dataframe by total energy score and drop duplicate molecules
+            df = sort_by_energy_and_drop_duplicate_molecules(df)
 
             # make data dict for this configuration num
             data_dict = docking_configuration.to_dict()
 
             # get ROC and calculate normalized LogAUC of this job's docking set-up
-            if isinstance(self.criterion, NormalizedLogAUC):
+            if isinstance(self.criterion, NormalizedLogAUC):  # TODO: generalize `self.criterion` such that this ad hoc check is not necessary
                 booleans = df["is_positive"]
                 data_dict[self.criterion.name] = self.criterion.calculate(booleans)
-
-                #
-                num_positives_detected = len([1 for b in booleans if b])
-                if num_positives_detected != self.retrospective_dataset.num_positives:
-                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_positives} positives but only detected {num_positives_detected} positives while processing retrodock job for task {task_id}")
-                num_negatives_detected = len([0 for b in booleans if not b])
-                if num_negatives_detected != self.retrospective_dataset.num_negatives:
-                    raise Exception(f"Retrospective dataset has {self.retrospective_dataset.num_negatives} negatives but only detected {num_negatives_detected} negatives while processing retrodock job for task {task_id}")
 
             # save data_dict for this job
             data_dicts.append(data_dict)

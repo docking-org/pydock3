@@ -1,6 +1,6 @@
 import logging
 import subprocess
-from typing import Tuple, List, Union
+from typing import Tuple, List, Optional
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -54,8 +54,8 @@ class ArrayDockingJob(ABC):
     job_scheduler: JobScheduler
     temp_storage_path: str
     array_job_docking_configurations_file_path: str
-    job_timeout_minutes: Union[None, int] = None
-    extra_submission_cmd_params_str: Union[None, str] = None
+    job_timeout_minutes: Optional[int] = None
+    extra_submission_cmd_params_str: Optional[str] = None
     sleep_seconds_after_copying_output: int = 0
     export_mol2: bool = True
     #max_reattempts: int = 0  # TODO

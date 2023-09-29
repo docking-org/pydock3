@@ -3,7 +3,7 @@ import logging
 from uuid import uuid4
 import time
 from dataclasses import astuple
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
 import collections
 
 import numpy as np
@@ -130,25 +130,30 @@ def get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
         if new_col != old_col:
             df = df.drop(old_col, axis=1)
 
+    #
+    df["total_energy"] = df["total_energy"].astype(float)
+
+    return df
+
+
+def sort_by_energy_and_drop_duplicate_molecules(df: pd.DataFrame):
     # sort dataframe by total energy score
     df = df.sort_values(
-        by=["total_energy", "is_positive"],
-        na_position="last",
-        ignore_index=True,
+        by=["total_energy", "is_positive"], na_position="last", ignore_index=True
     )  # sorting secondarily by 'is_positive' (0 or 1) ensures that negatives are ranked before positives in case they have the same exact score (pessimistic approach)
     df = df.drop_duplicates(
-        subset=["db2_file_path"],
+        subset=["id_num"],  # TODO: change ridiculous `id_num` to `molecule_id` or something actually sensible
         keep="first",
-        ignore_index=True
-    )  # keep only the best score per molecule
+        ignore_index=True,
+    )
 
     return df
 
 
 def make_ridgeline_plot_of_energy_terms(
         df: pd.DataFrame,
-        save_path: Union[None, str] = None,
-        title: Union[None, str] = None,
+        save_path: Optional[str] = None,
+        title: Optional[str] = None,
         figsize: Tuple[int, int] = (8, 8),
         dpi: int = 300,
         alpha: float = 0.8,
@@ -209,8 +214,8 @@ def make_ridgeline_plot_of_energy_terms(
 
 def make_split_violin_plot_of_charge(
         df: pd.DataFrame,
-        save_path: Union[None, str] = None,
-        title: Union[None, str] = None,
+        save_path: Optional[str] = None,
+        title: Optional[str] = None,
         figsize: Tuple[int, int] = (8, 8),
         dpi: int = 300,
 ) -> Tuple[plt.Figure, plt.Axes]:
@@ -269,6 +274,9 @@ def process_retrodock_job_results(
         positives_outdock_file_path,
         negatives_outdock_file_path,
     )
+
+    # sort dataframe by total energy score and drop duplicate molecules
+    df = sort_by_energy_and_drop_duplicate_molecules(df)
 
     # calculate ROC
     roc = ROC(booleans=df["is_positive"].astype(bool))
@@ -345,11 +353,11 @@ class Retrodock(Script):
         dock_files_dir_path=None,
         indock_file_path=None,
         custom_dock_executable=None,
-        positives_tgz_file_path: Union[None, str] = None,
-        negatives_tgz_file_path: Union[None, str] = None,
+        positives_tgz_file_path: Optional[str] = None,
+        negatives_tgz_file_path: Optional[str] = None,
         retrodock_job_max_reattempts=0,
-        retrodock_job_timeout_minutes: Union[None, str] = None,
-        extra_submission_cmd_params_str: Union[None, str] = None,
+        retrodock_job_timeout_minutes: Optional[str] = None,
+        extra_submission_cmd_params_str: Optional[str] = None,
         sleep_seconds_after_copying_output=0,
         export_negatives_mol2=False,
     ) -> None:

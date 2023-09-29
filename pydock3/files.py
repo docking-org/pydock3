@@ -1,5 +1,5 @@
 import copy
-from typing import List, Tuple, Union, Optional, Dict, Any
+from typing import List, Tuple, Union, Optional, Dict, Any, TextIO, Generator
 from enum import Enum
 import collections
 import logging
@@ -44,8 +44,12 @@ def create_relative_symlink(target: str, link_name: str, target_is_directory: bo
 class FileSystemEntity(object):
     """E.g., file, directory, symlink"""
 
-    def __init__(self, path):
+    def __init__(self, path: str, validate_existence: bool = False):
         self.path = path
+
+        if validate_existence:
+            if not os.path.exists(self.path):
+                raise FileNotFoundError(f"Path `{self.path}` does not exist.")
 
     def __str__(self):
         return self.path
@@ -83,8 +87,8 @@ class FileSystemEntity(object):
 class Dir(FileSystemEntity):
     """#TODO"""
 
-    def __init__(self, path, create=False, reset=False):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False, create: bool = False, reset: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
         #
         if create:
@@ -95,7 +99,7 @@ class Dir(FileSystemEntity):
         return Dir.extract_dir_name_from_dir_path(self.path)
 
     @staticmethod
-    def extract_dir_name_from_dir_path(dir_path):
+    def extract_dir_name_from_dir_path(dir_path: str):
         return os.path.basename(dir_path)
 
     @property
@@ -108,10 +112,10 @@ class Dir(FileSystemEntity):
             raise Exception(f"Dir {self.path} does not exist.")
 
     @staticmethod
-    def dir_exists(dir_path):
+    def dir_exists(dir_path: str):
         return os.path.isdir(dir_path)
 
-    def create(self, reset=False):
+    def create(self, reset: bool = False):
         """#TODO"""
         if reset:
             self.delete()
@@ -132,7 +136,7 @@ class Dir(FileSystemEntity):
     def reset(self):
         self.create(reset=True)
 
-    def copy_in_file(self, src_file_path, dst_file_name=None, overwrite=True):
+    def copy_in_file(self, src_file_path: str, dst_file_name: Optional[str] = None, overwrite: bool = True):
         """#TODO"""
         File.validate_file_exists(src_file_path)
 
@@ -144,7 +148,7 @@ class Dir(FileSystemEntity):
         return dst_file
 
     @staticmethod
-    def delete_dir(dir_path):
+    def delete_dir(dir_path: str) -> None:
         if os.path.exists(dir_path):
             '''
             shutil.rmtree(dir_path, ignore_errors=True)
@@ -161,15 +165,15 @@ class Dir(FileSystemEntity):
         time.sleep(0.01)
 
     @staticmethod
-    def validate_obj_is_dir(obj):
+    def validate_obj_is_dir(obj: Any) -> None:
         validate_variable_type(obj, allowed_instance_types=(Dir,))
 
 
 class File(FileSystemEntity):
     """#TODO"""
 
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
     @property
     def name(self):
@@ -180,12 +184,12 @@ class File(FileSystemEntity):
         return self.get_datetime_file_was_last_modified(self.path)
 
     @staticmethod
-    def get_file_name_of_file(file_path):
+    def get_file_name_of_file(file_path: str):
         File.validate_path(file_path)
         return os.path.basename(os.path.abspath(file_path))
 
     @staticmethod
-    def get_dir_path_of_file(file_path):
+    def get_dir_path_of_file(file_path: str):
         File.validate_path(file_path)
         return os.path.dirname(os.path.abspath(file_path))
 
@@ -202,7 +206,7 @@ class File(FileSystemEntity):
     def is_empty(self):
         return self.file_is_empty(self.path)
 
-    def copy_from(self, src_file_path, overwrite=True):
+    def copy_from(self, src_file_path: str, overwrite: bool = True):
         self.copy_file(
             src_file_path=src_file_path, dst_file_path=self.path, overwrite=overwrite
         )
@@ -222,7 +226,7 @@ class File(FileSystemEntity):
         return self.file_is_gzipped(self.path)
 
     @staticmethod
-    def get_datetime_file_was_last_modified(file_path):
+    def get_datetime_file_was_last_modified(file_path: str):
         File.validate_file_exists(file_path)
 
         datetime_last_modified = datetime.fromtimestamp(os.stat(file_path).st_mtime)
@@ -230,7 +234,7 @@ class File(FileSystemEntity):
         return datetime_last_modified
 
     @staticmethod
-    def get_file_size(file_path):
+    def get_file_size(file_path: str):
         File.validate_file_exists(file_path)
 
         file_size = os.path.getsize(file_path)
@@ -238,12 +242,12 @@ class File(FileSystemEntity):
         return file_size
 
     @staticmethod
-    def file_is_empty(file_path):
+    def file_is_empty(file_path: str):
         file_size = File.get_file_size(file_path)
         return file_size == 0
 
     @staticmethod
-    def copy_file(src_file_path, dst_file_path, overwrite=True):
+    def copy_file(src_file_path: str, dst_file_path: str, overwrite: bool = True):
         """#TODO"""
         File.validate_file_exists(src_file_path)
         File.validate_path(dst_file_path)
@@ -265,7 +269,7 @@ class File(FileSystemEntity):
             )
 
     @staticmethod
-    def delete_file(file_path):
+    def delete_file(file_path: str):
         File.validate_path(file_path)
         if File.file_exists(file_path):
             os.remove(file_path)
@@ -274,7 +278,7 @@ class File(FileSystemEntity):
             logger.debug(f"Tried to delete file {file_path} but it doesn't exist.")
 
     @staticmethod
-    def files_differ(file_path_1, file_path_2, verbose=False):
+    def files_differ(file_path_1: str, file_path_2: str, verbose: bool = False):
         """#TODO"""
         File.validate_file_exists(file_path_1)
         File.validate_file_exists(file_path_2)
@@ -293,42 +297,52 @@ class File(FileSystemEntity):
         return len(diff) != 0
 
     @staticmethod
-    def file_exists(file_path):
+    def file_exists(file_path: str):
         File.validate_path(file_path)
         return os.path.isfile(file_path)
 
     @staticmethod
-    def read_file_lines(file_path):
+    def read_file_lines(file_path: str):
         with open(file_path, "r") as f:
             lines = [line.strip() for line in f.readlines()]
         return lines
 
     @staticmethod
-    def file_is_gzipped(file_path):
+    def file_is_gzipped(file_path: str):
         with open(file_path, "rb") as f:
             return f.read(2) == b"\x1f\x8b"
 
     @staticmethod
-    def validate_file_exists(file_path):
+    def validate_file_exists(file_path: str):
         if not File.file_exists(file_path):
             raise FileNotFoundError(f"File {file_path} does not exist.")
 
     @staticmethod
-    def validate_file_is_not_empty(file_path):
+    def validate_file_is_not_empty(file_path: str):
         File.validate_file_exists(file_path)
         if File.file_is_empty(file_path):
             raise Exception(f"File {file_path} is empty.")
 
+    def open_file(self) -> Union[TextIO, gzip.GzipFile, tarfile.TarFile]:
+        _, file_extension = os.path.splitext(self.path)
+
+        if file_extension == '.tar.gz' or file_extension == '.tgz':  # tarball
+            return tarfile.open(self.path, "r:gz")
+        elif file_extension == '.gz':  # gzip
+            return gzip.open(self.path, 'rt')  # 'rt' mode for reading text files
+        else:
+            return open(self.path, 'r')
+
 
 class SMIFile(File):
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
     def read_dataframe(self):
         self.read_dataframe_from_smi_file(self.path)
 
     @staticmethod
-    def read_dataframe_from_smi_file(smi_file_path):
+    def read_dataframe_from_smi_file(smi_file_path: str):
         File.validate_file_exists(smi_file_path)
 
         #
@@ -354,7 +368,7 @@ class SMIFile(File):
         return df
 
     @staticmethod
-    def validate_smiles_string(smiles_string):
+    def validate_smiles_string(smiles_string: str):
         m = Chem.MolFromSmiles(smiles_string, sanitize=False)
         if m is None:
             raise Exception(f"Invalid SMILES: {smiles_string}")
@@ -366,10 +380,10 @@ class SMIFile(File):
 
 
 class SDIFile(File):
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
-    def write_tgz(self, tgz_file_name, archive_dir_name=None, filter_regex="(.*?)"):
+    def write_tgz(self, tgz_file_name: str, archive_dir_name: Optional[str] = None, filter_regex: str = "(.*?)"):
         if archive_dir_name is None:
             archive_dir_name = File.get_file_name_of_file(tgz_file_name)
             archive_dir_name = re.sub(".tgz$", "", archive_dir_name)
@@ -399,15 +413,15 @@ class SDIFile(File):
 
 
 class ProgramFile(File):
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
 
 class LogFile(File):
     """#TODO"""
 
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
 
 class IndockFile(File):
@@ -417,8 +431,8 @@ class IndockFile(File):
     `indock_file_generation_dict` corresponds to the key-values of blastermaster_config.yaml
     """
 
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
     def write(
         self,
@@ -634,6 +648,41 @@ iseed                         {indock_file_generation_dict['iseed']}
                 """
 
 
+class TarballFile(File):
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
+
+    def iterate_over_tarball_member_files(self) -> Generator[tarfile.TarInfo, None, None]:
+        with TarballFile(self.path).open_file() as tar:
+            for member in tar.getmembers():
+                if member.isfile():
+                    yield member
+
+    def extract(self, extraction_dir_path: str) -> None:
+        if not self.exists:
+            raise Exception(f"Tarball `{self.path}` does not exist.")
+
+        if not Dir(extraction_dir_path).exists:
+            raise Exception(f"Directory `{extraction_dir_path}` does not exist.")
+
+        #
+        with self.open_file() as tar:
+            tar.extractall(path=extraction_dir_path)
+
+
+class DB2File(File):
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
+
+    def get_molecule_name(self) -> Optional[str]:
+        with self.open_file() as f:
+            for line in f:
+                columns = line.split()
+                if columns[0] == "M":
+                    return columns[1]
+        return None
+
+
 class OutdockFile(File):
 
     COLUMN_NAMES = [  # TODO: This depends on the version of DOCK 3 being used. Figure out how to make this more robust.
@@ -660,8 +709,8 @@ class OutdockFile(File):
         "Total",
     ]
 
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
     def get_dataframe(self):
         File.validate_file_exists(self.path)
@@ -1015,8 +1064,8 @@ class Mol2Block(object):
 
 
 class Mol2File(File):
-    def __init__(self, path):
-        super().__init__(path=path)
+    def __init__(self, path: str, validate_existence: bool = False):
+        super().__init__(path=path, validate_existence=validate_existence)
 
         self.blocks = self.read_mol2_blocks(self.path)
 
@@ -1403,32 +1452,34 @@ def get_text_block(
         )
 
     #
-    rows = [[str(token) for token in row] for row in rows]
-
-    max_row_size = max([len(row) for row in rows])
-    columns = [
-        [row[i] if i < len(row) else "" for row in rows] for i in range(max_row_size)
-    ]
-    column_max_token_length_list = [
-        max([len(token) for token in column]) for column in columns
-    ]
-    spacing_between_columns = " " * num_spaces_between_columns
     formatted_lines = []
-    for row in rows:
-        formatted_tokens = []
-        for i, token in enumerate(row):
-            if column_alignment == "left":
-                formatted_token = token.ljust(column_max_token_length_list[i])
-            elif column_alignment == "right":
-                formatted_token = token.rjust(column_max_token_length_list[i])
-            elif column_alignment == "none":
-                formatted_token = token
-            formatted_tokens.append(formatted_token)
-        spacing_before_line = num_spaces_before_line * " "
-        formatted_line = spacing_before_line + spacing_between_columns.join(
-            formatted_tokens
-        )
-        formatted_lines.append(formatted_line)
+    if len(rows) > 0:
+        rows = [[str(token) for token in row] for row in rows]
+
+        max_row_size = max([len(row) for row in rows])
+        columns = [
+            [row[i] if i < len(row) else "" for row in rows] for i in range(max_row_size)
+        ]
+        column_max_token_length_list = [
+            max([len(token) for token in column]) for column in columns
+        ]
+        spacing_between_columns = " " * num_spaces_between_columns
+        formatted_lines = []
+        for row in rows:
+            formatted_tokens = []
+            for i, token in enumerate(row):
+                if column_alignment == "left":
+                    formatted_token = token.ljust(column_max_token_length_list[i])
+                elif column_alignment == "right":
+                    formatted_token = token.rjust(column_max_token_length_list[i])
+                elif column_alignment == "none":
+                    formatted_token = token
+                formatted_tokens.append(formatted_token)
+            spacing_before_line = num_spaces_before_line * " "
+            formatted_line = spacing_before_line + spacing_between_columns.join(
+                formatted_tokens
+            )
+            formatted_lines.append(formatted_line)
 
     text_block = ""
     if header:
