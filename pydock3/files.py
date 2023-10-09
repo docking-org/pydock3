@@ -339,7 +339,7 @@ class SMIFile(File):
         super().__init__(path=path, validate_existence=validate_existence)
 
     def read_dataframe(self):
-        self.read_dataframe_from_smi_file(self.path)
+        return self.read_dataframe_from_smi_file(self.path)
 
     @staticmethod
     def read_dataframe_from_smi_file(smi_file_path: str):
