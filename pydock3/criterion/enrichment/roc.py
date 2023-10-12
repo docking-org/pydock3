@@ -27,16 +27,16 @@ class ROC(object):
         self.booleans = booleans
 
         #
-        self.num_positives = len([b for b in self.booleans if b])
-        self.num_negatives = len([b for b in self.booleans if not b])
+        self.num_actives = len([b for b in self.booleans if b])
+        self.num_decoys = len([b for b in self.booleans if not b])
 
-        # validate num positives and num negatives
-        if self.num_positives == 0 or self.num_negatives == 0:
-            raise ValueError(f"Number of positives and number of negatives both must be greater than zero!\n\tnum_positives={self.num_positives}\n\tnum_negatives={self.num_negatives}")
+        # validate num actives and num decoys
+        if self.num_actives == 0 or self.num_decoys == 0:
+            raise ValueError(f"Number of actives and number of decoys both must be greater than zero!\n\tnum_actives={self.num_actives}\n\tnum_decoys={self.num_decoys}")
 
         # validate and set alpha
         if alpha is None:
-            alpha = float(1 / (self.num_negatives * np.e))
+            alpha = float(1 / (self.num_decoys * np.e))
         if not ((alpha > 0.0) and (alpha < 1.0)):
             raise ValueError("ROC alpha must be in range (0, 1)")
         self.alpha = alpha
@@ -44,24 +44,24 @@ class ROC(object):
         # get ROC points
         x_coords = []
         y_coords = []
-        num_negatives_witnessed_so_far = 0
-        num_positives_witnessed_so_far = 0
+        num_decoys_witnessed_so_far = 0
+        num_actives_witnessed_so_far = 0
         last_bool_was_negative = False
         for b in self.booleans:
             if b:
-                if num_negatives_witnessed_so_far == self.num_negatives:
-                    break  # last negative has been seen, end of ROC, disregard remaining positives
-                num_positives_witnessed_so_far += 1
+                if num_decoys_witnessed_so_far == self.num_decoys:
+                    break  # last negative has been seen, end of ROC, disregard remaining actives
+                num_actives_witnessed_so_far += 1
                 last_bool_was_negative = False
             else:
                 if not last_bool_was_negative:
-                    x_coord = float(num_negatives_witnessed_so_far / self.num_negatives)
-                    y_coord = float(num_positives_witnessed_so_far / self.num_positives)
+                    x_coord = float(num_decoys_witnessed_so_far / self.num_decoys)
+                    y_coord = float(num_actives_witnessed_so_far / self.num_actives)
                     x_coords.append(x_coord)
                     y_coords.append(y_coord)
-                num_negatives_witnessed_so_far += 1
+                num_decoys_witnessed_so_far += 1
                 last_bool_was_negative = True
-        self.x_coords = x_coords  # num points = num_negatives, each ith point represents interval [i/n, (i+1)/n]
+        self.x_coords = x_coords  # num points = num_decoys, each ith point represents interval [i/n, (i+1)/n]
         self.y_coords = y_coords
         self.points = [
             Point(x_coord, y_coord)
@@ -148,7 +148,7 @@ class ROC(object):
             label=f"random classifier",
         )
 
-        # make plot of ROC curve of positives vs. negatives with log-scaled x-axis
+        # make plot of ROC curve of actives vs. decoys with log-scaled x-axis
         x_coords_for_plot = self.x_coords + [1.0]  # add point at x=1.0 to complete the last interval [(n-1)/n, 1.0]
         y_coords_for_plot = self.y_coords + [self.y_coords[-1]]
         ax.step(
@@ -159,8 +159,8 @@ class ROC(object):
         )
 
         # add an extra label of normalized LogAUC (nothing extra will be plotted)
-        plt.plot([], [], " ", label=f"# of positives: {self.num_positives}")
-        plt.plot([], [], " ", label=f"# of negatives: {self.num_negatives}")
+        plt.plot([], [], " ", label=f"# of actives: {self.num_actives}")
+        plt.plot([], [], " ", label=f"# of decoys: {self.num_decoys}")
         plt.plot(
             [],
             [],
@@ -175,8 +175,8 @@ class ROC(object):
         ax.legend(framealpha=0.75)
 
         # set axis labels
-        ax.set_xlabel("false positive rate (i.e., top fraction of negatives accepted)")
-        ax.set_ylabel("true positive rate (i.e., top fraction of positives accepted)")
+        ax.set_xlabel("false positive rate (i.e., top fraction of decoys accepted)")
+        ax.set_ylabel("true positive rate (i.e., top fraction of actives accepted)")
 
         # set log scale x-axis
         ax.set_xscale("log")

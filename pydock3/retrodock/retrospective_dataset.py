@@ -8,47 +8,47 @@ from pydock3.files import TarballFile, DB2File
 class RetrospectiveDataset(object):
     SUPPORTED_EXTENSIONS = ['db2', 'db2.gz']
 
-    def __init__(self, positives_tgz_file_path: str, negatives_tgz_file_path: str, positives_dir_path: str, negatives_dir_path: str):
+    def __init__(self, actives_tgz_file_path: str, decoys_tgz_file_path: str, actives_dir_path: str, decoys_dir_path: str):
         #
-        if not os.path.isfile(positives_tgz_file_path):
-            raise Exception(f"Tarball `{positives_tgz_file_path}` does not exist.")
-        if not os.path.isfile(negatives_tgz_file_path):
-            raise Exception(f"Tarball `{negatives_tgz_file_path}` does not exist.")
+        if not os.path.isfile(actives_tgz_file_path):
+            raise Exception(f"Tarball `{actives_tgz_file_path}` does not exist.")
+        if not os.path.isfile(decoys_tgz_file_path):
+            raise Exception(f"Tarball `{decoys_tgz_file_path}` does not exist.")
 
         #
-        self._validate_tarball_files(positives_tgz_file_path)
-        self._validate_tarball_files(negatives_tgz_file_path)
+        self._validate_tarball_files(actives_tgz_file_path)
+        self._validate_tarball_files(decoys_tgz_file_path)
 
         # Create directories if they don't exist
-        for dir_path in [positives_dir_path, negatives_dir_path]:
+        for dir_path in [actives_dir_path, decoys_dir_path]:
             if not os.path.isdir(dir_path):
                 os.makedirs(dir_path)
 
         #
-        self.positives_tgz_file_path = positives_tgz_file_path
-        self.negatives_tgz_file_path = negatives_tgz_file_path
+        self.actives_tgz_file_path = actives_tgz_file_path
+        self.decoys_tgz_file_path = decoys_tgz_file_path
 
         #
-        self.positives_dir_path = positives_dir_path
-        self.negatives_dir_path = negatives_dir_path
+        self.actives_dir_path = actives_dir_path
+        self.decoys_dir_path = decoys_dir_path
 
         #
-        self.num_db2_files_in_positive_class = len(list(TarballFile(self.positives_tgz_file_path).iterate_over_tarball_member_files()))
-        self.num_db2_files_in_negative_class = len(list(TarballFile(self.negatives_tgz_file_path).iterate_over_tarball_member_files()))
+        self.num_db2_files_in_positive_class = len(list(TarballFile(self.actives_tgz_file_path).iterate_over_tarball_member_files()))
+        self.num_db2_files_in_negative_class = len(list(TarballFile(self.decoys_tgz_file_path).iterate_over_tarball_member_files()))
 
         #
         if self.num_db2_files_in_positive_class == 0:
-            raise Exception(f"No positives found in tarball `{self.positives_tgz_file_path}`. Expected files with extensions: `{self.SUPPORTED_EXTENSIONS}`")
+            raise Exception(f"No actives found in tarball `{self.actives_tgz_file_path}`. Expected files with extensions: `{self.SUPPORTED_EXTENSIONS}`")
         if self.num_db2_files_in_negative_class == 0:
-            raise Exception(f"No negatives found in tarball `{self.negatives_tgz_file_path}`. Expected files with extensions: `{self.SUPPORTED_EXTENSIONS}`")
+            raise Exception(f"No decoys found in tarball `{self.decoys_tgz_file_path}`. Expected files with extensions: `{self.SUPPORTED_EXTENSIONS}`")
 
         #
-        self._extract_tarball(self.positives_tgz_file_path, self.positives_dir_path)
-        self._extract_tarball(self.negatives_tgz_file_path, self.negatives_dir_path)
+        self._extract_tarball(self.actives_tgz_file_path, self.actives_dir_path)
+        self._extract_tarball(self.decoys_tgz_file_path, self.decoys_dir_path)
 
         #
-        self.num_molecules_in_positive_class = len(list(set([DB2File(os.path.join(self.positives_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.positives_tgz_file_path).iterate_over_tarball_member_files()])))
-        self.num_molecules_in_negative_class = len(list(set([DB2File(os.path.join(self.negatives_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.negatives_tgz_file_path).iterate_over_tarball_member_files()])))
+        self.num_molecules_in_positive_class = len(list(set([DB2File(os.path.join(self.actives_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.actives_tgz_file_path).iterate_over_tarball_member_files()])))
+        self.num_molecules_in_negative_class = len(list(set([DB2File(os.path.join(self.decoys_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.decoys_tgz_file_path).iterate_over_tarball_member_files()])))
 
     def _validate_tarball_files(self, tarball_path: str) -> None:
         file_count = 0

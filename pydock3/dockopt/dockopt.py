@@ -50,7 +50,7 @@ from pydock3.blastermaster.util import (
 from pydock3.jobs import ArrayDockingJob
 from pydock3.job_schedulers import SlurmJobScheduler, SGEJobScheduler
 from pydock3.dockopt import __file__ as DOCKOPT_INIT_FILE_PATH
-from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files, sort_by_energy_and_drop_duplicate_molecules
+from pydock3.retrodock.retrodock import log_job_submission_result, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, sort_by_energy_and_drop_duplicate_molecules
 from pydock3.blastermaster.util import DEFAULT_FILES_DIR_PATH
 from pydock3.dockopt.results import DockoptStepResultsManager, DockoptStepSequenceIterationResultsManager, DockoptStepSequenceResultsManager
 from pydock3.criterion.enrichment.logauc import NormalizedLogAUC
@@ -90,7 +90,7 @@ class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     max_task_array_size: Optional[int] = None
     extra_submission_cmd_params_str: Optional[str] = None
     sleep_seconds_after_copying_output: int = 0
-    export_negatives_mol2: bool = False
+    export_decoys_mol2: bool = False
     delete_intermediate_files: bool = False
     max_scheduler_jobs_running_at_a_time: Optional[int] = None
 
@@ -98,8 +98,8 @@ class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
 class Dockopt(Script):
     JOB_DIR_NAME = "dockopt_job"
     CONFIG_FILE_NAME = "dockopt_config.yaml"
-    POSITIVES_TGZ_FILE_NAME = "positives.tgz"
-    NEGATIVES_TGZ_FILE_NAME = "negatives.tgz"
+    ACTIVES_TGZ_FILE_NAME = "actives.tgz"
+    DECOYS_TGZ_FILE_NAME = "decoys.tgz"
     DEFAULT_CONFIG_FILE_PATH = os.path.join(
         os.path.dirname(DOCKOPT_INIT_FILE_PATH), "default_dockopt_config.yaml"
     )
@@ -150,8 +150,8 @@ class Dockopt(Script):
                 f"No blaster files detected in current working directory. Be sure to add them manually before running the job."
             )
 
-        # copy in positives and negatives TGZ files
-        tgz_files = [self.POSITIVES_TGZ_FILE_NAME, self.NEGATIVES_TGZ_FILE_NAME]
+        # copy in actives and decoys TGZ files
+        tgz_files = [self.ACTIVES_TGZ_FILE_NAME, self.DECOYS_TGZ_FILE_NAME]
         tgz_file_names_in_cwd = [f for f in tgz_files if os.path.isfile(f)]
         tgz_file_names_not_in_cwd = [f for f in tgz_files if not os.path.isfile(f)]
         if tgz_file_names_in_cwd:
@@ -179,15 +179,15 @@ class Dockopt(Script):
         scheduler: str,
         job_dir_path: str = ".",
         config_file_path: Optional[str] = None,
-        positives_tgz_file_path: Optional[str] = None,
-        negatives_tgz_file_path: Optional[str] = None,
+        actives_tgz_file_path: Optional[str] = None,
+        decoys_tgz_file_path: Optional[str] = None,
         retrodock_job_max_reattempts: int = 0,
         allow_failed_retrodock_jobs: bool = False,
         retrodock_job_timeout_minutes: Optional[str] = None,
         max_task_array_size: Optional[int] = None,
         extra_submission_cmd_params_str: Optional[str] = None,
         sleep_seconds_after_copying_output: int = 0,
-        export_negatives_mol2: bool = False,
+        export_decoys_mol2: bool = False,
         delete_intermediate_files: bool = False,
         #max_scheduler_jobs_running_at_a_time: Optional[str] = None,  # TODO
         force_redock: bool = False,
@@ -203,21 +203,21 @@ class Dockopt(Script):
         # validate args
         if config_file_path is None:
             config_file_path = os.path.join(job_dir_path, self.CONFIG_FILE_NAME)
-        if positives_tgz_file_path is None:
-            positives_tgz_file_path = os.path.join(job_dir_path, self.POSITIVES_TGZ_FILE_NAME)
-        if negatives_tgz_file_path is None:
-            negatives_tgz_file_path = os.path.join(job_dir_path, self.NEGATIVES_TGZ_FILE_NAME)
+        if actives_tgz_file_path is None:
+            actives_tgz_file_path = os.path.join(job_dir_path, self.ACTIVES_TGZ_FILE_NAME)
+        if decoys_tgz_file_path is None:
+            decoys_tgz_file_path = os.path.join(job_dir_path, self.DECOYS_TGZ_FILE_NAME)
         try:
             File.validate_file_exists(config_file_path)
         except FileNotFoundError:
             logger.error("Config file not found. Are you in the job directory?")
             return
         try:
-            File.validate_file_exists(positives_tgz_file_path)
-            File.validate_file_exists(negatives_tgz_file_path)
+            File.validate_file_exists(actives_tgz_file_path)
+            File.validate_file_exists(decoys_tgz_file_path)
         except FileNotFoundError:
             logger.error(
-                "Positives TGZ file and/or negatives TGZ file not found. Did you put them in the job directory?\nNote: if you do not have positives and negatives, please use blastermaster instead of dockopt."
+                "Actives TGZ file and/or decoys TGZ file not found. Did you put them in the job directory?\nNote: if you do not have actives and decoys, please use blastermaster instead of dockopt."
             )
             return
         if scheduler not in SCHEDULER_NAME_TO_CLASS_DICT:
@@ -245,7 +245,7 @@ class Dockopt(Script):
             return
 
         #
-        retrospective_dataset = RetrospectiveDataset(positives_tgz_file_path, negatives_tgz_file_path, 'positives', 'negatives')
+        retrospective_dataset = RetrospectiveDataset(actives_tgz_file_path, decoys_tgz_file_path, 'actives', 'decoys')
 
         #
         component_run_func_arg_set = DockoptPipelineComponentRunFuncArgSet(
@@ -257,7 +257,7 @@ class Dockopt(Script):
             max_task_array_size=max_task_array_size,
             extra_submission_cmd_params_str=extra_submission_cmd_params_str,
             sleep_seconds_after_copying_output=sleep_seconds_after_copying_output,
-            export_negatives_mol2=export_negatives_mol2,
+            export_decoys_mol2=export_decoys_mol2,
             delete_intermediate_files=delete_intermediate_files,
             #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
         )
@@ -809,12 +809,12 @@ class DockoptStep(PipelineComponent):
                     indock_file_path_str = dc.get_indock_file(self.pipeline_dir.path).path
                     f.write(f"{dc.configuration_num} {indock_file_path_str} {dockfile_paths_str} {dc.dock_executable_path}\n")
 
-            # submit retrodock jobs (one for positives, one for negatives)
+            # submit retrodock jobs (one for actives, one for decoys)
             chunk_array_jobs = []
             for sub_dir_name, should_export_mol2, input_molecules_dir_path in [
-                ('positives', True, self.retrospective_dataset.positives_dir_path),
-                ('negatives', component_run_func_arg_set.export_negatives_mol2,
-                 self.retrospective_dataset.negatives_dir_path),
+                ('actives', True, self.retrospective_dataset.actives_dir_path),
+                ('decoys', component_run_func_arg_set.export_decoys_mol2,
+                 self.retrospective_dataset.decoys_dir_path),
             ]:
                 job_name = f"dockopt_step_{step_id}_{sub_dir_name}_{i+1}"
                 sub_dir = Dir(os.path.join(self.retrodock_jobs_dir.path, sub_dir_name), create=True, reset=False)  # task dirs get reset in task submission
@@ -861,8 +861,8 @@ class DockoptStep(PipelineComponent):
             chunk_id = (int(task_id) - 1) // max_task_array_size  # Determine which chunk this task belongs to
             array_jobs = chunk_to_array_jobs[chunk_id]  # Get the corresponding array jobs for this task
 
-            positives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'positives', task_id, 'OUTDOCK.0')
-            negatives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'negatives', task_id, 'OUTDOCK.0')
+            actives_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'actives', task_id, 'OUTDOCK.0')
+            decoys_outdock_file_path = os.path.join(self.retrodock_jobs_dir.path, 'decoys', task_id, 'OUTDOCK.0')
 
             #
             if any([not array_job.task_is_complete(task_id) for array_job in array_jobs]):  # one or both OUTDOCK files do not exist yet
@@ -927,15 +927,15 @@ class DockoptStep(PipelineComponent):
 
             # load outdock files and get dataframe
             try:
-                # get dataframe of positives job results and negatives job results combined
-                df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
-                    positives_outdock_file_path, negatives_outdock_file_path
+                # get dataframe of actives job results and decoys job results combined
+                df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+                    actives_outdock_file_path, decoys_outdock_file_path
                 )
             except Exception as e:  # if outdock files failed to be parsed then re-attempt task
                 try:
                     time.sleep(0.01)  # sleep for a bit and try again
-                    df = get_results_dataframe_from_positives_job_and_negatives_job_outdock_files(
-                        positives_outdock_file_path, negatives_outdock_file_path
+                    df = get_results_dataframe_from_actives_job_and_decoys_job_outdock_files(
+                        actives_outdock_file_path, decoys_outdock_file_path
                     )
                 except Exception as e:
                     #
@@ -961,7 +961,7 @@ class DockoptStep(PipelineComponent):
                                 )
                             continue  # move on to next in queue without re-attempting failed task
                         else:
-                            for array_job, outdock_file_path in zip(array_jobs, [positives_outdock_file_path, negatives_outdock_file_path]):
+                            for array_job, outdock_file_path in zip(array_jobs, [actives_outdock_file_path, decoys_outdock_file_path]):
                                 try:
                                     _ = OutdockFile(outdock_file_path).get_dataframe()  # only resubmit if outdock file can't be loaded
                                 except Exception as e:
@@ -1047,7 +1047,7 @@ class DockoptStep(PipelineComponent):
             keep_dirs = df.head(self.top_n)['configuration_num'].apply(str).tolist()
 
             # Deleting directories not in top_n
-            for class_identifier in ['positives', 'negatives']:
+            for class_identifier in ['actives', 'decoys']:
                 class_dir = os.path.join(self.retrodock_jobs_dir.path, class_identifier)
                 for obj in os.listdir(class_dir):
                     obj_path = os.path.join(class_dir, obj)

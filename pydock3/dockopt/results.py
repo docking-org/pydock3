@@ -12,7 +12,7 @@ from pydock3.dockopt.util import BEST_RETRODOCK_JOBS_DIR_NAME
 from pydock3.dockopt.docking_configuration import DockingConfiguration
 from pydock3.jobs import OUTDOCK_FILE_NAME
 from pydock3.dockopt.reporter import HTMLReporter
-from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_TERMS_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_positives_job_and_negatives_job_outdock_files, process_retrodock_job_results
+from pydock3.retrodock.retrodock import ROC_PLOT_FILE_NAME, ENERGY_TERMS_PLOT_FILE_NAME, CHARGE_PLOT_FILE_NAME, str_to_float, get_results_dataframe_from_actives_job_and_decoys_job_outdock_files, process_retrodock_job_results
 if TYPE_CHECKING:
     from pydock3.dockopt.pipeline import PipelineComponent
 
@@ -121,27 +121,27 @@ class DockoptStepResultsManager(DockoptPipelineComponentResultsManager):
             indock_file = dc.get_indock_file(pipeline_component.pipeline_dir.path)
             create_relative_symlink(indock_file.path, os.path.join(best_job_dockfiles_dir.path, indock_file.name), target_is_directory=False)
 
-            src_retrodock_job_positives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "positives", str(dc.configuration_num))
-            src_retrodock_job_negatives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "negatives", str(dc.configuration_num))
+            src_retrodock_job_actives_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "actives", str(dc.configuration_num))
+            src_retrodock_job_decoys_dir_path = os.path.join(pipeline_component.retrodock_jobs_dir.path, "decoys", str(dc.configuration_num))
 
-            dst_retrodock_job_positives_dir_path = os.path.join(dst_best_job_dir.path, "positives")
-            dst_retrodock_job_negatives_dir_path = os.path.join(dst_best_job_dir.path, "negatives")
+            dst_retrodock_job_actives_dir_path = os.path.join(dst_best_job_dir.path, "actives")
+            dst_retrodock_job_decoys_dir_path = os.path.join(dst_best_job_dir.path, "decoys")
 
             create_relative_symlink(
-                src_retrodock_job_positives_dir_path,
-                dst_retrodock_job_positives_dir_path,
+                src_retrodock_job_actives_dir_path,
+                dst_retrodock_job_actives_dir_path,
                 target_is_directory=True,
             )
             create_relative_symlink(
-                src_retrodock_job_negatives_dir_path,
-                dst_retrodock_job_negatives_dir_path,
+                src_retrodock_job_decoys_dir_path,
+                dst_retrodock_job_decoys_dir_path,
                 target_is_directory=True,
             )
 
             # save plots and other info
             process_retrodock_job_results(
-                positives_outdock_file_path=os.path.join(dst_retrodock_job_positives_dir_path, OUTDOCK_FILE_NAME),
-                negatives_outdock_file_path=os.path.join(dst_retrodock_job_negatives_dir_path, OUTDOCK_FILE_NAME),
+                actives_outdock_file_path=os.path.join(dst_retrodock_job_actives_dir_path, OUTDOCK_FILE_NAME),
+                decoys_outdock_file_path=os.path.join(dst_retrodock_job_decoys_dir_path, OUTDOCK_FILE_NAME),
                 save_dir_path=dst_best_job_dir.path,
             )
 

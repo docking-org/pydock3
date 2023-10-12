@@ -186,7 +186,7 @@ class HTMLReporter(Reporter):
         )
 
         #
-        df_random = get_random_classifier_performance_data(n_positives=pipeline_component.retrospective_dataset.num_molecules_in_positive_class)
+        df_random = get_random_classifier_performance_data(n_actives=pipeline_component.retrospective_dataset.num_molecules_in_positive_class)
         bin_size = 0.01  # TODO: figure out how to generalize all this to work with any criterion
         bin_start_random = df_random['normalized_log_auc'].min() // bin_size * bin_size  # round down to nearest bin_size
         bin_end_random = df_random['normalized_log_auc'].max() // bin_size * bin_size + bin_size  # round up to nearest bin_size
@@ -202,7 +202,7 @@ class HTMLReporter(Reporter):
 
         #
         min_significant_criterion = get_bonferroni_correction(
-            n_positives=pipeline_component.retrospective_dataset.num_molecules_in_positive_class,
+            n_actives=pipeline_component.retrospective_dataset.num_molecules_in_positive_class,
             n_configurations=pipeline_component.num_total_docking_configurations_thus_far,
             signif_level=p_value,
         )
