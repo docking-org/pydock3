@@ -33,8 +33,8 @@ class RetrospectiveDataset(object):
         self.decoys_dir_path = decoys_dir_path
 
         #
-        self.num_db2_files_in_positive_class = len(list(TarballFile(self.actives_tgz_file_path).iterate_over_tarball_member_files()))
-        self.num_db2_files_in_negative_class = len(list(TarballFile(self.decoys_tgz_file_path).iterate_over_tarball_member_files()))
+        self.num_db2_files_in_positive_class = len(list(TarballFile(self.actives_tgz_file_path).iterate_over_files_tarinfo()))
+        self.num_db2_files_in_negative_class = len(list(TarballFile(self.decoys_tgz_file_path).iterate_over_files_tarinfo()))
 
         #
         if self.num_db2_files_in_positive_class == 0:
@@ -47,12 +47,12 @@ class RetrospectiveDataset(object):
         self._extract_tarball(self.decoys_tgz_file_path, self.decoys_dir_path)
 
         #
-        self.num_molecules_in_positive_class = len(list(set([DB2File(os.path.join(self.actives_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.actives_tgz_file_path).iterate_over_tarball_member_files()])))
-        self.num_molecules_in_negative_class = len(list(set([DB2File(os.path.join(self.decoys_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.decoys_tgz_file_path).iterate_over_tarball_member_files()])))
+        self.num_molecules_in_positive_class = len(list(set([DB2File(os.path.join(self.actives_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.actives_tgz_file_path).iterate_over_files_tarinfo()])))
+        self.num_molecules_in_negative_class = len(list(set([DB2File(os.path.join(self.decoys_dir_path, file.name.lstrip('./'))).get_molecule_name() for file in TarballFile(self.decoys_tgz_file_path).iterate_over_files_tarinfo()])))
 
     def _validate_tarball_files(self, tarball_path: str) -> None:
         file_count = 0
-        for file in TarballFile(tarball_path).iterate_over_tarball_member_files():
+        for file in TarballFile(tarball_path).iterate_over_files_tarinfo():
             if (any([file.name.lower().endswith(f".{ext}") for ext in self.SUPPORTED_EXTENSIONS])):
                 file_count += 1
             else:
@@ -66,7 +66,9 @@ class RetrospectiveDataset(object):
         def _check_that_extraction_directory_and_tarball_match(extraction_dir_path: str, tarball_path: str):
             # Get the set of file names (including directory structure) in the tarball
             tarball_files = set(
-                file.name.lstrip('./') for file in TarballFile(tarball_path).iterate_over_tarball_member_files())
+                tarinfo.name.lstrip('./')  # somewhat confusingly, `TarInfo.name` gives the path of the item relative to the root of the tarball
+                for tarinfo in TarballFile(tarball_path).iterate_over_files_tarinfo()
+            )
 
             # Recursively traverse through all subdirectories and files in the extraction directory
             # and calculate the relative path of each file with respect to the extraction directory

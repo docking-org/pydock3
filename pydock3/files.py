@@ -652,11 +652,15 @@ class TarballFile(File):
     def __init__(self, path: str, validate_existence: bool = False):
         super().__init__(path=path, validate_existence=validate_existence)
 
-    def iterate_over_tarball_member_files(self) -> Generator[tarfile.TarInfo, None, None]:
+    def iterate_over_tarinfo(self) -> Generator[tarfile.TarInfo, None, None]:
         with TarballFile(self.path).open_file() as tar:
             for member in tar.getmembers():
-                if member.isfile():
-                    yield member
+                yield member
+
+    def iterate_over_files_tarinfo(self) -> Generator[tarfile.TarInfo, None, None]:
+        for tarinfo in self.iterate_over_tarinfo():
+            if tarinfo.isfile():
+                yield tarinfo
 
     def extract(self, extraction_dir_path: str) -> None:
         if not self.exists:
