@@ -35,11 +35,12 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
             force_redock: bool = False,
             force_rewrite_results: bool = False,
             force_rewrite_report: bool = False,
+            just_load_graphs: bool = True,
             **kwargs
             ) -> pd.DataFrame:
 
         if (not force_redock) and (self.results_manager is not None):
-            if not force_rewrite_results:
+            if not (force_rewrite_results or just_load_graphs):
                 if self.results_manager.results_exist(self):
                     logger.info("Loading existing results")
                     result = self.results_manager.load_results(self)
@@ -56,6 +57,7 @@ def add_timing_and_results_writing_to_run_method(pipeline_component: PipelineCom
             force_redock=force_redock,
             force_rewrite_results=force_rewrite_results,
             force_rewrite_report=force_rewrite_report,
+            just_load_graphs=just_load_graphs,
             **kwargs
         )
         if self.results_manager is not None:  # write results if set
@@ -116,6 +118,7 @@ class PipelineComponent(object):
             force_redock: bool = False,
             force_rewrite_results: bool = False,
             force_rewrite_report: bool = False,
+            just_load_graphs: bool = True,
             **kwargs
             ) -> NoReturn:
         raise NotImplementedError

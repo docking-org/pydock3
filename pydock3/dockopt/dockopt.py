@@ -193,6 +193,7 @@ class Dockopt(Script):
         force_redock: bool = False,
         force_rewrite_results: bool = False,
         force_rewrite_report: bool = False,
+        just_load_graphs: bool = True,
     ) -> None:
         """Run DockOpt job."""
 
@@ -295,6 +296,7 @@ class Dockopt(Script):
             force_redock=force_redock,
             force_rewrite_results=force_rewrite_results,
             force_rewrite_report=force_rewrite_report,
+            just_load_graphs=just_load_graphs,
         )
 
 
@@ -760,8 +762,14 @@ class DockoptStep(PipelineComponent):
             force_redock: bool,
             force_rewrite_results: bool,
             force_rewrite_report: bool,
+            just_load_graphs: bool,
         ) -> pd.DataFrame:
         """Run this component of the pipeline."""
+
+        #
+        if just_load_graphs and self.results_manager.results_exist(self):
+            logger.info("Loading existing results")
+            return self.results_manager.load_results(self)
 
         # run necessary steps to get all dock files
         logger.info("Generating docking configurations")
@@ -1326,11 +1334,12 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
         self.graph = nx.DiGraph()
 
     def run(
-            self, 
+            self,
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
             force_redock: bool,
             force_rewrite_results: bool,
             force_rewrite_report: bool,
+            just_load_graphs: bool,
             ) -> pd.DataFrame:
         """Run the pipeline component sequence iteration."""
 
@@ -1375,6 +1384,7 @@ class DockoptStepSequenceIteration(PipelineComponentSequenceIteration):
                 force_redock=force_redock,
                 force_rewrite_results=force_rewrite_results,
                 force_rewrite_report=force_rewrite_report,
+                just_load_graphs=just_load_graphs,
             )
 
             #
@@ -1451,6 +1461,7 @@ class DockoptStepSequence(PipelineComponentSequence):
             force_redock: bool,
             force_rewrite_results: bool,
             force_rewrite_report: bool,
+            just_load_graphs: bool,
             ) -> pd.DataFrame:
         df = pd.DataFrame()
         best_criterion_value_witnessed = -float('inf')
@@ -1476,6 +1487,7 @@ class DockoptStepSequence(PipelineComponentSequence):
                 force_redock=force_redock,
                 force_rewrite_results=force_rewrite_results,
                 force_rewrite_report=force_rewrite_report,
+                just_load_graphs=just_load_graphs,
             )
 
             #
@@ -1552,6 +1564,7 @@ class DockoptPipeline(Pipeline):
             force_redock: bool,
             force_rewrite_results: bool,
             force_rewrite_report: bool,
+            just_load_graphs: bool,
             ) -> pd.DataFrame:
         """Run the pipeline."""
 
@@ -1597,6 +1610,7 @@ class DockoptPipeline(Pipeline):
                 force_redock=force_redock,
                 force_rewrite_results=force_rewrite_results,
                 force_rewrite_report=force_rewrite_report,
+                just_load_graphs=just_load_graphs,
             )
 
             #
