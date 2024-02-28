@@ -359,7 +359,7 @@ class Retrodock(Script):
         retrodock_job_timeout_minutes: Optional[str] = None,
         extra_submission_cmd_params_str: Optional[str] = None,
         sleep_seconds_after_copying_output=0,
-        export_decoys_mol2=False,
+        export_decoys_mol2=True,
     ) -> None:
         """Run RetroDock job"""
 
