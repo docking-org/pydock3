@@ -1167,7 +1167,9 @@ class Mol2File(File):
 
         bidirectional : bool, optional (default=False)
             If True, applies the transformation in both directions (forward and inverse).
+        """
 
+        '''
         Examples:
         ---------
         # Given that `self` is an instance of a class that contains this method
@@ -1182,7 +1184,7 @@ class Mol2File(File):
             bidirectional=True
         )
         ```
-        """
+        '''
 
         # Validate rotation_matrix
         if not isinstance(rotation_matrix, np.ndarray) or rotation_matrix.shape != (3, 3):
