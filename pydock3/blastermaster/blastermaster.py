@@ -42,6 +42,7 @@ from pydock3.blastermaster.steps.ligand_desolvation import (
     HydrogenAtomLigandDesolvationScoringGridGenerationStep,
     HeavyAtomLigandDesolvationScoringGridGenerationStep,
 )
+from pydock3.blastermaster.steps.visualization import VisualizationStep
 from pydock3.blastermaster.config import BlastermasterParametersConfiguration
 from pydock3.util import Script, get_dataclass_as_dict
 from pydock3.config import flatten_and_parameter_cast_param_dict
@@ -435,6 +436,23 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
         )
     )
 
+    steps.append(
+        VisualizationStep(
+            working_dir=working_dir,
+            vdw_infile=blaster_files.vdw_file,
+            vdw_bump_map_infile=blaster_files.vdw_bump_map_file,
+            lig_desolv_heavy_infile=blaster_files.ligand_desolvation_heavy_file,
+            trim_electrostatics_phi_infile=blaster_files.electrostatics_trim_phi_file,
+            matching_spheres_infile=blaster_files.matching_spheres_file,
+            vdw_repulsive_dx_outfile=blaster_files.vdw_repulsive_dx_file,
+            vdw_attractive_dx_outfile=blaster_files.vdw_attractive_dx_file,
+            vdw_dx_outfile=blaster_files.vdw_dx_file,
+            lig_desolv_dx_outfile=blaster_files.ligand_desolvation_dx_file,
+            trim_electrostatics_dx_outfile=blaster_files.trim_electrostatics_dx_file,
+            matching_spheres_outfile=blaster_files.matching_spheres_pdb_file
+        )
+    )
+
     return tuple(steps)
 
 
@@ -447,6 +465,7 @@ class Blastermaster(Script):
     )
     WORKING_DIR_NAME = "working"
     DOCK_FILES_DIR_NAME = "dockfiles"
+    VISUALIZATION_FILES_DIR_NAME = "visualization"
     DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(self):
@@ -481,6 +500,11 @@ class Blastermaster(Script):
         # create dock files dir
         dock_files_dir = Dir(
             path=os.path.join(job_dir.path, self.DOCK_FILES_DIR_NAME),
+            create=True,
+            reset=False,
+        )
+        visualization_dir = Dir(
+            path=os.path.join(job_dir_path, self.VISUALIZATION_FILES_DIR_NAME),
             create=True,
             reset=False,
         )
@@ -519,6 +543,11 @@ class Blastermaster(Script):
             create=True,
             reset=True,
         )  # reset dock files dir in case re-running
+        visualization_dir = Dir(
+            path=os.path.join(job_dir_path, self.VISUALIZATION_FILES_DIR_NAME),
+            create=True,
+            reset=True,
+        )
 
         #
         blaster_files = BlasterFiles(working_dir=working_dir)
@@ -561,6 +590,13 @@ class Blastermaster(Script):
         for dock_file in astuple(blaster_files.dock_files):
             File.copy_file(
                 dock_file.path, os.path.join(dock_files_dir.path, dock_file.name)
+            )
+
+        # copy visualization files to visualization directory
+        logger.info("Copying visualization files to visualization directory")
+        for visualization_file in astuple(blaster_files.visualization_files):
+            File.copy_file(
+                visualization_file.path, os.path.join(visualization_dir.path, visualization_file.name)
             )
 
         # write INDOCK file

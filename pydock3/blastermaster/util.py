@@ -66,6 +66,12 @@ BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT = {
     'vdw_bump_map_file': "vdw.bmp",
     'ligand_desolvation_heavy_file': "ligand.desolv.heavy",
     'ligand_desolvation_hydrogen_file': "ligand.desolv.hydrogen",
+    'vdw_repulsive_dx_file': "vdw_energies_repulsive.dx",
+    'vdw_attractive_dx_file': "vdw_energies_attractive.dx",
+    'vdw_dx_file': "vdw.dx",
+    'ligand_desolvation_dx_file': "ligdesolv.dx",
+    'trim_electrostatics_dx_file': "trim.electrostatics.dx",
+    'matching_spheres_pdb_file': "matching_spheres.pdb"
 }
 PROPER_BLASTER_FILE_NAME_TO_BLASTER_FILE_IDENTIFIER_DICT = {value: key for key, value in BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.items()}
 DOCK_FILE_IDENTIFIERS = [
@@ -79,6 +85,15 @@ DOCK_FILE_IDENTIFIERS = [
     "vdw_parameters_file",
 ]
 DOCK_FILE_IDENTIFIER_TO_PROPER_DOCK_FILE_NAME_DICT = {dock_file_identifier: BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT[dock_file_identifier] for dock_file_identifier in DOCK_FILE_IDENTIFIERS}
+
+VISUALIZATION_FILE_IDENTIFIERS = [
+    "vdw_repulsive_dx_file",
+    "vdw_attractive_dx_file",
+    "vdw_dx_file",
+    "ligand_desolvation_dx_file",
+    "trim_electrostatics_dx_file",
+    "matching_spheres_pdb_file",
+]
 
 
 #
@@ -249,6 +264,10 @@ class BlasterFiles(object):
     def dock_files(self):
         return DockFiles(**{dock_file_identifier: getattr(self, dock_file_identifier) for dock_file_identifier in DOCK_FILE_IDENTIFIERS})
 
+    @property
+    def visualization_files(self):
+        return VisualizationFiles(**{vis_file_identifier: getattr(self, vis_file_identifier) for vis_file_identifier in VISUALIZATION_FILE_IDENTIFIERS})
+    
     def get_attribute_name_of_blaster_file_with_file_name(self, file_name):
         attributes = [
             a
@@ -266,6 +285,7 @@ class BlasterFiles(object):
 
 
 DockFiles = make_dataclass("DockFiles", [(identifier, BlasterFile) for identifier in DOCK_FILE_IDENTIFIERS])
+VisualizationFiles = make_dataclass("VisualizationFiles", [(identifier, BlasterFile) for identifier in VISUALIZATION_FILE_IDENTIFIERS])
 
 
 class BlasterStep(object):
