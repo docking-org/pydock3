@@ -8,59 +8,22 @@ class Sphere(object):
         self.Y = float(Y)
         self.Z = float(Z)
         self.radius = float(radius)
-        self.atomnum = int(atomnum)
-        self.critical_cluster = int(critical_cluster)
-        self.sphere_color = int(sphere_color)
-
-
-def cmp(a, b):
-    return bool(a > b) - bool(a < b)
-
-
-def by_index(x, y):
-    return cmp(x.index, y.index)
-
-
-def are_equal(a, b):
-    return a.X == b.X and a.Y == b.Y and a.Z == b.Z
-
-
-# The number of the atom with which surface point j (second point used to generate the sphere) is associated.
-# The critical cluster to which this sphere belongs.
-# The sphere color. The color is simply an index into the color table that was specified in the header. Therefore, 1 corresponds to the first color in the header, 2 for the second, etc. 0 corresponds to unlabeled.
-
-
-def in_list(val, list):
-    for ele in list:
-        if are_equal(val, ele):
-            return True
-    return False
-
-
-def remove_val(val, index, list):
-    # remove val from list
-    list_ele = []  ## list of elements the same as value.
-    for i in range(
-        index + 1, len(list)
-    ):  ## We assume that only element below in the list can be equal.
-        ## this is valid because we start at the begin.
-        if are_equal(val, list[i]):  ## we chech does the frist element have dup,
-            list_ele.append(i)  ## does the second, 3rd, and so on.
-            ## so, no earlyer element will be a duplicate of the val.
-    count = 0
-    for i in list_ele:
-        list.pop(i - count)
-        count = count + 1  # index will change everytime somthing is removed.
-
+        self.atomnum = int(atomnum) # The number of the atom with which surface point j (second point used to generate the sphere) is associated.
+        self.critical_cluster = int(critical_cluster) # The critical cluster to which this sphere belongs.
+        self.sphere_color = int(sphere_color) # The sphere color. The color is simply an index into the color table that was specified in the header. Therefore, 1 corresponds to the first color in the header, 2 for the second, etc. 0 corresponds to unlabeled.
 
 # this function will remove duplicates from the list
 # the duplicates have the same X,Y,Z coordinates.
 def remove_duplicates(l):
-    index = 0
+    seen = set()
+    unique_list = []
     for ele in l:
-        remove_val(ele, index, l)
-        index = index + 1
-
+        key = (ele.X, ele.Y, ele.Z)
+        if key not in seen:
+            seen.add(key)
+            unique_list.append(ele)
+    l.clear()
+    l.extend(unique_list)
 
 # FORMAT: (I5, 3F10.5, F8.3, I5, I2, I3)
 def read_sph(filename, chosen_cluster, color):
@@ -112,11 +75,8 @@ def read_sph(filename, chosen_cluster, color):
                 # and if the color is the same
                 sphere_list.append(tmp_sphere)
 
-    # sphere_list.append(tmp_sphere)
-    # sphere_list.sort(byIndex)
-    # sphere_list.sort(key = lambda a,b: cmp(a.index, b.index))
+
     sphere_list.sort(key=lambda a: a.index)
-    # sphere_list.sort(key = byIndex)
     # remove duplicates:
     remove_duplicates(sphere_list)
 
