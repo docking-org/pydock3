@@ -83,6 +83,8 @@ DOCK_FILE_IDENTIFIERS = [
     "vdw_bump_map_file",
     "vdw_file",
     "vdw_parameters_file",
+    "charged_receptor_file",
+    "ligand_file"
 ]
 DOCK_FILE_IDENTIFIER_TO_PROPER_DOCK_FILE_NAME_DICT = {dock_file_identifier: BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT[dock_file_identifier] for dock_file_identifier in DOCK_FILE_IDENTIFIERS}
 
@@ -93,6 +95,8 @@ VISUALIZATION_FILE_IDENTIFIERS = [
     "ligand_desolvation_dx_file",
     "trim_electrostatics_dx_file",
     "matching_spheres_pdb_file",
+    "charged_receptor_file",
+    "ligand_file"
 ]
 
 
