@@ -339,7 +339,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 electrostatics_pdb_outfile=blaster_files.electrostatics_pdb_file,
                 electrostatics_trim_phi_outfile=blaster_files.electrostatics_trim_phi_file,
                 electrostatics_phi_size_outfile=blaster_files.electrostatics_phi_size_file,
-                thin_spheres_elec_distance_to_ligand_parameter=flat_param_dict[
+                thin_spheres_elec_distance_to_surface_parameter=flat_param_dict[
                     "thin_spheres_elec.distance_to_surface"
                 ],
                 thin_spheres_elec_penetration_parameter=flat_param_dict[

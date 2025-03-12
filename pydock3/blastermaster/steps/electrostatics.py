@@ -143,7 +143,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
         electrostatics_pdb_outfile,
         electrostatics_trim_phi_outfile,
         electrostatics_phi_size_outfile,
-        thin_spheres_elec_distance_to_ligand_parameter,
+        thin_spheres_elec_distance_to_surface_parameter,
         thin_spheres_elec_penetration_parameter,
         use_receptor_box=False,
         extra_parameters=None,
@@ -164,7 +164,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
                 (electrostatics_phi_size_outfile, "electrostatics_phi_size_outfile", None),
             ],
             parameter_tuples=[
-                (thin_spheres_elec_distance_to_ligand_parameter, "thin_spheres_elec_distance_to_ligand_parameter"),
+                (thin_spheres_elec_distance_to_surface_parameter, "thin_spheres_elec_distance_to_surface_parameter"),
                 (thin_spheres_elec_penetration_parameter, "thin_spheres_elec_penetration_parameter"),
             ],
             program_file_path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH,
@@ -216,7 +216,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
 
         #
         command_str = f"sed -i 's/c     sph   1.90/c     sph   %3.2f/g' %s " % (
-            self.parameters.thin_spheres_elec_distance_to_ligand_parameter.value
+            self.parameters.thin_spheres_elec_distance_to_surface_parameter.value
             + self.parameters.thin_spheres_elec_penetration_parameter.value,
             self.infiles.radius_infile.name,
         )
