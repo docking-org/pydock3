@@ -27,6 +27,8 @@ step:
     vdw_parameters_file: bool()
     ligand_desolvation_heavy_file: bool()
     ligand_desolvation_hydrogen_file: bool()
+    charged_receptor_file: bool()
+    ligand_file: bool()
   parameters:
     custom_dock_executable: any(regex('^[\^]$'), null(), str(), list(null(required=False), str(required=False)), min=1)
     dock_files_generation:
