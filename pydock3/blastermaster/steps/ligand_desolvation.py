@@ -36,6 +36,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         thin_spheres_desolv_penetration_parameter,
         other_radius_parameter,
         atom_type,
+        dockopt_submit_to_scheduler=True,
     ):
         #
         if atom_type not in self.ATOM_TYPE_TO_RADIUS_DICT:
@@ -61,6 +62,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
                 (other_radius_parameter, "other_radius_parameter"),
             ],
             program_file_path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH,
+            dockopt_submit_to_scheduler=dockopt_submit_to_scheduler,
         )
 
         # misc.

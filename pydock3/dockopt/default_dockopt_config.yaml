@@ -12,6 +12,8 @@ definitions:
         vdw_parameters_file: false
         ligand_desolvation_heavy_file: false
         ligand_desolvation_hydrogen_file: false
+        charged_receptor_file: false
+        ligand_file: false
       parameters:
         custom_dock_executable: null
         dock_files_generation: &id002
@@ -205,5 +207,3 @@ pipeline:
   criterion: normalized_log_auc
   components:
   - step: *id004
-  - step: *id005
-  - sequence: *id006
