@@ -34,6 +34,28 @@ class MatchingSpheresPerturbationStep(BlasterStep):
             program_file_path=None,
         )
 
+    # UNIFORMLY samples a distance (0,max_r) to move the center
+    # Not the previous algorithm that moved a sphere inside a cube ;) 
+    def move_sphere_center(self,x,y,z,max_r):
+        # Sample distance uniformly in [0,max_r]
+        d = np.random.uniform(0, max_r)
+
+        # Sample a random direction on the sphere
+        phi = np.random.uniform(0, 2 * np.pi) # Azimuthal angle
+        cos_theta = np.random.uniform(-1, 1) # Cosine of polar angle
+        theta = np.arccos(cos_theta)
+        
+        # Convert to cartesian
+        dx = d * np.sin(theta) * np.cos(phi)
+        dy = d * np.sin(theta) * np.sin(phi)
+        dz = d * np.cos(theta)
+
+        new_x = x + dx
+        new_y = y + dy
+        new_z = z + dz
+
+        return new_x,new_y,new_z
+
     @BlasterStep.handle_run_func
     def run(self):
         """#TODO"""
@@ -51,22 +73,12 @@ class MatchingSpheresPerturbationStep(BlasterStep):
         random.seed(seed)
 
         # perturb all spheres in file
+        # TODO: Only perturb xtal/non-xtal not all spheres
         new_spheres = []
         for sphere in spheres:
             new_sphere = deepcopy(sphere)
             max_deviation = float(self.parameters.max_deviation_angstroms_parameter.value)
-            perturbation_xyz = tuple(
-                [
-                    random.uniform(
-                        -max_deviation,
-                        max_deviation,
-                    )
-                    for _ in range(3)
-                ]
-            )
-            new_sphere.X += perturbation_xyz[0]
-            new_sphere.Y += perturbation_xyz[1]
-            new_sphere.Z += perturbation_xyz[2]
+            new_sphere.X, new_sphere.Y, new_sphere.Z = self.move_sphere_center(new_sphere.X, new_sphere.Y, new_sphere.Z, max_deviation)
             new_spheres.append(new_sphere)
 
         # write perturbed spheres to new matching spheres file
