@@ -23,6 +23,7 @@ class MolecularSurfaceGenerationStep(BlasterStep):
         binding_site_residues_infile,
         radii_infile,
         molecular_surface_outfile,
+        molecular_surface_density=DENSITY,
     ):
         super().__init__(
             working_dir=working_dir,
@@ -37,6 +38,7 @@ class MolecularSurfaceGenerationStep(BlasterStep):
             parameter_tuples=[],
             program_file_path=ProgramFilePaths.DMS_PROGRAM_FILE_PATH,
         )
+        self.density = molecular_surface_density
 
     @BlasterStep.handle_run_func
     def run(self):
@@ -62,5 +64,5 @@ class MolecularSurfaceGenerationStep(BlasterStep):
         self.run_command(run_str)
 
         #
-        run_str = f"{self.program_file.path} {charged_receptor_no_waters_file.name} -a -d {self.DENSITY} -i {binding_site_residues_no_waters_file.name} -g {self.log_file.name} -p -n -o {self.outfiles.molecular_surface_outfile.name}"
+        run_str = f"{self.program_file.path} {charged_receptor_no_waters_file.name} -a -d {self.density} -i {binding_site_residues_no_waters_file.name} -g {self.log_file.name} -p -n -o {self.outfiles.molecular_surface_outfile.name}"
         self.run_command(run_str)
