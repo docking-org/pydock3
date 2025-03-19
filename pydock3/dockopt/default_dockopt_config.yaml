@@ -113,6 +113,8 @@ definitions:
         vdw_parameters_file: false
         ligand_desolvation_heavy_file: false
         ligand_desolvation_hydrogen_file: false
+        charged_receptor_file: false
+        ligand_file: false
       parameters:
         custom_dock_executable: null
         dock_files_generation:
@@ -183,6 +185,8 @@ definitions:
         vdw_parameters_file: true
         ligand_desolvation_heavy_file: true
         ligand_desolvation_hydrogen_file: true
+        charged_receptor_file: true
+        ligand_file: true
       parameters:
         custom_dock_executable: null
         dock_files_generation: *id002
