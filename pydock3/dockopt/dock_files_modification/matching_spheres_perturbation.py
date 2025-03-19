@@ -71,7 +71,8 @@ class MatchingSpheresPerturbationStep(BlasterStep):
         # set random seed based on spheres and outfile name for reproducibility
         sphere_hashes = [get_hexdigest_of_persistent_md5_hash_of_tuple((sphere.index, sphere.X, sphere.Y, sphere.Z, sphere.radius, sphere.atomnum, sphere.critical_cluster, sphere.sphere_color)) for sphere in spheres]
         seed = get_hexdigest_of_persistent_md5_hash_of_tuple(tuple(sphere_hashes + [self.outfiles.perturbed_matching_spheres_outfile.name, self.parameters.max_deviation_angstroms_parameter.value]))
-        np.random.seed(int(seed))
+        seed = int(seed, 16)  # Convert hex string to an integer
+        np.random.seed(seed % (2**32))  # Keep within valid range
 
         # perturb all spheres in file
         # TODO: Only perturb xtal/non-xtal not all spheres
