@@ -276,6 +276,7 @@ def subtract(input_grid, subtract_this_grid, output_grid, phi_size=None):
     phi_data.write(output_grid)
 
 
+# modified by Trent Balius and Y. Stanley Tan on 2025/03/24 to use fixed width instead of breaking on white space.  
 def read_box_file(box_file):
     """reads a 'box' file from docking, used for constructing other grids.
     since things outside this box can't be scored, we don't need to save that data
@@ -285,12 +286,23 @@ def read_box_file(box_file):
     dimensions = []
     with open(box_file.path, "r") as f:
         for line in f.readlines():
+            #if line.find("CORNERS") > 0:
+            #    corners = [float(item) for item in line.split()[4:]]
+            #elif line.find("CENTER") > 0:
+            #    center = [float(item) for item in line.split()[5:]]
+            #elif line.find("DIMENSIONS") > 0:
+            #    dimensions = [float(item) for item in line.split()[5:]]
             if line.find("CORNERS") > 0:
-                corners = [float(item) for item in line.split()[4:]]
+              corners = [float(line[25:33]), float(line[33:41]), float(line[41:49]),float(line[49:57]), float(line[57:65]), float(line[65:73])]
+              #print ("corner 1 = %s,%s,%s\n"%(line[25:33], line[33:41], line[41:49]))
+              #print ("corner 2 = %s,%s,%s\n"%(line[49:57], line[57:65], line[65:73]))
             elif line.find("CENTER") > 0:
-                center = [float(item) for item in line.split()[5:]]
+              center = [float(line[25:33]), float(line[33:41]), float(line[41:49])]
+              #print ("center = %s,%s,%s\n"%(line[25:33], line[33:41], line[41:49]))
             elif line.find("DIMENSIONS") > 0:
-                dimensions = [float(item) for item in line.split()[5:]]
+              dimensions = [float(line[29:37]), float(line[37:45]), float(line[45:53])]
+              #print ("dimension = %s,%s,%s\n"%(line[29:37], line[37:45], line[45:53]))
+
     return corners, center, dimensions
 
 

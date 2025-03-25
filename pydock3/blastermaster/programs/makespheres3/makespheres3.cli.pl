@@ -83,6 +83,7 @@
 # Written by Austin N. Kirschner on February 3, 2003 (2-3-2003), and updated in March 2003 and July-August 2003
 
 # modified by Trent Balius on 2014/02/10 to use reduce atom names.  
+# modified by Trent Balius and Y. Stanley Tan on 2025/03/24 to use fixed width instead of breaking on white space.  
 
 # CONSTANTS defined here
 $M = 10;              # Margin value to keep spheres close to center of ligand
@@ -106,13 +107,23 @@ $REC = $ARGV[5]; #input grids/rec.crg file
 $MATCHSPH = $ARGV[6]; #output .sph file
 
 open (LIG, "<$LIG") or die "My error, cannot open LIG: $!\n";
-while (<LIG>) {                     # read in LIG lines
-        @ligarray = split;
-        push @ligitems, [ @ligarray ];
+#while (<LIG>) {                     # read in LIG lines
+#        @ligarray = split;
+#        push @ligitems, [ @ligarray ];
+#}
+foreach $line (<LIG>) {                     # read in LIG lines
+        #@ligarray = split(" ", $line);
+        $xcord = substr($line,5,10);
+        $ycord = substr($line,15,10);
+        $zcord = substr($line,25,10);
+        #print($xcord." ".$ycord." ".$zcord."\n");
+        #push @ligitems, [ @ligarray ];
+        push @ligitems, [ $xcord, $ycord, $zcord ];
 }
 close (LIG);
 for ($x=1; $x<=$#ligitems; $x++) {   # start of coordinates line
-      push @ligxyzcoords, [ @{ $ligitems[$x] } [ 1..3 ] ];
+      #push @ligxyzcoords, [ @{ $ligitems[$x] } [ 1..3 ] ];
+      push @ligxyzcoords, [ @{ $ligitems[$x] } [ 0..2 ] ];
 }
 print "There are ".($#ligxyzcoords+1)." ligand heavy atoms\n";
 if (($#ligxyzcoords+1)==0) { print "ERROR: There are 0 spheres\n"; exit; }
@@ -149,9 +160,31 @@ $uselig = "on";   # default value, (initialized for later algorithms to check)
 ##################### READ SPHERES FROM SPHGEN ###########################################
 #$SPH = "sph/sph";
 open (SPH, "<$SPH") or die "My error, cannot open SPH: $!\n";
-while (<SPH>) {                     # read in SPH lines
-   @spharray = split;
-   push @sphitems, [ @spharray ];
+#while (<SPH>) {                     # read in SPH lines
+#   @spharray = split;
+#   push @sphitems, [ @spharray ];
+#}
+foreach $line (<SPH>) {                     # read in LIG lines
+        if (substr($line,0,7) eq "cluster"){
+             #print $line;
+             @spharray = split(" ", $line);
+             push @sphitems, [ @spharray ];
+             #print $sphitems[0][7]; 
+             #print "\n";
+             #exit;
+        } else{
+           $num = substr($line,0,5);
+           $xcord = substr($line,5,10);
+           $ycord = substr($line,15,10);
+           $zcord = substr($line,25,10);
+           $radius = substr($line,35,8);
+           $num2 = substr($line,43,5);
+           $num3 = substr($line,48,2);
+           $num4 = substr($line,50,3);
+           print($num." ".$xcord." ".$ycord." ".$zcord." ".$radius." ".$num2." ".$num3." ".$num4." "."\n");
+           push @sphitems, [ $num, $xcord, $ycord, $zcord, $radius, $num2, $num3, $num4  ];
+        }
+        #push @ligitems, [ @ligarray ];
 }
 close (SPH);
 # Put cluster 0 into array elements
@@ -201,13 +234,36 @@ print "Number of sphere points after cutting off spheres too far from center of 
 # Read in receptor rec.crg coordinates
 #$REC = "grids/rec.crg";
 open (REC, "<$REC") or die "My error, cannot open REC.CRG: $!\n";
-while (<REC>) {                     # read in REC lines
-        @recarray = split;
-        push @recitems, [ @recarray ];
+#while (<REC>) {                     # read in REC lines
+#        @recarray = split;
+#        push @recitems, [ @recarray ];
+#}
+foreach $line (<REC>) {                     # read in LIG lines
+        if (substr($line,0,6) eq "ATOM  " or substr($line,0,6) eq "HETATOM"){
+             $AH = substr($line,0,6);
+             $anum = substr($line,6,5);
+             $aname = substr($line,12,4);
+             $rname = substr($line,17,3);
+             $chainid = substr($line,21,1);
+             $rnum = substr($line,22,4);
+             $xcord = substr($line,30,8);
+             $ycord = substr($line,38,8);
+             $zcord = substr($line,46,8);
+             $occ = substr($line,54,6);
+             $bfac = substr($line,60,6);
+             $ele = substr($line,76,2);
+             print($AH." ".$anum." ".$aname." ".$rname." ".$chainid." ".$rnum." ".$xcord." ".$ycord." ".$zcord." ".$occ." ".$bfac." ".$ele." "."\n");
+             push @recitems, [$AH,$anum,$aname,$rname,$chainid,$rnum,$xcord,$ycord,$zcord,$occ,$bfac,$ele];
+        } else{
+             #print $line;
+             @spharray = split(" ", $line);
+             push @recitems, [ @spharray ];
+             #exit;
+        }
 }
 close (REC);
 for ($x=0; $x<=$#recitems; $x++) {
-   if (($recitems[$x][0] eq "ATOM") || ($recitems[$x][0] eq "HETATM")) {
+   if (($recitems[$x][0] eq "ATOM  ") || ($recitems[$x][0] eq "HETATM")) {
        if ($recitems[$x][5] =~ m/\./) {
            push @recxyzcoords, [ @{ $recitems[$x] } [ 5..7, 2..4 ] ];   # coordinates [0..2] then atomname,residue,num [3..5]
            push @{$rec{$recitems[$x][4]}}, $recxyzcoords[$#recxyzcoords];  # hash of rec indexed by residue number
