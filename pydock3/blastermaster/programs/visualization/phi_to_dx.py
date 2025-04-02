@@ -79,8 +79,8 @@ class phi(object):
             (self.scale, self.oldmid[0], self.oldmid[1], self.oldmid[2],) = \
                 struct.unpack('>ffff', phiFile.read(16))
       
-            print("scale, oldmid:", self.scale, self.oldmid)
-            print("the scale is", (1/self.scale)*gridSize)
+            # print("scale, oldmid:", self.scale, self.oldmid)
+            # print("the scale is", (1/self.scale)*gridSize)
             #box_corner_x = self.oldmid[0]-(((1/self.scale)*gridSize)/2)
             #box_corner_y = self.oldmid[1]-(((1/self.scale)*gridSize)/2)
             #box_corner_z = self.oldmid[2]-(((1/self.scale)*gridSize)/2)
@@ -208,7 +208,7 @@ def determine_grid_size(input_phi_file):
 
 def create_trim_electrostatics_dx(trim_electrostatics_phi, dx_file_name):
     phiSize = determine_grid_size(trim_electrostatics_phi)
-    print(phiSize)
+    # print(phiSize)
     phiData = phi(trim_electrostatics_phi, gridSizes=(phiSize,))
     scale, oldmid, gridSize = phiData.get_stuff()
     phi_list = phiData.get_phi_values()

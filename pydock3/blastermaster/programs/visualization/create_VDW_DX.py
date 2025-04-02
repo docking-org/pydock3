@@ -115,7 +115,6 @@ def read_bump(bump_file):
         line = line.strip().split()
         spacing = '0.200' 
         if line[0] == spacing:
-            print(line)
             box_corner_x = float(line[1])
             box_corner_y = float(line[2])
             box_corner_z = float(line[3])
