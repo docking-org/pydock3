@@ -2,6 +2,7 @@ import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
 from pydock3.blastermaster import pdb
+from pydock3.config import Parameter
 
 
 #
@@ -11,9 +12,10 @@ logger.setLevel(logging.DEBUG)
 
 class MatchingSpheresGenerationStep(BlasterStep):
 
-    MAX_NUM_SPHERES = 45
-    DISTANCE_1 = 1.5
-    DISTANCE_2 = 0.8
+    # Defaults that can be overwritten in the config
+    MAX_NUM_SPHERES = Parameter("dock_files_generation.matching_spheres_generation.max_num_spheres", 45)
+    GRIDSIZE = Parameter("dock_files_generation.matching_spheres_generation.gridsize", 1.5)
+    TOOCLOSE = Parameter("dock_files_generation.matching_spheres_generation.tooclose", 0.8)
 
     def __init__(
         self,
@@ -25,6 +27,10 @@ class MatchingSpheresGenerationStep(BlasterStep):
         covalent_use_parameter,
         covalent_residue_name_parameter,
         covalent_residue_num_parameter,
+        max_num_spheres_parameter=MAX_NUM_SPHERES,
+        gridsize_parameter=GRIDSIZE,
+        tooclose_parameter=TOOCLOSE,
+
     ):
         super().__init__(
             working_dir=working_dir,
@@ -40,9 +46,13 @@ class MatchingSpheresGenerationStep(BlasterStep):
                 (covalent_use_parameter, "covalent_use_parameter"),
                 (covalent_residue_name_parameter, "covalent_residue_name_parameter"),
                 (covalent_residue_num_parameter, "covalent_residue_num_parameter"),
+                (max_num_spheres_parameter, "max_num_spheres_parameter"),
+                (gridsize_parameter, "gridsize_parameter"),
+                (tooclose_parameter, "tooclose_parameter")
             ],
             program_file_path=ProgramFilePaths.MAKESPHERES3_PROGRAM_FILE_PATH,
         )
+
 
     @BlasterStep.handle_run_func
     def run(self):
@@ -180,5 +190,5 @@ class MatchingSpheresGenerationStep(BlasterStep):
 
         else:
             # run
-            run_str = f"{self.program_file.path} {self.DISTANCE_1} {self.DISTANCE_2} {self.MAX_NUM_SPHERES} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.all_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.matching_spheres_outfile.name}"
+            run_str = f"{self.program_file.path} {self.parameters.gridsize_parameter.value} {self.parameters.tooclose_parameter.value} {self.parameters.max_num_spheres_parameter.value} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.all_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.matching_spheres_outfile.name}"
             self.run_command(run_str)

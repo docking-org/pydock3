@@ -3,6 +3,7 @@ import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
 from pydock3.files import File
+from pydock3.config import Parameter
 
 
 #
@@ -19,7 +20,8 @@ class VDWScoringGridGenerationStep(BlasterStep):
         VDW_FILE = f"{CHEMGRID_OUTPUT_FILE_NAME_PREFIX}.vdw"
         VDW_BUMP_MAP_FILE = f"{CHEMGRID_OUTPUT_FILE_NAME_PREFIX}.bmp"
 
-    GRID_SPACING = 0.2
+    # Default that can be overwritten in the config
+    GRID_SPACING = Parameter("dock_files_generation.vdw_grid_gen.grid_spacing", 0.2)
 
     def __init__(
         self,
@@ -30,6 +32,7 @@ class VDWScoringGridGenerationStep(BlasterStep):
         charged_receptor_infile,
         vdw_outfile,
         bump_map_outfile,
+        grid_spacing_parameter=GRID_SPACING
     ):
         super().__init__(
             working_dir=working_dir,
@@ -43,7 +46,9 @@ class VDWScoringGridGenerationStep(BlasterStep):
                 (vdw_outfile, "vdw_outfile", self.MandatoryFileNames.VDW_FILE),
                 (bump_map_outfile, "bump_map_outfile", self.MandatoryFileNames.VDW_BUMP_MAP_FILE),
             ],
-            parameter_tuples=[],
+            parameter_tuples=[
+                (grid_spacing_parameter, "grid_spacing_parameter")
+            ],
             program_file_path=ProgramFilePaths.CHEMGRID_PROGRAM_FILE_PATH,
         )
 
@@ -68,7 +73,7 @@ class VDWScoringGridGenerationStep(BlasterStep):
             f.write(f"{self.infiles.protein_table_infile.name}\n")
             f.write(f"{self.infiles.vdw_parameters_infile.name}\n")
             f.write(f"{self.infiles.box_infile.name}\n")
-            f.write(f"{self.GRID_SPACING}\n")  # gridsize
+            f.write(f"{self.parameters.grid_spacing_parameter.value}\n")  # gridsize
             f.write("1\n")  # no idea
             f.write("4\n")  # no idea
             f.write("10\n")  # no idea

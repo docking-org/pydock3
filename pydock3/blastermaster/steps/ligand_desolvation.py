@@ -3,6 +3,7 @@ import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
 from pydock3.files import ProgramFile, File
+from pydock3.config import Parameter
 
 #
 logger = logging.getLogger(__name__)
@@ -19,11 +20,11 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         HYDROGEN = 1
         HEAVY = 2
 
-    ATOM_TYPE_TO_RADIUS_DICT = {
-        AtomTypes.HYDROGEN: 1.0,
-        AtomTypes.HEAVY: 1.8,
-    }
-    PROBE_RADIUS = 1.4  # radius of water
+    # Defaults that can be overwritten in the config
+    OTHER_RADIUS = Parameter("dock_files_generation.desolv_grid_gen.other_radius", 1.0)
+    PROBE_RADIUS = Parameter("dock_files_generation.desolv_grid_gen.probe_radius", 1.4)  # radius of water
+    HYDROGEN_RADIUS = Parameter("dock_files_generation.desolv_grid_gen.hydrogen_radius", 1.0) 
+    HEAVY_RADIUS = Parameter("dock_files_generation.desolv_grid_gen.heavy_radius", 1.8)
 
     def __init__(
         self,
@@ -34,10 +35,19 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         thin_spheres_desolv_use_parameter,
         thin_spheres_desolv_distance_to_surface_parameter,
         thin_spheres_desolv_penetration_parameter,
-        other_radius_parameter,
         atom_type,
+        other_radius_parameter=OTHER_RADIUS,
+        probe_radius_parameter=PROBE_RADIUS,
+        hydrogen_radius_parameter=HYDROGEN_RADIUS,
+        heavy_radius_parameter=HEAVY_RADIUS,
         dockopt_submit_to_scheduler=True,
     ):
+
+        self.ATOM_TYPE_TO_RADIUS_DICT = {
+            self.AtomTypes.HYDROGEN: hydrogen_radius_parameter.value,
+            self.AtomTypes.HEAVY: heavy_radius_parameter.value 
+        }
+
         #
         if atom_type not in self.ATOM_TYPE_TO_RADIUS_DICT:
             logger.exception(
@@ -60,6 +70,10 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
                 (thin_spheres_desolv_distance_to_surface_parameter, "thin_spheres_desolv_distance_to_surface_parameter"),
                 (thin_spheres_desolv_penetration_parameter, "thin_spheres_desolv_penetration_parameter"),
                 (other_radius_parameter, "other_radius_parameter"),
+                (probe_radius_parameter, "probe_radius_parameter"),
+                (hydrogen_radius_parameter, "hydrogen_radius_parameter"),
+                (heavy_radius_parameter, "heavy_radius_parameter"),
+
             ],
             program_file_path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH,
             dockopt_submit_to_scheduler=dockopt_submit_to_scheduler,
@@ -93,7 +107,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
             f.write(
                 "1.60,1.65,1.90,1.90,1.90,%3.2f\n" % other_radius
             )  # radius of O,N,C,S,P,other
-            f.write(f"{self.PROBE_RADIUS}\n")  # probe radius
+            f.write(f"{self.parameters.probe_radius_parameter.value}\n")  # probe radius
             f.write("2\n")  # grid resolution
             f.write(f"{self.infiles.box_infile.name}\n")  # box file, extent of grids
             f.write(f"{self.ATOM_TYPE_TO_RADIUS_DICT[self.atom_type]}\n")  # born radius
@@ -118,7 +132,7 @@ class HydrogenAtomLigandDesolvationScoringGridGenerationStep(
         thin_spheres_desolv_use_parameter,
         thin_spheres_desolv_distance_to_surface_parameter,
         thin_spheres_desolv_penetration_parameter,
-        other_radius_parameter,
+        **kwargs
     ):
         super().__init__(
             working_dir=working_dir,
@@ -128,8 +142,8 @@ class HydrogenAtomLigandDesolvationScoringGridGenerationStep(
             thin_spheres_desolv_use_parameter=thin_spheres_desolv_use_parameter,
             thin_spheres_desolv_distance_to_surface_parameter=thin_spheres_desolv_distance_to_surface_parameter,
             thin_spheres_desolv_penetration_parameter=thin_spheres_desolv_penetration_parameter,
-            other_radius_parameter=other_radius_parameter,
             atom_type=super().AtomTypes.HYDROGEN,
+            **kwargs
         )
 
 
@@ -145,7 +159,7 @@ class HeavyAtomLigandDesolvationScoringGridGenerationStep(
         thin_spheres_desolv_use_parameter,
         thin_spheres_desolv_distance_to_surface_parameter,
         thin_spheres_desolv_penetration_parameter,
-        other_radius_parameter,
+        **kwargs
     ):
         super().__init__(
             working_dir=working_dir,
@@ -155,6 +169,6 @@ class HeavyAtomLigandDesolvationScoringGridGenerationStep(
             thin_spheres_desolv_use_parameter=thin_spheres_desolv_use_parameter,
             thin_spheres_desolv_distance_to_surface_parameter=thin_spheres_desolv_distance_to_surface_parameter,
             thin_spheres_desolv_penetration_parameter=thin_spheres_desolv_penetration_parameter,
-            other_radius_parameter=other_radius_parameter,
             atom_type=super().AtomTypes.HEAVY,
+            **kwargs
         )
