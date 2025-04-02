@@ -143,6 +143,18 @@ def find_key_values_in_dict(nested_dict, key):
     traverse_dict(nested_dict)
     return result
 
+def unpack_step_params(flat_dict, prefix, key_to_kwarg_suffix=None):
+    plen = len(prefix) + 1  # to remove prefix and dot
+    kwargs = {}
+
+    for key, param in flat_dict.items():
+        if key.startswith(prefix) and param.value is not None:
+            stripped_key = key[plen:]
+            kwarg_name = key_to_kwarg_suffix.get(key) if key_to_kwarg_suffix else f"{stripped_key}_parameter"
+            kwargs[kwarg_name] = param
+
+    return kwargs
+
 
 def get_ordinal(n: int) -> str:
     """Get ordinal number (e.g. 1st, 2nd, 3rd, 4th, etc.)"""
