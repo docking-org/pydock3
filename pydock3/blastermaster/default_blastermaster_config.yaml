@@ -16,9 +16,6 @@ dock_files_generation:
     penetration: 0.0
     distance_to_ligand: 2.0
 
-  ligand_desolvation:
-    other_radius: 1.0
-
   covalent:
     use: false
     residue_num: 1

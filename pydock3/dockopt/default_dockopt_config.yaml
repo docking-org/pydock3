@@ -1,6 +1,6 @@
 definitions:
   steps:
-  - step: &id004
+  - step: &id003
       top_n: 25
       criterion: normalized_log_auc
       dock_files_to_use_from_previous_component:
@@ -31,8 +31,6 @@ definitions:
             distance_to_surface: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
             penetration: 0.0
             distance_to_ligand: 2.0
-          ligand_desolvation:
-            other_radius: 1.0
           covalent:
             use: false
             residue_num: 1
@@ -101,103 +99,8 @@ definitions:
           check_strain: true
           total_strain: 8
           max_strain: 3
-  - step: &id005
-      top_n: 25
-      criterion: normalized_log_auc
-      dock_files_to_use_from_previous_component:
-        matching_spheres_file: false
-        electrostatics_trim_phi_file: false
-        electrostatics_phi_size_file: false
-        vdw_file: false
-        vdw_bump_map_file: false
-        vdw_parameters_file: false
-        ligand_desolvation_heavy_file: false
-        ligand_desolvation_hydrogen_file: false
-        charged_receptor_file: false
-        ligand_file: false
-      parameters:
-        custom_dock_executable: null
-        dock_files_generation:
-          receptor_protonation:
-            reduce_options: -HIS -FLIPs
-          thin_spheres_elec:
-            use: true
-            molecular_surface_density: 1.0
-            distance_to_surface:
-              reference_value: ^
-              arguments:
-              - -0.05
-              - -0.04
-              - -0.03
-              - -0.02
-              - -0.01
-              - 0.0
-              - 0.01
-              - 0.02
-              - 0.03
-              - 0.04
-              - 0.05
-              operator: +
-            penetration: 0.0
-            distance_to_ligand: 2.0
-          thin_spheres_desolv:
-            use: true
-            molecular_surface_density: 1.0
-            distance_to_surface:
-              reference_value: ^
-              arguments:
-              - -0.05
-              - -0.04
-              - -0.03
-              - -0.02
-              - -0.01
-              - 0.0
-              - 0.01
-              - 0.02
-              - 0.03
-              - 0.04
-              - 0.05
-              operator: +
-            penetration: 0.0
-            distance_to_ligand: 2.0
-          ligand_desolvation:
-            other_radius: 1.0
-          covalent:
-            use: false
-            residue_num: 1
-            residue_name: CYS
-            residue_atoms: CA,CB,SG
-        dock_files_modification:
-          matching_spheres_perturbation:
-            use: true
-            num_samples_per_matching_spheres_file: 10
-            max_deviation_angstroms: 0.4
-        indock_file_generation: *id001
-  - step: &id003
-      top_n: 20
-      criterion: normalized_log_auc
-      dock_files_to_use_from_previous_component:
-        matching_spheres_file: true
-        electrostatics_trim_phi_file: true
-        electrostatics_phi_size_file: true
-        vdw_file: true
-        vdw_bump_map_file: true
-        vdw_parameters_file: true
-        ligand_desolvation_heavy_file: true
-        ligand_desolvation_hydrogen_file: true
-        charged_receptor_file: true
-        ligand_file: true
-      parameters:
-        custom_dock_executable: null
-        dock_files_generation: *id002
-        dock_files_modification:
-          matching_spheres_perturbation:
-            use: true
-            num_samples_per_matching_spheres_file: 50
-            max_deviation_angstroms: 0.2
-        indock_file_generation: *id001
   sequences:
-  - sequence: &id006
+  - sequence: &id004
       top_n: 20
       inter_iteration_top_n: 20
       criterion: normalized_log_auc
@@ -210,4 +113,4 @@ pipeline:
   top_n: 5
   criterion: normalized_log_auc
   components:
-  - step: *id004
+  - step: *id003
