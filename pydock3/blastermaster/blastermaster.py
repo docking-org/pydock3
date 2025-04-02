@@ -44,7 +44,7 @@ from pydock3.blastermaster.steps.ligand_desolvation import (
 )
 from pydock3.blastermaster.steps.visualization import VisualizationStep
 from pydock3.blastermaster.config import BlastermasterParametersConfiguration
-from pydock3.util import Script, get_dataclass_as_dict
+from pydock3.util import Script, get_dataclass_as_dict, unpack_step_params
 from pydock3.config import flatten_and_parameter_cast_param_dict
 from pydock3.files import (
     Dir,
@@ -166,6 +166,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             covalent_use_parameter=flat_param_dict["covalent.use"],
             covalent_residue_name_parameter=flat_param_dict["covalent.residue_name"],
             covalent_residue_num_parameter=flat_param_dict["covalent.residue_num"],
+            **unpack_step_params(flat_param_dict, "matching_spheres_generation")
         )
     )
 
@@ -179,7 +180,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
                 molecular_surface_outfile=blaster_files.thin_spheres_elec_molecular_surface_file,
-                molecular_surface_density=flat_param_dict["thin_spheres_elec.molecular_surface_density"],
+                molecular_surface_density_parameter=flat_param_dict["thin_spheres_elec.molecular_surface_density"],
             )
         )
 
@@ -234,6 +235,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
                 all_spheres_infile=blaster_files.all_spheres_file,
                 low_dielectric_spheres_outfile=blaster_files.low_dielectric_spheres_file,
+                **unpack_step_params(flat_param_dict, "low_dielectric_sphere_selection")
             )
         )
 
@@ -261,7 +263,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
                 molecular_surface_outfile=blaster_files.thin_spheres_desolv_molecular_surface_file,
-                molecular_surface_density=flat_param_dict["thin_spheres_desolv.molecular_surface_density"],
+                molecular_surface_density_parameter=flat_param_dict["thin_spheres_desolv.molecular_surface_density"],
             )
         )
 
@@ -315,6 +317,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             charged_receptor_infile=blaster_files.charged_receptor_file,
             ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
             box_outfile=blaster_files.box_file,
+            **unpack_step_params(flat_param_dict, "box_generation")
         )
     )
 
@@ -348,6 +351,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 thin_spheres_elec_penetration_parameter=flat_param_dict[
                     "thin_spheres_elec.penetration"
                 ],
+                **unpack_step_params(flat_param_dict, "electrostatics_grid_gen")
             )
         )
     else:
@@ -363,6 +367,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 electrostatics_pdb_outfile=blaster_files.electrostatics_pdb_file,
                 electrostatics_trim_phi_outfile=blaster_files.electrostatics_trim_phi_file,
                 electrostatics_phi_size_outfile=blaster_files.electrostatics_phi_size_file,
+                **unpack_step_params(flat_param_dict, "electrostatics_grid_gen")
             )
         )
 
@@ -376,6 +381,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             box_infile=blaster_files.box_file,
             vdw_outfile=blaster_files.vdw_file,
             bump_map_outfile=blaster_files.vdw_bump_map_file,
+            **unpack_step_params(flat_param_dict, "vdw_grid_gen")
         )
     )
 
@@ -414,7 +420,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             thin_spheres_desolv_penetration_parameter=flat_param_dict[
                 "thin_spheres_desolv.penetration"
             ],
-            other_radius_parameter=flat_param_dict["ligand_desolvation.other_radius"],
+            **unpack_step_params(flat_param_dict, "desolv_grid_gen")
         )
     )
 
@@ -434,7 +440,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             thin_spheres_desolv_penetration_parameter=flat_param_dict[
                 "thin_spheres_desolv.penetration"
             ],
-            other_radius_parameter=flat_param_dict["ligand_desolvation.other_radius"],
+            **unpack_step_params(flat_param_dict, "desolv_grid_gen")
         )
     )
 
