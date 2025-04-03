@@ -20,6 +20,7 @@ class MatchingSpheresPerturbationStep(BlasterStep):
         matching_spheres_infile,
         perturbed_matching_spheres_outfile,
         max_deviation_angstroms_parameter,
+        perturb_xtal_spheres_parameter,
     ):
         super().__init__(
             working_dir=working_dir,
@@ -31,6 +32,7 @@ class MatchingSpheresPerturbationStep(BlasterStep):
             ],
             parameter_tuples=[
                 (max_deviation_angstroms_parameter, "max_deviation_angstroms_parameter"),
+                (perturb_xtal_spheres_parameter, "perturb_xtal_spheres_parameter")
             ],
             program_file_path=None,
         )
@@ -74,10 +76,13 @@ class MatchingSpheresPerturbationStep(BlasterStep):
         seed = int(seed, 16)  # Convert hex string to an integer
         np.random.seed(seed % (2**32))  # Keep within valid range
 
-        # perturb all spheres in file
-        # TODO: Only perturb xtal/non-xtal not all spheres
+        # perturb spheres
         new_spheres = []
         for sphere in spheres:
+            # if the sphere is from xtal-lig then the radius is 0.5. Then check if we want to perturb it
+            if sphere.radius == 0.5 and not self.parameters.perturb_xtal_spheres_parameter.value:
+                new_spheres.append(deepcopy(sphere))
+                continue
             new_sphere = deepcopy(sphere)
             max_deviation = float(self.parameters.max_deviation_angstroms_parameter.value)
             new_sphere.X, new_sphere.Y, new_sphere.Z = self.move_sphere_center(new_sphere.X, new_sphere.Y, new_sphere.Z, max_deviation)

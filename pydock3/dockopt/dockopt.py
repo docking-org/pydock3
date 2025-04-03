@@ -601,25 +601,19 @@ class DockoptStep(PipelineComponent):
                     for matching_spheres_file_node in sorted_unique_matching_spheres_file_nodes:
                         #
                         matching_spheres_blaster_file = graph.nodes[matching_spheres_file_node]['blaster_file']
-                        max_deviation_angstroms = float(
-                            dock_files_modification_flat_param_dict[
-                                "matching_spheres_perturbation.max_deviation_angstroms"
-                            ].value
-                        )
-                        max_deviation_angstroms_parameter = Parameter(
-                            "matching_spheres_perturbation.max_deviation_angstroms",
-                            max_deviation_angstroms,
-                        )
+
                         perturbed_matching_spheres_file_path = os.path.join(
                             self.working_dir.path,
                             f"{BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT[matching_spheres_blaster_file.identifier]}_p{num_files_perturbed_so_far+1}"  # 'p' for perturbed
                         )
                         perturbed_matching_spheres_file = BlasterFile(perturbed_matching_spheres_file_path, identifier="matching_spheres_file")
+
                         step = MatchingSpheresPerturbationStep(
                             self.working_dir,
                             matching_spheres_infile=matching_spheres_blaster_file,
                             perturbed_matching_spheres_outfile=perturbed_matching_spheres_file,
-                            max_deviation_angstroms_parameter=max_deviation_angstroms_parameter,
+                            max_deviation_angstroms_parameter=dock_files_modification_flat_param_dict['matching_spheres_perturbation.max_deviation_angstroms'],
+                            perturb_xtal_spheres_parameter=dock_files_modification_flat_param_dict['matching_spheres_perturbation.perturb_xtal_spheres']
                         )
                         num_files_perturbed_so_far += 1
 
@@ -638,14 +632,9 @@ class DockoptStep(PipelineComponent):
                             blaster_file=deepcopy(outfile.original_file_in_working_dir),
                         )
 
-                        # add parameter node
-                        parameter, = list(step.parameters._asdict().values())
-                        graph.add_node(parameter.hexdigest_of_persistent_md5_hash, parameter=deepcopy(parameter))
-
                         # connect each infile node to outfile node
                         infile_step_var_name, = list(step.infiles._asdict().keys())
                         outfile_step_var_name, = list(step.outfiles._asdict().keys())
-                        parameter_step_var_name, = list(step.parameters._asdict().keys())
                         graph.add_edge(
                             matching_spheres_file_node,
                             outfile_hash,
@@ -658,18 +647,22 @@ class DockoptStep(PipelineComponent):
                             child_node_step_var_name=outfile_step_var_name,
                         )
 
-                        # connect each parameter node to outfile node
-                        graph.add_edge(
-                            parameter.hexdigest_of_persistent_md5_hash,
-                            outfile_hash,
-                            step_class=step.__class__,
-                            original_step_dir_name=step.step_dir.name,
-                            step_instance=deepcopy(step),
-                            submit_to_scheduler=step.dockopt_submit_to_scheduler,
-                            step_hash=step_hash,
-                            parent_node_step_var_name=parameter_step_var_name,
-                            child_node_step_var_name=outfile_step_var_name,
-                        )
+                        for parameter_step_var_name, parameter in step.parameters._asdict().items():
+                            # add each parameter node
+                            graph.add_node(parameter.hexdigest_of_persistent_md5_hash, parameter=deepcopy(parameter))
+
+                            # connect each parameter node to outfile node
+                            graph.add_edge(
+                                parameter.hexdigest_of_persistent_md5_hash,
+                                outfile_hash,
+                                step_class=step.__class__,
+                                original_step_dir_name=step.step_dir.name,
+                                step_instance=deepcopy(step),
+                                submit_to_scheduler=step.dockopt_submit_to_scheduler,
+                                step_hash=step_hash,
+                                parent_node_step_var_name=parameter_step_var_name,
+                                child_node_step_var_name=outfile_step_var_name,
+                            )
 
                         #
                         matching_spheres_node_to_perturbed_nodes_dict[matching_spheres_file_node].append(outfile_hash)

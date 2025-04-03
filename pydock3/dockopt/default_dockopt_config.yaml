@@ -43,6 +43,7 @@ definitions:
             use: true
             num_samples_per_matching_spheres_file: 10
             max_deviation_angstroms: 0.4
+            perturb_xtal_spheres: false
         indock_file_generation: &id001
           ligand_atom_file: split_database_index
           output_file_prefix: test.
