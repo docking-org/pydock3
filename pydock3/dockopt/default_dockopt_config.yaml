@@ -21,16 +21,16 @@ definitions:
             reduce_options: -HIS -FLIPs
           thin_spheres_elec:
             use: true
-            molecular_surface_density: 1.0
-            distance_to_surface: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2]
+            molecular_surface_density: 10.0
+            distance_to_surface: [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
             penetration: 0.0
-            distance_to_ligand: 2.0
+            distance_to_ligand: 4.0
           thin_spheres_desolv:
             use: true
-            molecular_surface_density: 1.0
+            molecular_surface_density: 10.0
             distance_to_surface: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
             penetration: 0.0
-            distance_to_ligand: 2.0
+            distance_to_ligand: 4.0
           covalent:
             use: false
             residue_num: 1
@@ -41,8 +41,8 @@ definitions:
         dock_files_modification:
           matching_spheres_perturbation:
             use: true
-            num_samples_per_matching_spheres_file: 10
-            max_deviation_angstroms: 0.4
+            num_samples_per_matching_spheres_file: 20
+            max_deviation_angstroms: 0.5
             perturb_xtal_spheres: false
         indock_file_generation: &id001
           ligand_atom_file: split_database_index
@@ -55,9 +55,7 @@ definitions:
           timeout: 10.0
           nodes_maximum: 4
           nodes_minimum: 4
-          bump_maximum:
-          - 10.0
-          - 100.0
+          bump_maximum: 10.0
           bump_rigid: 10.0
           mol2_score_maximum: 100.0
           chemical_matching: false

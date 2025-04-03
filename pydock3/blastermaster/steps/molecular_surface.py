@@ -13,7 +13,7 @@ logger.setLevel(logging.DEBUG)
 class MolecularSurfaceGenerationStep(BlasterStep):
 
     # Default value that can be overwritten in config
-    DENSITY = Parameter("dock_files_generation.low_dielectric_sphere_selection.min_num_spheres", 1.0)
+    DENSITY = Parameter("dock_files_generation.low_dielectric_sphere_selection.min_num_spheres", 10.0)
 
     class MandatoryFileNames:
         RADII_FILE_NAME = "radii"
