@@ -137,25 +137,26 @@ sequence_list_item:
 
 ---
 box_generation:
-  margin: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
+  margin: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
 ---
 electrostatics_grid_gen:
-  grid_size: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
-  use_receptor_box: any(null(), regex('^[\^]$'), bool(), list(bool()))
+  grid_size: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  use_receptor_box: any(regex('^[\^]$'), bool(), list(bool()), required=False)
 ---
 desolv_grid_gen:
-  other_radius: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
-  probe_radius: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
-  hydrogen_radius: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
-  heavy_radius: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
+  submit_to_scheduler: any(bool(), required=False)
+  other_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  probe_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  hydrogen_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  heavy_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
 ---
 vdw_grid_gen:
-  grid_spacing: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
+  grid_spacing: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
 ---
 low_dielectric_sphere_selection:
-  min_num_spheres: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
+  min_num_spheres: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
 ---
 matching_spheres_generation:
-  max_num_spheres: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
-  gridsize: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
-  tooclose: any(null(), regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
+  max_num_spheres: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  gridsize: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  tooclose: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)

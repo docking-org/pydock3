@@ -150,7 +150,7 @@ def unpack_step_params(flat_dict, prefix, key_to_kwarg_suffix=None):
     for key, param in flat_dict.items():
         if key.startswith(prefix) and param.value is not None:
             stripped_key = key[plen:]
-            kwarg_name = key_to_kwarg_suffix.get(key) if key_to_kwarg_suffix else f"{stripped_key}_parameter"
+            kwarg_name = key_to_kwarg_suffix.get(key, f"{stripped_key}_parameter") if key_to_kwarg_suffix else f"{stripped_key}_parameter"
             kwargs[kwarg_name] = param
 
     return kwargs

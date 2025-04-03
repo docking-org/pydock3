@@ -25,6 +25,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
     PROBE_RADIUS = Parameter("dock_files_generation.desolv_grid_gen.probe_radius", 1.4)  # radius of water
     HYDROGEN_RADIUS = Parameter("dock_files_generation.desolv_grid_gen.hydrogen_radius", 1.0) 
     HEAVY_RADIUS = Parameter("dock_files_generation.desolv_grid_gen.heavy_radius", 1.8)
+    SUBMIT_TO_SCHEDULER = Parameter("dock_files_generation.desolv_grid_gen.submit_to_scheduler", False)
 
     def __init__(
         self,
@@ -40,7 +41,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         probe_radius_parameter=PROBE_RADIUS,
         hydrogen_radius_parameter=HYDROGEN_RADIUS,
         heavy_radius_parameter=HEAVY_RADIUS,
-        dockopt_submit_to_scheduler=True,
+        submit_to_scheduler_parameter=SUBMIT_TO_SCHEDULER,
     ):
 
         self.ATOM_TYPE_TO_RADIUS_DICT = {
@@ -76,7 +77,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
 
             ],
             program_file_path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH,
-            dockopt_submit_to_scheduler=dockopt_submit_to_scheduler,
+            dockopt_submit_to_scheduler=submit_to_scheduler_parameter.value,
         )
 
         # misc.
