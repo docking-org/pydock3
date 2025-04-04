@@ -16,6 +16,9 @@ import shutil
 
 import networkx as nx
 import pandas as pd
+from collections import deque
+import pickle
+
 
 from pydock3.util import (
     T,
@@ -598,25 +601,19 @@ class DockoptStep(PipelineComponent):
                     for matching_spheres_file_node in sorted_unique_matching_spheres_file_nodes:
                         #
                         matching_spheres_blaster_file = graph.nodes[matching_spheres_file_node]['blaster_file']
-                        max_deviation_angstroms = float(
-                            dock_files_modification_flat_param_dict[
-                                "matching_spheres_perturbation.max_deviation_angstroms"
-                            ].value
-                        )
-                        max_deviation_angstroms_parameter = Parameter(
-                            "matching_spheres_perturbation.max_deviation_angstroms",
-                            max_deviation_angstroms,
-                        )
+
                         perturbed_matching_spheres_file_path = os.path.join(
                             self.working_dir.path,
                             f"{BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT[matching_spheres_blaster_file.identifier]}_p{num_files_perturbed_so_far+1}"  # 'p' for perturbed
                         )
                         perturbed_matching_spheres_file = BlasterFile(perturbed_matching_spheres_file_path, identifier="matching_spheres_file")
+
                         step = MatchingSpheresPerturbationStep(
                             self.working_dir,
                             matching_spheres_infile=matching_spheres_blaster_file,
                             perturbed_matching_spheres_outfile=perturbed_matching_spheres_file,
-                            max_deviation_angstroms_parameter=max_deviation_angstroms_parameter,
+                            max_deviation_angstroms_parameter=dock_files_modification_flat_param_dict['matching_spheres_perturbation.max_deviation_angstroms'],
+                            perturb_xtal_spheres_parameter=dock_files_modification_flat_param_dict['matching_spheres_perturbation.perturb_xtal_spheres']
                         )
                         num_files_perturbed_so_far += 1
 
@@ -635,36 +632,37 @@ class DockoptStep(PipelineComponent):
                             blaster_file=deepcopy(outfile.original_file_in_working_dir),
                         )
 
-                        # add parameter node
-                        parameter, = list(step.parameters._asdict().values())
-                        graph.add_node(parameter.hexdigest_of_persistent_md5_hash, parameter=deepcopy(parameter))
-
                         # connect each infile node to outfile node
                         infile_step_var_name, = list(step.infiles._asdict().keys())
                         outfile_step_var_name, = list(step.outfiles._asdict().keys())
-                        parameter_step_var_name, = list(step.parameters._asdict().keys())
                         graph.add_edge(
                             matching_spheres_file_node,
                             outfile_hash,
                             step_class=step.__class__,
                             original_step_dir_name=step.step_dir.name,
                             step_instance=deepcopy(step),
+                            submit_to_scheduler=step.dockopt_submit_to_scheduler,
                             step_hash=step_hash,
                             parent_node_step_var_name=infile_step_var_name,
                             child_node_step_var_name=outfile_step_var_name,
                         )
 
-                        # connect each parameter node to outfile node
-                        graph.add_edge(
-                            parameter.hexdigest_of_persistent_md5_hash,
-                            outfile_hash,
-                            step_class=step.__class__,
-                            original_step_dir_name=step.step_dir.name,
-                            step_instance=deepcopy(step),
-                            step_hash=step_hash,
-                            parent_node_step_var_name=parameter_step_var_name,
-                            child_node_step_var_name=outfile_step_var_name,
-                        )
+                        for parameter_step_var_name, parameter in step.parameters._asdict().items():
+                            # add each parameter node
+                            graph.add_node(parameter.hexdigest_of_persistent_md5_hash, parameter=deepcopy(parameter))
+
+                            # connect each parameter node to outfile node
+                            graph.add_edge(
+                                parameter.hexdigest_of_persistent_md5_hash,
+                                outfile_hash,
+                                step_class=step.__class__,
+                                original_step_dir_name=step.step_dir.name,
+                                step_instance=deepcopy(step),
+                                submit_to_scheduler=step.dockopt_submit_to_scheduler,
+                                step_hash=step_hash,
+                                parent_node_step_var_name=parameter_step_var_name,
+                                child_node_step_var_name=outfile_step_var_name,
+                            )
 
                         #
                         matching_spheres_node_to_perturbed_nodes_dict[matching_spheres_file_node].append(outfile_hash)
@@ -754,6 +752,62 @@ class DockoptStep(PipelineComponent):
 
         return new_dc_kwargs_sorted
 
+    def parallel_run_graph_steps(self, scheduler) -> None:
+        """Runs steps in parallel while ensuring each unique step is executed only once."""
+
+        g = self.graph
+
+        # Number of dependencies for each node
+        in_degrees = {node: g.in_degree(node) for node in g.nodes}
+
+        # Initial nodes with no dependencies
+        ready_nodes = deque([node for node, deg in in_degrees.items() if deg == 0])
+
+        while ready_nodes:
+            current_nodes = list(ready_nodes)
+            running_steps = set()
+            steps_to_run_sequentially = []
+            steps_to_run_scheduler = []
+            for node in current_nodes:
+                blaster_file = g.nodes[node].get("blaster_file")
+                if blaster_file and not blaster_file.exists:
+                    parent_nodes = list(g.predecessors(node))
+                    if parent_nodes:
+                        a_parent_node = parent_nodes[0]
+
+                        step_instance = g[a_parent_node][node]["step_instance"]
+                        step_id = id(step_instance)
+                        if step_id in running_steps:
+                            continue
+                        running_steps.add(step_id)
+
+                        submit_to_scheduler = g[a_parent_node][node]["submit_to_scheduler"]
+                        if submit_to_scheduler:
+                            steps_to_run_scheduler.append((step_instance,step_id))
+                        else:
+                            steps_to_run_sequentially.append(step_instance)
+            
+            for step_instance, step_id in steps_to_run_scheduler:
+                logger.info(f"Submitting {step_instance.__class__.__name__} to the scheduler")
+                scheduler.submit_single_step(step_instance, job_name=step_id)
+            
+            for step_instance in steps_to_run_sequentially:
+                step_instance.run()
+
+            while any(scheduler.job_is_on_queue(step_id) for _, step_id in steps_to_run_scheduler):
+                logger.info(f"Waiting for jobs to complete...")
+                time.sleep(15)
+            
+            next_nodes = []
+            for node in current_nodes:
+                for successor in g.successors(node):
+                    in_degrees[successor] -= 1
+                    if in_degrees[successor] == 0:
+                        next_nodes.append(successor)
+            
+            ready_nodes = deque(next_nodes)
+
+
     def run(
             self, 
             component_run_func_arg_set: DockoptPipelineComponentRunFuncArgSet,
@@ -765,14 +819,9 @@ class DockoptStep(PipelineComponent):
 
         # run necessary steps to get all dock files
         logger.info("Generating docking configurations")
-        for dc in self.docking_configurations:
-            # make dock files
-            for dock_file_identifier in DOCK_FILE_IDENTIFIERS:
-                self._run_unrun_steps_needed_to_create_this_blaster_file_node(
-                    getattr(dc.dock_file_coordinates, dock_file_identifier).node_id, self.graph
-                )
 
-            # make indock file now that dock files exist
+        self.parallel_run_graph_steps(component_run_func_arg_set.scheduler)
+        for dc in self.docking_configurations:
             indock_file = dc.get_indock_file(self.pipeline_dir.path)
             indock_file.write(dc.get_dock_files(self.pipeline_dir.path), dc.indock_file_generation_flat_param_dict)
 
@@ -1185,6 +1234,7 @@ class DockoptStep(PipelineComponent):
                     step_class=step.__class__,
                     original_step_dir_name=step.step_dir.name,
                     step_instance=deepcopy(step),
+                    submit_to_scheduler=step.dockopt_submit_to_scheduler,
                     step_hash=step_hash,
                     parent_node_step_var_name=infile_step_var_name,
                     child_node_step_var_name=outfile_step_var_name,
@@ -1200,6 +1250,7 @@ class DockoptStep(PipelineComponent):
                     step_class=step.__class__,
                     original_step_dir_name=step.step_dir.name,
                     step_instance=deepcopy(step),  # this will be replaced with step instance with unique dir path
+                    submit_to_scheduler=step.dockopt_submit_to_scheduler,
                     step_hash=step_hash,
                     parent_node_step_var_name=parameter_step_var_name,
                     child_node_step_var_name=outfile_step_var_name,

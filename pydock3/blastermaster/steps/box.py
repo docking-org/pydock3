@@ -1,7 +1,7 @@
 import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-
+from pydock3.config import Parameter
 
 #
 logger = logging.getLogger(__name__)
@@ -10,7 +10,8 @@ logger.setLevel(logging.DEBUG)
 
 class BoxGenerationStep(BlasterStep):
 
-    MARGIN = 10.0
+    # Default that can be overwritten in config
+    MARGIN = Parameter("dock_files_generation.box_generation.margin", 10.0)
 
     def __init__(
         self,
@@ -18,6 +19,7 @@ class BoxGenerationStep(BlasterStep):
         charged_receptor_infile,
         ligand_matching_spheres_infile,
         box_outfile,
+        margin_parameter=MARGIN,
     ):
         super().__init__(
             working_dir=working_dir,
@@ -28,7 +30,9 @@ class BoxGenerationStep(BlasterStep):
             outfile_tuples=[
                 (box_outfile, "box_outfile", None),
             ],
-            parameter_tuples=[],
+            parameter_tuples=[
+                (margin_parameter, "margin_parameter")
+            ],
             program_file_path=ProgramFilePaths.MAKEBOX_PROGRAM_FILE_PATH,
         )
 
@@ -37,5 +41,5 @@ class BoxGenerationStep(BlasterStep):
         """run the makebox.smallokay.pl perl script to make box surrounding binding
         site"""
 
-        run_str = f"{self.program_file.path} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.box_outfile.name} {self.MARGIN}"
+        run_str = f"{self.program_file.path} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.box_outfile.name} {self.parameters.margin_parameter.value}"
         self.run_command(run_str)

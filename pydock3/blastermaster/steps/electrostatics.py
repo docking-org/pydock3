@@ -4,6 +4,7 @@ import logging
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
 from pydock3.files import ProgramFile, File
 from pydock3.blastermaster import phi
+from pydock3.config import Parameter
 
 
 #
@@ -29,7 +30,9 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
 
     QNIFFT_PARAMETERS_FILE_NAME: str = "qnifft.parm"
 
-    GRID_SIZE = 193
+    # Defaults that can be overwritten in the config
+    GRID_SIZE = Parameter("dock_files_generation.electrostatics_grid_gen.grid_size", 193)
+    USE_RECEPTOR_BOX = Parameter("dock_files_generation.electrostatics_grid_gen.use_receptor_box", False)
 
     def __init__(
         self,
@@ -43,7 +46,8 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
         electrostatics_pdb_outfile,
         electrostatics_trim_phi_outfile,
         electrostatics_phi_size_outfile,
-        use_receptor_box=False,
+        grid_size_parameter=GRID_SIZE,
+        use_receptor_box_parameter=USE_RECEPTOR_BOX,
         extra_parameters=None,
     ):
         super().__init__(
@@ -61,12 +65,14 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
                 (electrostatics_trim_phi_outfile, "electrostatics_trim_phi_outfile", None),
                 (electrostatics_phi_size_outfile, "electrostatics_phi_size_outfile", None),
             ],
-            parameter_tuples=[],
+            parameter_tuples=[
+                (grid_size_parameter, "grid_size_parameter"),
+                (use_receptor_box_parameter, "use_receptor_box_parameter")
+            ],
             program_file_path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH,
         )
 
         # misc.
-        self.use_receptor_box = use_receptor_box
         self.extra_parameters = extra_parameters
 
     @BlasterStep.handle_run_func
@@ -84,7 +90,7 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
             with open(self.infiles.delphi_infile.path, "r") as g:
                 for line in g:
                     f.write(line)
-            f.write(f"grid={str(self.GRID_SIZE)}\n")
+            f.write(f"grid={str(self.parameters.grid_size_parameter.value)}\n")
             f.write(f"charge={self.infiles.charge_infile.name}\n")
             f.write(f"radius={self.infiles.radius_infile.name}\n")
             f.write(
@@ -97,7 +103,7 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
                 f"phi_output_file={self.outfiles.electrostatics_phi_outfile.name}\n"
             )
             if (
-                self.use_receptor_box
+                self.parameters.use_receptor_box_parameter.value
             ):  # means we are running the whole protein + 8 angstroms
                 f.write("border=15\n")
             if self.extra_parameters:
@@ -129,7 +135,9 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
 
     QNIFFT_PARAMETERS_FILE_NAME: str = "qnifft.parm"
 
-    GRID_SIZE = 193
+    # Defaults that can be overwritten in the config
+    GRID_SIZE = Parameter("dock_files_generation.electrostatics_grid_gen.grid_size", 193)
+    USE_RECEPTOR_BOX = Parameter("dock_files_generation.electrostatics_grid_gen.use_receptor_box", False)
 
     def __init__(
         self,
@@ -143,9 +151,10 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
         electrostatics_pdb_outfile,
         electrostatics_trim_phi_outfile,
         electrostatics_phi_size_outfile,
-        thin_spheres_elec_distance_to_ligand_parameter,
+        thin_spheres_elec_distance_to_surface_parameter,
         thin_spheres_elec_penetration_parameter,
-        use_receptor_box=False,
+        grid_size_parameter=GRID_SIZE,
+        use_receptor_box_parameter=USE_RECEPTOR_BOX,
         extra_parameters=None,
     ):
         super().__init__(
@@ -164,14 +173,15 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
                 (electrostatics_phi_size_outfile, "electrostatics_phi_size_outfile", None),
             ],
             parameter_tuples=[
-                (thin_spheres_elec_distance_to_ligand_parameter, "thin_spheres_elec_distance_to_ligand_parameter"),
+                (thin_spheres_elec_distance_to_surface_parameter, "thin_spheres_elec_distance_to_surface_parameter"),
                 (thin_spheres_elec_penetration_parameter, "thin_spheres_elec_penetration_parameter"),
+                (grid_size_parameter, "grid_size_parameter"),
+                (use_receptor_box_parameter, "use_receptor_box_parameter")
             ],
             program_file_path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH,
         )
 
         # misc.
-        self.use_receptor_box = use_receptor_box
         self.extra_parameters = extra_parameters
 
     @BlasterStep.handle_run_func
@@ -189,7 +199,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
             with open(self.infiles.delphi_infile.path, "r") as g:
                 for line in g:
                     f.write(line)
-            f.write(f"grid={str(self.GRID_SIZE)}\n")
+            f.write(f"grid={str(self.parameters.grid_size_parameter.value)}\n")
             f.write(f"charge={self.infiles.charge_infile.name}\n")
             f.write(f"radius={self.infiles.radius_infile.name}\n")
             f.write(
@@ -202,7 +212,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
                 f"phi_output_file={self.outfiles.electrostatics_phi_outfile.name}\n"
             )
             if (
-                self.use_receptor_box
+                self.parameters.use_receptor_box_parameter.value
             ):  # means we are running the whole protein + 8 angstroms
                 f.write("border=15\n")
             if self.extra_parameters:
@@ -216,7 +226,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
 
         #
         command_str = f"sed -i 's/c     sph   1.90/c     sph   %3.2f/g' %s " % (
-            self.parameters.thin_spheres_elec_distance_to_ligand_parameter.value
+            self.parameters.thin_spheres_elec_distance_to_surface_parameter.value
             + self.parameters.thin_spheres_elec_penetration_parameter.value,
             self.infiles.radius_infile.name,
         )

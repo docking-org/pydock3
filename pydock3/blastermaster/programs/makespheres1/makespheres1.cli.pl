@@ -287,10 +287,10 @@ for ($i=0; $i<=$#sphxyzcoords; $i++) {
 }
 $numpolar=0;
 $numnonpolar=0;
-foreach ( keys %nonpolar) {
+foreach (sort keys %nonpolar) {
    $nonp = $_;
    $found = 0;
-   foreach ( keys %polar) {
+   foreach (sort keys %polar) {
       if ($nonp eq $_) { $found = 1; }
    }
    if ($found == 0) { $sphxyzcoords[$nonp][7] = -2; $numnonpolar++;}  # sphere $nonp is not in polar hash table, and is in nonpolar table
@@ -321,7 +321,7 @@ sub theta($) {
 }
 
 # Assign cos(theta) value to sphere based on position of polar atom and base receptor atom
-foreach (keys %polar) {
+foreach (sort keys %polar) {
    $i=0;
    while ($i<=$polarentries{$_}) {
       $sphnum=$_;

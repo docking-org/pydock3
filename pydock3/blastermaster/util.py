@@ -66,6 +66,12 @@ BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT = {
     'vdw_bump_map_file': "vdw.bmp",
     'ligand_desolvation_heavy_file': "ligand.desolv.heavy",
     'ligand_desolvation_hydrogen_file': "ligand.desolv.hydrogen",
+    'vdw_repulsive_dx_file': "vdw_energies_repulsive.dx",
+    'vdw_attractive_dx_file': "vdw_energies_attractive.dx",
+    'vdw_dx_file': "vdw.dx",
+    'ligand_desolvation_dx_file': "ligdesolv.dx",
+    'trim_electrostatics_dx_file': "trim.electrostatics.dx",
+    'matching_spheres_pdb_file': "matching_spheres.pdb"
 }
 PROPER_BLASTER_FILE_NAME_TO_BLASTER_FILE_IDENTIFIER_DICT = {value: key for key, value in BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT.items()}
 DOCK_FILE_IDENTIFIERS = [
@@ -77,8 +83,21 @@ DOCK_FILE_IDENTIFIERS = [
     "vdw_bump_map_file",
     "vdw_file",
     "vdw_parameters_file",
+    "charged_receptor_file",
+    "ligand_file"
 ]
 DOCK_FILE_IDENTIFIER_TO_PROPER_DOCK_FILE_NAME_DICT = {dock_file_identifier: BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT[dock_file_identifier] for dock_file_identifier in DOCK_FILE_IDENTIFIERS}
+
+VISUALIZATION_FILE_IDENTIFIERS = [
+    "vdw_repulsive_dx_file",
+    "vdw_attractive_dx_file",
+    "vdw_dx_file",
+    "ligand_desolvation_dx_file",
+    "trim_electrostatics_dx_file",
+    "matching_spheres_pdb_file",
+    "charged_receptor_file",
+    "ligand_file"
+]
 
 
 #
@@ -249,6 +268,10 @@ class BlasterFiles(object):
     def dock_files(self):
         return DockFiles(**{dock_file_identifier: getattr(self, dock_file_identifier) for dock_file_identifier in DOCK_FILE_IDENTIFIERS})
 
+    @property
+    def visualization_files(self):
+        return VisualizationFiles(**{vis_file_identifier: getattr(self, vis_file_identifier) for vis_file_identifier in VISUALIZATION_FILE_IDENTIFIERS})
+    
     def get_attribute_name_of_blaster_file_with_file_name(self, file_name):
         attributes = [
             a
@@ -266,10 +289,24 @@ class BlasterFiles(object):
 
 
 DockFiles = make_dataclass("DockFiles", [(identifier, BlasterFile) for identifier in DOCK_FILE_IDENTIFIERS])
+VisualizationFiles = make_dataclass("VisualizationFiles", [(identifier, BlasterFile) for identifier in VISUALIZATION_FILE_IDENTIFIERS])
+
+# Ian previously used namedtuples for infiles, outfiles, and parameters
+# These did not play nicely with pickling which I used for submitting things to the scheduler
+# This is just a generic class that provides the same functionality but can be pickled
+class AttributeContainer:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+    
+    def __iter__(self):
+        return iter(self.__dict__.values())
+
+    def _asdict(self):
+        return dict(self.__dict__)
 
 
 class BlasterStep(object):
-    def __init__(self, working_dir, infile_tuples, outfile_tuples, parameter_tuples, program_file_path=None):
+    def __init__(self, working_dir, infile_tuples, outfile_tuples, parameter_tuples, dockopt_submit_to_scheduler=False, program_file_path=None):
         #
         self.step_dir = self._get_step_dir(working_dir, outfile_tuples)
 
@@ -292,6 +329,9 @@ class BlasterStep(object):
         #
         self.log_file = self._get_log_file()
 
+        #
+        self.dockopt_submit_to_scheduler = dockopt_submit_to_scheduler
+
     def __str__(self):
         return self.__class__.__name__
 
@@ -307,14 +347,14 @@ class BlasterStep(object):
 
     @infiles.setter
     def infiles(self, infiles_named_tuple):
-        validate_variable_type(infiles_named_tuple, allowed_instance_types=(tuple,))
+        validate_variable_type(infiles_named_tuple, allowed_instance_types=(AttributeContainer,))
         for obj in infiles_named_tuple:
             validate_variable_type(obj, allowed_instance_types=(BlasterFile,))
 
         self._infiles = infiles_named_tuple
 
     def _process_infiles(self, *infile_tuples):
-        step_infiles = []
+        step_infiles = {}
         for i, (infile, arg_name, new_file_name) in enumerate(infile_tuples):
             #
             validate_variable_type(infile, allowed_instance_types=(BlasterFile,))
@@ -335,15 +375,9 @@ class BlasterStep(object):
             step_infile.original_file_in_working_dir = infile
 
             #
-            step_infiles.append(step_infile)
+            step_infiles[arg_name] = step_infile 
 
-        #
-        Infiles = collections.namedtuple(
-            "Infiles", " ".join([arg_name for infile, arg_name, new_file_name in infile_tuples])
-        )
-
-        #
-        return Infiles(*step_infiles)
+        return AttributeContainer(**step_infiles)
 
     @property
     def outfiles(self):
@@ -351,14 +385,14 @@ class BlasterStep(object):
 
     @outfiles.setter
     def outfiles(self, outfiles_named_tuple):
-        validate_variable_type(outfiles_named_tuple, allowed_instance_types=(tuple,))
+        validate_variable_type(outfiles_named_tuple, allowed_instance_types=(AttributeContainer,))
         for obj in outfiles_named_tuple:
             validate_variable_type(obj, allowed_instance_types=(BlasterFile,))
 
         self._outfiles = outfiles_named_tuple
 
     def _process_outfiles(self, *outfile_tuples):
-        step_outfiles = []
+        step_outfiles = {}
         for i, (outfile, arg_name, new_file_name) in enumerate(outfile_tuples):
             #
             validate_variable_type(outfile, allowed_instance_types=(BlasterFile,))
@@ -379,15 +413,10 @@ class BlasterStep(object):
             step_outfile.original_file_in_working_dir = outfile
 
             #
-            step_outfiles.append(step_outfile)
+            step_outfiles[arg_name] = step_outfile
 
         #
-        Outfiles = collections.namedtuple(
-            "Outfiles", " ".join([arg_name for outfile, arg_name, new_file_name in outfile_tuples])
-        )
-
-        #
-        return Outfiles(*step_outfiles)
+        return AttributeContainer(**step_outfiles)
 
     @property
     def parameters(self):
@@ -395,14 +424,14 @@ class BlasterStep(object):
 
     @parameters.setter
     def parameters(self, parameters_named_tuple):
-        validate_variable_type(parameters_named_tuple, allowed_instance_types=(tuple,))
+        validate_variable_type(parameters_named_tuple, allowed_instance_types=(AttributeContainer,))
         for obj in parameters_named_tuple:
             validate_variable_type(obj, allowed_instance_types=(Parameter,))
 
         self._parameters = parameters_named_tuple
 
     def _process_parameters(self, *parameter_tuples):
-        step_parameters = []
+        step_parameters = {}
         for parameter, arg_name in parameter_tuples:
             #
             validate_variable_type(parameter, allowed_instance_types=(Parameter,))
@@ -412,16 +441,9 @@ class BlasterStep(object):
             step_parameter = deepcopy(parameter)
 
             #
-            step_parameters.append(step_parameter)
+            step_parameters[arg_name] = step_parameter
 
-        #
-        Parameters = collections.namedtuple(
-            "Parameters",
-            " ".join([arg_name for parameter, arg_name in parameter_tuples]),
-        )
-
-        #
-        return Parameters(*step_parameters)
+        return AttributeContainer(**step_parameters)
 
     @property
     def step_dir(self):

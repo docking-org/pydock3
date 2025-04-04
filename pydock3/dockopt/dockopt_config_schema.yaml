@@ -27,6 +27,8 @@ step:
     vdw_parameters_file: bool()
     ligand_desolvation_heavy_file: bool()
     ligand_desolvation_hydrogen_file: bool()
+    charged_receptor_file: bool()
+    ligand_file: bool()
   parameters:
     custom_dock_executable: any(regex('^[\^]$'), null(), str(), list(null(required=False), str(required=False)), min=1)
     dock_files_generation:
@@ -44,8 +46,13 @@ step:
         distance_to_surface: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
         penetration: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
         distance_to_ligand: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
-      ligand_desolvation:
-        other_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
+      # See below for optional schemas for dockfile generation 
+      box_generation: include('box_generation', required=False)
+      electrostatics_grid_gen: include('electrostatics_grid_gen', required=False)
+      desolv_grid_gen: include('desolv_grid_gen', required=False)
+      vdw_grid_gen: include('vdw_grid_gen', required=False)
+      low_dielectric_sphere_selection: include('low_dielectric_sphere_selection', required=False)
+      matching_spheres_generation: include('matching_spheres_generation', required=False)
       covalent:
         use: any(regex('^[\^]$'), bool(), list(bool()))
         residue_num: any(regex('^[\^]$'), int(), list(int()))
@@ -56,6 +63,7 @@ step:
         use: any(regex('^[\^]$'), bool(), list(bool()))
         num_samples_per_matching_spheres_file: num()
         max_deviation_angstroms: any(regex('^[\^]$'), num(), list(num))
+        perturb_xtal_spheres: any(regex('^[\^]$'), bool(), list(bool()))
     indock_file_generation:
       ligand_atom_file: any(regex('^[\^]$'), str(), list(str()))
       output_file_prefix: any(regex('^[\^]$'), str(), list(str()))
@@ -127,3 +135,29 @@ step_list_item:
 
 sequence_list_item:
   sequence: include('sequence')
+
+---
+box_generation:
+  margin: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+---
+electrostatics_grid_gen:
+  grid_size: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  use_receptor_box: any(regex('^[\^]$'), bool(), list(bool()), required=False)
+---
+desolv_grid_gen:
+  submit_to_scheduler: any(bool(), required=False)
+  other_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  probe_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  hydrogen_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  heavy_radius: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+---
+vdw_grid_gen:
+  grid_spacing: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+---
+low_dielectric_sphere_selection:
+  min_num_spheres: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+---
+matching_spheres_generation:
+  max_num_spheres: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  gridsize: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
+  tooclose: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)

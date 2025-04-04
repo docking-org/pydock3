@@ -9,6 +9,8 @@ from subprocess import CompletedProcess
 import xml
 
 import xmltodict
+import pickle
+import tempfile
 
 from pydock3.util import system_call, find_key_values_in_dict
 from pydock3.files import File
@@ -119,6 +121,37 @@ class SlurmJobScheduler(JobScheduler):
             procs.append(proc)
 
         return procs
+
+    def submit_single_step(
+            self,
+            step_instance,
+            job_name="blaster_step",
+    ):
+        # TODO: Better handling of the step_dir. Technically the run() function
+        # will overwrite this folder. I think its ok for now but silly
+        step_dir = step_instance.step_dir.path
+        os.makedirs(step_dir, exist_ok=True)
+        step_pickle_path = os.path.join(step_dir, "step_instance.pkl")
+        with open(step_pickle_path, "wb") as f:
+            pickle.dump(step_instance, f)
+
+        slurm_script = f"""#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --output={step_dir}/{job_name}_%A_%a.out
+#SBATCH --error={step_dir}/{job_name}_%A_%a,err
+
+python -c "import pickle; step = pickle.load(open('{step_pickle_path}', 'rb')); step.run()"
+"""
+        sub_script_path = os.path.join(step_dir, "submission.sh")
+        with open(sub_script_path, "w") as f:
+            f.write(slurm_script)
+
+        proc = system_call(f"{self.SBATCH_EXEC} {sub_script_path}")
+
+        return proc
+        
+        
+
 
     def job_is_on_queue(self, job_name: str) -> bool:
         command_str = f"{self.SQUEUE_EXEC} --format='%i %j %t' | grep '{job_name}'"

@@ -42,8 +42,9 @@ from pydock3.blastermaster.steps.ligand_desolvation import (
     HydrogenAtomLigandDesolvationScoringGridGenerationStep,
     HeavyAtomLigandDesolvationScoringGridGenerationStep,
 )
+from pydock3.blastermaster.steps.visualization import VisualizationStep
 from pydock3.blastermaster.config import BlastermasterParametersConfiguration
-from pydock3.util import Script, get_dataclass_as_dict
+from pydock3.util import Script, get_dataclass_as_dict, unpack_step_params
 from pydock3.config import flatten_and_parameter_cast_param_dict
 from pydock3.files import (
     Dir,
@@ -165,6 +166,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             covalent_use_parameter=flat_param_dict["covalent.use"],
             covalent_residue_name_parameter=flat_param_dict["covalent.residue_name"],
             covalent_residue_num_parameter=flat_param_dict["covalent.residue_num"],
+            **unpack_step_params(flat_param_dict, "matching_spheres_generation")
         )
     )
 
@@ -178,6 +180,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
                 molecular_surface_outfile=blaster_files.thin_spheres_elec_molecular_surface_file,
+                molecular_surface_density_parameter=flat_param_dict["thin_spheres_elec.molecular_surface_density"],
             )
         )
 
@@ -232,6 +235,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
                 all_spheres_infile=blaster_files.all_spheres_file,
                 low_dielectric_spheres_outfile=blaster_files.low_dielectric_spheres_file,
+                **unpack_step_params(flat_param_dict, "low_dielectric_sphere_selection")
             )
         )
 
@@ -259,6 +263,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 binding_site_residues_infile=blaster_files.binding_site_residues_file,
                 radii_infile=blaster_files.molecular_surface_radii_file,
                 molecular_surface_outfile=blaster_files.thin_spheres_desolv_molecular_surface_file,
+                molecular_surface_density_parameter=flat_param_dict["thin_spheres_desolv.molecular_surface_density"],
             )
         )
 
@@ -312,6 +317,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             charged_receptor_infile=blaster_files.charged_receptor_file,
             ligand_matching_spheres_infile=blaster_files.ligand_matching_spheres_file,
             box_outfile=blaster_files.box_file,
+            **unpack_step_params(flat_param_dict, "box_generation")
         )
     )
 
@@ -339,12 +345,13 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 electrostatics_pdb_outfile=blaster_files.electrostatics_pdb_file,
                 electrostatics_trim_phi_outfile=blaster_files.electrostatics_trim_phi_file,
                 electrostatics_phi_size_outfile=blaster_files.electrostatics_phi_size_file,
-                thin_spheres_elec_distance_to_ligand_parameter=flat_param_dict[
+                thin_spheres_elec_distance_to_surface_parameter=flat_param_dict[
                     "thin_spheres_elec.distance_to_surface"
                 ],
                 thin_spheres_elec_penetration_parameter=flat_param_dict[
                     "thin_spheres_elec.penetration"
                 ],
+                **unpack_step_params(flat_param_dict, "electrostatics_grid_gen")
             )
         )
     else:
@@ -360,6 +367,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
                 electrostatics_pdb_outfile=blaster_files.electrostatics_pdb_file,
                 electrostatics_trim_phi_outfile=blaster_files.electrostatics_trim_phi_file,
                 electrostatics_phi_size_outfile=blaster_files.electrostatics_phi_size_file,
+                **unpack_step_params(flat_param_dict, "electrostatics_grid_gen")
             )
         )
 
@@ -373,6 +381,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             box_infile=blaster_files.box_file,
             vdw_outfile=blaster_files.vdw_file,
             bump_map_outfile=blaster_files.vdw_bump_map_file,
+            **unpack_step_params(flat_param_dict, "vdw_grid_gen")
         )
     )
 
@@ -411,7 +420,7 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             thin_spheres_desolv_penetration_parameter=flat_param_dict[
                 "thin_spheres_desolv.penetration"
             ],
-            other_radius_parameter=flat_param_dict["ligand_desolvation.other_radius"],
+            **unpack_step_params(flat_param_dict, "desolv_grid_gen")
         )
     )
 
@@ -431,7 +440,24 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             thin_spheres_desolv_penetration_parameter=flat_param_dict[
                 "thin_spheres_desolv.penetration"
             ],
-            other_radius_parameter=flat_param_dict["ligand_desolvation.other_radius"],
+            **unpack_step_params(flat_param_dict, "desolv_grid_gen")
+        )
+    )
+
+    steps.append(
+        VisualizationStep(
+            working_dir=working_dir,
+            vdw_infile=blaster_files.vdw_file,
+            vdw_bump_map_infile=blaster_files.vdw_bump_map_file,
+            lig_desolv_heavy_infile=blaster_files.ligand_desolvation_heavy_file,
+            trim_electrostatics_phi_infile=blaster_files.electrostatics_trim_phi_file,
+            matching_spheres_infile=blaster_files.matching_spheres_file,
+            vdw_repulsive_dx_outfile=blaster_files.vdw_repulsive_dx_file,
+            vdw_attractive_dx_outfile=blaster_files.vdw_attractive_dx_file,
+            vdw_dx_outfile=blaster_files.vdw_dx_file,
+            lig_desolv_dx_outfile=blaster_files.ligand_desolvation_dx_file,
+            trim_electrostatics_dx_outfile=blaster_files.trim_electrostatics_dx_file,
+            matching_spheres_outfile=blaster_files.matching_spheres_pdb_file
         )
     )
 
@@ -447,6 +473,7 @@ class Blastermaster(Script):
     )
     WORKING_DIR_NAME = "working"
     DOCK_FILES_DIR_NAME = "dockfiles"
+    VISUALIZATION_FILES_DIR_NAME = "visualization"
     DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
     def __init__(self):
@@ -481,6 +508,11 @@ class Blastermaster(Script):
         # create dock files dir
         dock_files_dir = Dir(
             path=os.path.join(job_dir.path, self.DOCK_FILES_DIR_NAME),
+            create=True,
+            reset=False,
+        )
+        visualization_dir = Dir(
+            path=os.path.join(job_dir_path, self.VISUALIZATION_FILES_DIR_NAME),
             create=True,
             reset=False,
         )
@@ -519,6 +551,11 @@ class Blastermaster(Script):
             create=True,
             reset=True,
         )  # reset dock files dir in case re-running
+        visualization_dir = Dir(
+            path=os.path.join(job_dir_path, self.VISUALIZATION_FILES_DIR_NAME),
+            create=True,
+            reset=True,
+        )
 
         #
         blaster_files = BlasterFiles(working_dir=working_dir)
@@ -561,6 +598,13 @@ class Blastermaster(Script):
         for dock_file in astuple(blaster_files.dock_files):
             File.copy_file(
                 dock_file.path, os.path.join(dock_files_dir.path, dock_file.name)
+            )
+
+        # copy visualization files to visualization directory
+        logger.info("Copying visualization files to visualization directory")
+        for visualization_file in astuple(blaster_files.visualization_files):
+            File.copy_file(
+                visualization_file.path, os.path.join(visualization_dir.path, visualization_file.name)
             )
 
         # write INDOCK file

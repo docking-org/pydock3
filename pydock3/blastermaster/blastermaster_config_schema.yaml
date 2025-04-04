@@ -16,15 +16,53 @@ dock_files_generation:
     penetration: num()
     distance_to_ligand: num()
 
-  ligand_desolvation:
-    other_radius: num()
-
   covalent:
     use: bool()
     residue_num: int()
     residue_name: str()
     residue_atoms: str()
 
+  # See below for schemas for optional parameters
+  box_generation: include('box_generation', required=False)
+
+  electrostatics_grid_gen: include('electrostatics_grid_gen', required=False)
+
+  desolv_grid_gen: include('desolv_grid_gen', required=False)
+
+  vdw_grid_gen: include('vdw_grid_gen', required=False)
+
+  low_dielectric_sphere_selection: include('low_dielectric_sphere_selection', required=False)
+
+  matching_spheres_generation: include('matching_spheres_generation', required=False)
+
+# See below for indock schema. Eventually this should just be optional for some things. We largely don't change these numbers
+indock_file_generation: include('indock_file_generation', required=True)
+
+---
+box_generation:
+  margin: num(required=False)
+---
+electrostatics_grid_gen:
+  grid_size: num(required=False)
+  use_receptor_box: bool(required=False)
+---
+desolv_grid_gen:
+  other_radius: num(required=False)
+  probe_radius: num(required=False)
+  hydrogen_radius: num(required=False)
+  heavy_radius: num(required=False)
+---
+vdw_grid_gen:
+  grid_spacing: num(required=False)
+---
+low_dielectric_sphere_selection:
+  min_num_spheres: num(required=False)
+---
+matching_spheres_generation:
+  max_num_spheres: num(required=False)
+  gridsize: num(required=False)
+  tooclose: num(required=False)
+---
 indock_file_generation:
   ligand_atom_file: str()
   output_file_prefix: str()

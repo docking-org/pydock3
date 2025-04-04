@@ -51,6 +51,8 @@ class CloseSpheresGenerationStep(BlasterStep):
         sph_lib.write_sph(self.outfiles.close_spheres_outfile.path, spheres_list)
 
 
+
+# TODO: implement k-d trees to improve both of the following functions
 def trim_sph(sph_list, sph_rad):
     for i in range(len(sph_list) - 1):
         if sph_list[i][1]:

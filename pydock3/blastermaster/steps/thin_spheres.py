@@ -70,7 +70,6 @@ def thin_spheres(in_f, out_f, distance=1.8, size=1.9):
             splits = line.split()
             point = [float(line[13:21]), float(line[21:30]), float(line[30:39])]
             normal = [
-                float(line[43:50]),
                 float(line[50:57]),
                 float(line[57:64]),
                 float(line[64:71]),

@@ -2,6 +2,7 @@ import logging
 
 from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
 from pydock3.files import File
+from pydock3.config import Parameter 
 
 
 #
@@ -11,7 +12,8 @@ logger.setLevel(logging.DEBUG)
 
 class MolecularSurfaceGenerationStep(BlasterStep):
 
-    DENSITY = 1.0
+    # Default value that can be overwritten in config
+    DENSITY = Parameter("dock_files_generation.low_dielectric_sphere_selection.min_num_spheres", 10.0)
 
     class MandatoryFileNames:
         RADII_FILE_NAME = "radii"
@@ -23,6 +25,7 @@ class MolecularSurfaceGenerationStep(BlasterStep):
         binding_site_residues_infile,
         radii_infile,
         molecular_surface_outfile,
+        molecular_surface_density_parameter=DENSITY,
     ):
         super().__init__(
             working_dir=working_dir,
@@ -34,7 +37,9 @@ class MolecularSurfaceGenerationStep(BlasterStep):
             outfile_tuples=[
                 (molecular_surface_outfile, "molecular_surface_outfile", None),
             ],
-            parameter_tuples=[],
+            parameter_tuples=[
+                (molecular_surface_density_parameter, "molecular_surface_density_parameter")
+            ],
             program_file_path=ProgramFilePaths.DMS_PROGRAM_FILE_PATH,
         )
 
@@ -62,5 +67,5 @@ class MolecularSurfaceGenerationStep(BlasterStep):
         self.run_command(run_str)
 
         #
-        run_str = f"{self.program_file.path} {charged_receptor_no_waters_file.name} -a -d {self.DENSITY} -i {binding_site_residues_no_waters_file.name} -g {self.log_file.name} -p -n -o {self.outfiles.molecular_surface_outfile.name}"
+        run_str = f"{self.program_file.path} {charged_receptor_no_waters_file.name} -a -d {self.parameters.molecular_surface_density_parameter.value} -i {binding_site_residues_no_waters_file.name} -g {self.log_file.name} -p -n -o {self.outfiles.molecular_surface_outfile.name}"
         self.run_command(run_str)

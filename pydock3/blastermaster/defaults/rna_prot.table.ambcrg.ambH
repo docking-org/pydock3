@@ -1,0 +1,106 @@
+! File created by Trent Balius, FNLCR, Sept 14, 2023
+! Charges obtained from UCSF Chimera using AMBER ff03.r1
+! Non-polar hydrogen charge added to bonded heavy atom.
+! Generated with mol2_united_atom_sum_charges.py and
+! mol2toDOCK37type.py from
+! https://github.com/tbalius/teb_docking_test_sets
+!
+!aaaxxxrrrnnnncqqqqqqqqxtt   format (A4, 3x, A3, A4, A1, F8.3, 1x, I2) 
+!
+ P       A        1.166 13
+ OP1     A       -0.776 11
+ OP2     A       -0.776 11
+ O5'     A       -0.499 12
+ C5'     A        0.192  5
+ C4'     A        0.224  5
+ O4'     A       -0.355 12
+ C3'     A        0.264  5
+ O3'     A       -0.525 12
+ C2'     A        0.164  5
+ O2'     A       -0.614 12
+ C1'     A        0.240  5
+ N9      A       -0.025  8
+ C8      A        0.356  1
+ N7      A       -0.607  8
+ C5      A        0.051  1
+ C6      A        0.701  1
+ N6      A       -0.902  8
+ N1      A       -0.761  8
+ C2      A        0.635  1
+ N3      A       -0.700  8
+ C4      A        0.305  1
+ H61     A        0.411  6
+ H62     A        0.411  6
+HO2'     A        0.419  6
+ P       C        1.166 13
+ OP1     C       -0.776 11
+ OP2     C       -0.776 11
+ O5'     C       -0.499 12
+ C5'     C        0.192  5
+ C4'     C        0.224  5
+ O4'     C       -0.355 12
+ C3'     C        0.264  5
+ O3'     C       -0.525 12
+ C2'     C        0.164  5
+ O2'     C       -0.614 12
+ C1'     C        0.209  5
+ N1      C       -0.048  8
+ C2      C        0.754  1
+ O2      C       -0.625 11
+ N3      C       -0.758  8
+ C4      C        0.819  1
+ N4      C       -0.953  8
+ C5      C       -0.329  1
+ C6      C        0.201  1
+ H41     C        0.423  6
+ H42     C        0.423  6
+HO2'     C        0.419  6
+ P       G        1.166 13
+ OP1     G       -0.776 11
+ OP2     G       -0.776 11
+ O5'     G       -0.499 12
+ C5'     G        0.192  5
+ C4'     G        0.224  5
+ O4'     G       -0.355 12
+ C3'     G        0.264  5
+ O3'     G       -0.525 12
+ C2'     G        0.164  5
+ O2'     G       -0.614 12
+ C1'     G        0.220  5
+ N9      G        0.049  8
+ C8      G        0.301  1
+ N7      G       -0.571  8
+ C5      G        0.174  1
+ C6      G        0.477  1
+ O6      G       -0.560 11
+ N1      G       -0.479  8
+ C2      G        0.766  1
+ N2      G       -0.967  8
+ N3      G       -0.632  8
+ C4      G        0.122  1
+ H1      G        0.342  6
+ H21     G        0.436  6
+ H22     G        0.436  6
+HO2'     G        0.419  6
+ P       U        1.166 13
+ OP1     U       -0.776 11
+ OP2     U       -0.776 11
+ O5'     U       -0.499 12
+ C5'     U        0.192  5
+ C4'     U        0.224  5
+ O4'     U       -0.355 12
+ C3'     U        0.264  5
+ O3'     U       -0.525 12
+ C2'     U        0.164  5
+ O2'     U       -0.614 12
+ C1'     U        0.250  5
+ N1      U        0.042  8
+ C2      U        0.469  1
+ O2      U       -0.548 11
+ N3      U       -0.355  8
+ C4      U        0.595  1
+ O4      U       -0.576 11
+ C5      U       -0.182  1
+ C6      U        0.106  1
+ H3      U        0.315  6
+HO2'     U        0.419  6
