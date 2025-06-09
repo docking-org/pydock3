@@ -38,7 +38,6 @@ class LowDielectricSpheresSelectionStep(BlasterStep):
             program_file_path=ProgramFilePaths.MAKESPHERES1_PROGRAM_FILE_PATH,
         )
 
-        self.min_num_spheres = min_num_spheres
 
     @BlasterStep.handle_run_func
     def run(self):
