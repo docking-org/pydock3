@@ -13,6 +13,7 @@ SCRIPT_CLASSES = [  # script classes are those that inherit from the Script clas
     "Blastermaster",
     "Retrodock",
     "Dockopt",
+    "DecoyGen",
     # "TopPoses",
 ]
 
@@ -41,6 +42,8 @@ def get_script_class(script_class_name, *args, **kwargs) -> Union[Script, None]:
             from pydock3.retrodock.retrodock import Retrodock as cls
         elif script_class_name == "dockopt":
             from pydock3.dockopt.dockopt import Dockopt as cls
+        elif script_class_name == "decoygen":
+            from pydock3.decoy_gen.decoy_gen import DecoyGen as cls
         elif script_class_name == "SDIFile":
             from pydock3.files import SDIFile as cls
         else:

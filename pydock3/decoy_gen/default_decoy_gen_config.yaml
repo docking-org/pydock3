@@ -1,0 +1,40 @@
+input:
+  smiles_file: "actives.smi"
+  protonate_ligands: true
+
+database:
+  zinc20_2d_path: "/mnt/nfs/ex3/published/2D/"  # Base path to ZINC20 2D database
+
+property_matching:
+  molecular_weight_range: [20, 125]    # [min_tolerance, max_tolerance] in Da
+  logp_range: [0.4, 3.6]               # [min_tolerance, max_tolerance] in logP units
+  rotatable_bonds_range: [1, 5]        # [min_tolerance, max_tolerance] count
+  hb_acceptors_range: [0, 4]           # [min_tolerance, max_tolerance] count
+  hb_donors_range: [0, 3]              # [min_tolerance, max_tolerance] count
+  charge_range: [0, 2]                 # [min_tolerance, max_tolerance] charge units
+  tanimoto_range: [0.0, 0.35]          # [min_similarity, max_similarity]
+  num_property_windows: 7               # number of progressive windows to generate
+
+generation:
+  minimum_decoys_per_ligand: 20
+  target_decoys_per_ligand: 50
+  total_decoys_to_generate: 750
+  max_tanimoto_between_decoys: 0.8
+  calculate_tanimoto: true
+
+job_submission:
+  scheduler: "slurm"                   # or "sge"
+  timeout_minutes: 180
+  max_retries: 2
+  nodes_exclude: ["het"]
+  max_retries_per_ligand: 3
+  job_timeout_minutes: 60
+  scheduler_extra_params: ""
+
+building:
+  enabled: false                       # Optional: set to true to build 3D structures
+
+output:
+  working_directory: "decoy_generation_job"
+  actives_output: "actives.tgz"        # Only used if building enabled
+  decoys_output: "decoys.tgz"          # Only used if building enabled
