@@ -104,7 +104,7 @@ class RetrievalStep(DecoyGenStep):
         """Query ZINC20 database for a single ligand using progressive windowing"""
         try:
             # Calculate ligand properties
-            lig_props = get_molecular_properties(smiles)
+            lig_props = get_molecular_properties(smiles, get_charge=True)
             mw, logp, rotb, hbd, hba, charge = lig_props
             
             self.log_debug(f"Ligand properties - MW: {mw:.1f}, LogP: {logp:.2f}, RotB: {rotb}, HBA: {hba}, HBD: {hbd}, Charge: {charge}")
@@ -181,7 +181,7 @@ class RetrievalStep(DecoyGenStep):
                     decoy_smiles, zinc_id = parts[0], parts[1]
                     
                     try:
-                        decoy_props = get_molecular_properties(decoy_smiles)
+                        decoy_props = get_molecular_properties(decoy_smiles, get_charge=False)
                         window = compare_properties_with_windows(lig_props, decoy_props, windows)
                         
                         if window is not None:  # Matches some window

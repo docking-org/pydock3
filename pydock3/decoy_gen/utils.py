@@ -11,7 +11,7 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors, rdMolDescriptors, DataStructs
 
 
-def get_molecular_properties(smiles: str) -> Tuple[float, float, int, int, int, int]:
+def get_molecular_properties(smiles: str, get_charge: bool = False) -> Tuple[float, float, int, int, int, int]:
     """
     Calculate molecular properties for a SMILES string
     
@@ -30,9 +30,11 @@ def get_molecular_properties(smiles: str) -> Tuple[float, float, int, int, int, 
     rotb = Descriptors.NumRotatableBonds(mol)
     hbd = rdMolDescriptors.CalcNumHBD(mol)
     hba = rdMolDescriptors.CalcNumHBA(mol)
-    charge = Chem.GetFormalCharge(mol)
-    
-    return mw, logp, rotb, hbd, hba, charge
+    if get_charge:
+        charge = Chem.GetFormalCharge(mol)
+        return mw, logp, rotb, hbd, hba, charge
+    else:
+        return mw, logp, rotb, hbd, hba, None
 
 
 def map_to_zinc_tranche(mw: float, logp: float) -> Optional[str]:

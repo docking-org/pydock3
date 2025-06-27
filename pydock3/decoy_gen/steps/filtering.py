@@ -124,7 +124,7 @@ class FilteringStep(DecoyGenStep):
         
         # Collect ligand properties
         for ligand_num, (smiles, lig_id) in ligand_map.items():
-            props = get_molecular_properties(smiles)
+            props = get_molecular_properties(smiles, get_charge=True)
             # [lig_id, smiles, mw, logp, rotb, hbd, hba, charge]
             lig_property_dict[lig_id] = [lig_id, smiles] + list(props)
         
@@ -138,7 +138,8 @@ class FilteringStep(DecoyGenStep):
                         parts = line.strip().split()
                         if len(parts) >= 2:
                             decoy_smiles, zinc_id = parts[0], parts[1]
-                            props = get_molecular_properties(decoy_smiles)
+                            # TODO: need to add protonation checks to the decoy filtering
+                            props = get_molecular_properties(decoy_smiles, get_charge=False)
                             
                             # Calculate TC to closest ligand (placeholder for now)
                             tc_to_lig = 0.0
