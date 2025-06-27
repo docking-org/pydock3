@@ -24,7 +24,6 @@ generation:
   random_seed: int()
 
 job_submission:
-  scheduler: str()
   timeout_minutes: int()
   max_retries: int()
   nodes_exclude: list(str())

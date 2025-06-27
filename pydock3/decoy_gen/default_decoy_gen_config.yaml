@@ -24,7 +24,6 @@ generation:
   random_seed: 42
 
 job_submission:
-  scheduler: "slurm"                   # or "sge"
   timeout_minutes: 180
   max_retries: 2
   nodes_exclude: ["het"]

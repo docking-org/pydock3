@@ -161,7 +161,6 @@ class RetrievalStep(DecoyGenStep):
         windows = get_progressive_windows_from_config(self.config.param_dict)
         max_decoys = self.config.param_dict['generation']['total_decoys_to_generate']
         num_windows = len(windows)
-        max_decoys = self.config.param_dict['generation']['total_decoys_to_generate']
         
         # Collect all SMILES lines from all files
         all_smiles_lines = []

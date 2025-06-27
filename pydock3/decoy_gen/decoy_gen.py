@@ -51,14 +51,22 @@ class DecoyGen(Script):
         )
         logger.info(f"Created configuration file: {save_path}")
 
-        # Check for SMILES file in current directory
-        smiles_files = [f for f in os.listdir(".") if f.endswith(".smi")]
-        if smiles_files:
-            files_to_copy_str = "\n\t".join(smiles_files)
+        # Check for actives.smi and copy it automatically
+        actives_file = "actives.smi"
+        if os.path.exists(actives_file):
+            import shutil
+            dest_path = os.path.join(job_dir.path, actives_file)
+            shutil.copy2(actives_file, dest_path)
+            logger.info(f"Copied {actives_file} into job directory: {dest_path}")
+        
+        # Check for other SMILES files in current directory
+        other_smiles_files = [f for f in os.listdir(".") if f.endswith(".smi") and f != actives_file]
+        if other_smiles_files:
+            files_to_copy_str = "\n\t".join(other_smiles_files)
             logger.info(
-                f"Found SMILES files in current directory. Consider copying them to the job directory:\n\t{files_to_copy_str}"
+                f"Found other SMILES files in current directory. Consider copying them to the job directory:\n\t{files_to_copy_str}"
             )
-        else:
+        elif not os.path.exists(os.path.join(job_dir.path, actives_file)):
             logger.info(
                 "No SMILES files (.smi) found in current directory. You'll need to provide a SMILES file before running."
             )
