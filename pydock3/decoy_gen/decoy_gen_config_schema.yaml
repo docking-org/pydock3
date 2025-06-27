@@ -20,7 +20,6 @@ generation:
   target_decoys_per_ligand: int()
   total_decoys_to_generate: int()
   max_tanimoto_between_decoys: num()
-  calculate_tanimoto: bool()
   random_seed: int()
 
 job_submission:

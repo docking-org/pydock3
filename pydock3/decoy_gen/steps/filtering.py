@@ -52,12 +52,8 @@ class FilteringStep(DecoyGenStep):
             self.log_info(f"Found {len(lig_property_dict)} ligands and {len(decoy_property_dict)} decoys")
             
             # Calculate Tanimoto coefficients if enabled
-            if self.config.param_dict['generation']['calculate_tanimoto']:
-                self.log_info("Calculating Tanimoto coefficients...")
-                decoy_tc_list = self._calculate_tanimoto_coefficients(lig_property_dict, decoy_property_dict)
-            else:
-                self.log_info("Tanimoto calculation disabled")
-                decoy_tc_list = [(0.0, decoy_id) for decoy_id in decoy_property_dict.keys()]
+            self.log_info("Calculating Tanimoto coefficients...")
+            decoy_tc_list = self._calculate_tanimoto_coefficients(lig_property_dict, decoy_property_dict)
             
             # Perform clustering to remove similar decoys
             self.log_info("Clustering similar decoys...")
