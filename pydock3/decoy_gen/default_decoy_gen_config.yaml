@@ -21,6 +21,7 @@ generation:
   total_decoys_to_generate: 750
   max_tanimoto_between_decoys: 0.8
   calculate_tanimoto: true
+  random_seed: 42
 
 job_submission:
   scheduler: "slurm"                   # or "sge"

@@ -157,11 +157,14 @@ class RetrievalStep(DecoyGenStep):
             self.log_debug(f"No SMILES files found in tranche {tranche}")
             return []
         
-        # Collect all potential decoys with their properties and windows
-        potential_decoys = []
+        # Get progressive windows from config
         windows = get_progressive_windows_from_config(self.config.param_dict)
         max_decoys = self.config.param_dict['generation']['total_decoys_to_generate']
+        num_windows = len(windows)
+        max_decoys = self.config.param_dict['generation']['total_decoys_to_generate']
         
+        # Collect all SMILES lines from all files
+        all_smiles_lines = []
         for smi_file in smi_files:
             file_path = os.path.join(tranche_dir, smi_file)
             
@@ -169,58 +172,78 @@ class RetrievalStep(DecoyGenStep):
                 # Skip header if present
                 first_line = f.readline().strip()
                 if not first_line or first_line.lower().startswith('smiles'):
-                    pass  # Skip header
+                    lines = f.readlines()
                 else:
                     f.seek(0)  # Reset to beginning if no header
+                    lines = f.readlines()
+                all_smiles_lines.extend(lines)
+        
+        # Shuffle all SMILES lines using configured seed
+        random.seed(self.config.param_dict['generation']['random_seed'])
+        random.shuffle(all_smiles_lines)
+        
+        selected_decoys = []
+        decoy_dict = {}
+        decoy_count = 0
+        best_windows = []
+        
+        # First pass: calculate windows for all compounds and collect window 0 matches
+        self.log_debug("First pass: looking for window 0 matches...")
+        for line in all_smiles_lines:
+            parts = line.strip().split()
+            if len(parts) < 2:
+                continue
                 
-                for line in f:
+            decoy_smiles, zinc_id = parts[0], parts[1]
+            
+            try:
+                decoy_props = get_molecular_properties(decoy_smiles, get_charge=False)
+                window = compare_properties_with_windows(lig_props, decoy_props, windows)
+                
+                if window is not None:
+                    best_windows.append(window)
+                    
+                    # Collect window 0 matches immediately like original
+                    if window == 0:
+                        if zinc_id not in decoy_dict:
+                            decoy_count += 1
+                            decoy_dict[zinc_id] = [decoy_smiles, zinc_id, window]
+                            selected_decoys.append((decoy_smiles, zinc_id, window))
+                            
+                            if decoy_count >= max_decoys:
+                                self.log_debug(f"DECOYS FOUND BEST WINDOW: {decoy_count}")
+                                return selected_decoys
+                else:
+                    best_windows.append(None)
+            except Exception as e:
+                self.log_debug(f"Error processing SMILES {decoy_smiles}: {e}")
+                best_windows.append(None)
+                continue
+        
+        self.log_debug(f"DECOYS FOUND BEST WINDOW: {decoy_count}")
+        
+        # Second pass: try progressively wider windows like original
+        for step_count in range(1, num_windows):
+            self.log_debug(f"Trying window {step_count}...")
+            for i, window in enumerate(best_windows):
+                if window == step_count:
+                    line = all_smiles_lines[i]
                     parts = line.strip().split()
                     if len(parts) < 2:
                         continue
                         
                     decoy_smiles, zinc_id = parts[0], parts[1]
                     
-                    try:
-                        decoy_props = get_molecular_properties(decoy_smiles, get_charge=False)
-                        window = compare_properties_with_windows(lig_props, decoy_props, windows)
+                    if zinc_id not in decoy_dict:
+                        decoy_count += 1
+                        decoy_dict[zinc_id] = [decoy_smiles, zinc_id, window]
+                        selected_decoys.append((decoy_smiles, zinc_id, window))
                         
-                        if window is not None:  # Matches some window
-                            potential_decoys.append((decoy_smiles, zinc_id, window))
-                            
-                    except Exception:
-                        continue  # Skip invalid SMILES
+                        if decoy_count >= max_decoys:
+                            self.log_debug(f"DECOYS FOUND TOTAL: {decoy_count}")
+                            return selected_decoys
         
-        if not potential_decoys:
-            return []
-        
-        # Implement progressive selection like original zinc_subfunc
-        selected_decoys = []
-        decoy_count = 0
-        
-        # First try window 0 (best matches)
-        window_0_decoys = [d for d in potential_decoys if d[2] == 0]
-        for decoy_smiles, zinc_id, window in window_0_decoys:
-            selected_decoys.append((decoy_smiles, zinc_id, window))
-            decoy_count += 1
-            if decoy_count >= max_decoys:
-                self.log_debug(f"Found {decoy_count} decoys in window 0")
-                return selected_decoys
-        
-        self.log_debug(f"Found {decoy_count} decoys in window 0")
-        
-        # Then try progressively wider windows (1-6)
-        for window_num in range(1, 7):
-            window_decoys = [d for d in potential_decoys if d[2] == window_num]
-            for decoy_smiles, zinc_id, window in window_decoys:
-                # Skip if already selected
-                if zinc_id not in [d[1] for d in selected_decoys]:
-                    selected_decoys.append((decoy_smiles, zinc_id, window))
-                    decoy_count += 1
-                    if decoy_count >= max_decoys:
-                        self.log_debug(f"Found {decoy_count} total decoys")
-                        return selected_decoys
-        
-        self.log_debug(f"Found {decoy_count} total decoys")
+        self.log_debug(f"DECOYS FOUND TOTAL: {decoy_count}")
         return selected_decoys
     
     def run_with_scheduler(self, scheduler_name: str) -> bool:
