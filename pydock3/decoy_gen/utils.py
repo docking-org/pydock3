@@ -52,7 +52,7 @@ def map_to_zinc_tranche(mw: float, logp: float) -> Optional[str]:
     mw_code = _find_boundary_code(mw, mw_boundaries)
     
     if logp_code and mw_code:
-        return f"{logp_code}{mw_code}"
+        return f"{mw_code}{logp_code}"
     return None
 
 
