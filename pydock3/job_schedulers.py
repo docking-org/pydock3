@@ -7,6 +7,7 @@ from operator import itemgetter
 import re
 from subprocess import CompletedProcess
 import xml
+import sys
 
 import xmltodict
 import pickle
@@ -138,9 +139,9 @@ class SlurmJobScheduler(JobScheduler):
         slurm_script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
 #SBATCH --output={step_dir}/{job_name}_%A_%a.out
-#SBATCH --error={step_dir}/{job_name}_%A_%a,err
+#SBATCH --error={step_dir}/{job_name}_%A_%a.err
 
-python -c "import pickle; step = pickle.load(open('{step_pickle_path}', 'rb')); step.run()"
+{sys.executable} -c "import pickle; step = pickle.load(open('{step_pickle_path}', 'rb')); step.run()"
 """
         sub_script_path = os.path.join(step_dir, "submission.sh")
         with open(sub_script_path, "w") as f:
