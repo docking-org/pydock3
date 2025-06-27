@@ -4,6 +4,7 @@ Utility functions for decoy generation
 
 import os
 import pickle
+import math
 from typing import Tuple, Optional, List, Dict
 import numpy as np
 from rdkit import Chem
@@ -63,6 +64,16 @@ def _find_boundary_code(value: float, boundaries: List[Tuple[float, str]]) -> Op
             return code
     return None
 
+def python2_round(x, ndigits=0):
+    """
+    Mimic Python 2’s round(), which rounds halves away from zero
+    and returns a float.
+    """
+    factor = 10.0 ** ndigits
+    if x >= 0:
+        return math.floor(x * factor + 0.5) / factor
+    else:
+        return math.ceil(x * factor - 0.5) / factor
 
 def get_progressive_windows_from_config(config_dict: dict) -> List[List[float]]:
     """
@@ -98,13 +109,22 @@ def get_progressive_windows_from_config(config_dict: dict) -> List[List[float]]:
         charge_tol = charge_range[0] + factor * (charge_range[1] - charge_range[0])
         
         # Ensure discrete properties remain integers
-        rotb_tol = int(round(rotb_tol))
-        hba_tol = int(round(hba_tol))
-        hbd_tol = int(round(hbd_tol))
-        charge_tol = int(round(charge_tol))
-        
+        rotb_tol = int(python2_round(rotb_tol))
+        hba_tol = int(python2_round(hba_tol))
+        hbd_tol = int(python2_round(hbd_tol))
+        charge_tol = int(python2_round(charge_tol))
+        # Round logP to 1 decimal and MW to whole number
+        logp_tol = python2_round(logp_tol,1)
+        mw_tol = python2_round(mw_tol)
+
         windows.append([mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol, charge_tol])
     
+    # Match previous functionality where MWT and logP windows won't start at 0
+    if windows[0][0] == 0:
+        windows[0][0] = windows[1][0]
+    if windows[0][1] == 0:
+        windows[0][1] = windows[1][1]
+
     return windows
 
 
@@ -124,13 +144,17 @@ def compare_properties_with_windows(lig_props: Tuple, dec_props: Tuple,
     lig_mw, lig_logp, lig_rotb, lig_hbd, lig_hba, lig_charge = lig_props
     dec_mw, dec_logp, dec_rotb, dec_hbd, dec_hba, dec_charge = dec_props
     
+    # Rounding to be consistent with the old scripts
+    lig_mw_round = int(python2_round(lig_mw))
+    lig_logp_round = python2_round(lig_logp,2)
+
     for window_num, (mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol, charge_tol) in enumerate(windows):
-        if (abs(dec_mw - lig_mw) <= mw_tol and
-            abs(dec_logp - lig_logp) <= logp_tol and
+        if (abs(dec_mw - lig_mw_round) <= mw_tol and
+            abs(dec_logp - lig_logp_round) <= logp_tol and
             abs(dec_rotb - lig_rotb) <= rotb_tol and
             abs(dec_hbd - lig_hbd) <= hbd_tol and
             abs(dec_hba - lig_hba) <= hba_tol and
-            abs(dec_charge - lig_charge) <= charge_tol):
+            (dec_charge is None or lig_charge is None or abs(dec_charge - lig_charge) <= charge_tol)):
             return window_num
     
     return None
