@@ -11,7 +11,6 @@ property_matching:
   rotatable_bonds_range: [1, 5]        # [min_tolerance, max_tolerance] count
   hb_acceptors_range: [0, 4]           # [min_tolerance, max_tolerance] count
   hb_donors_range: [0, 3]              # [min_tolerance, max_tolerance] count
-  charge_range: [0, 2]                 # [min_tolerance, max_tolerance] charge units
   tanimoto_range: [0.0, 0.35]          # [min_similarity, max_similarity]
   num_property_windows: 7               # number of progressive windows to generate
 

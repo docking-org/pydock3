@@ -158,7 +158,7 @@ class PreparationStep(DecoyGenStep):
                 
                 # Write decoys
                 for decoy in decoy_list:
-                    f.write(f"{decoy['smiles']} {decoy['decoy_id']} {decoy['tc_to_lig']:.6f} "
+                    f.write(f"{decoy['smiles']} {decoy['decoy_id']} {decoy['tc_to_lig']:.2f} "
                            f"{decoy['mw']:.1f} {decoy['logp']:.2f} {decoy['rotb']} "
                            f"{decoy['hbd']} {decoy['hba']} {decoy['charge']}\n")
             
@@ -181,7 +181,7 @@ class PreparationStep(DecoyGenStep):
                 total_decoys = 0
                 for lig_id, decoy_list in assignments.items():
                     for decoy in decoy_list:
-                        f.write(f"{decoy['smiles']} {decoy['decoy_id']} {lig_id} {decoy['tc_to_lig']:.6f} "
+                        f.write(f"{decoy['smiles']} {decoy['decoy_id']} {lig_id} {decoy['tc_to_lig']:.2f} "
                                f"{decoy['mw']:.1f} {decoy['logp']:.2f} {decoy['rotb']} "
                                f"{decoy['hbd']} {decoy['hba']} {decoy['charge']}\n")
                         total_decoys += 1
