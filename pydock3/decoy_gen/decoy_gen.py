@@ -127,6 +127,7 @@ class DecoyGen(Script):
             from pydock3.decoy_gen.steps.retrieval import RetrievalStep
             from pydock3.decoy_gen.steps.filtering import FilteringStep
             from pydock3.decoy_gen.steps.preparation import PreparationStep
+            from pydock3.decoy_gen.steps.visualization import VisualizationStep
             
             # Load configuration (config file is in parent directory of working dir)
             config_file = os.path.join(os.path.dirname(working_dir), self.CONFIG_FILE_NAME)
@@ -174,6 +175,14 @@ class DecoyGen(Script):
                 error_func("Preparation step failed")
                 return False
             log_func("✓ Preparation step completed")
+            
+            # Run visualization step (always local)
+            log_func("Running Visualization Step...")
+            visualization_step = VisualizationStep(working_dir, config)
+            if not visualization_step.run():
+                error_func("Visualization step failed")
+                return False
+            log_func("✓ Visualization step completed")
             
             # TODO: Implement building steps if enabled
             if config.param_dict['building']['enabled']:
