@@ -196,22 +196,26 @@ class RetrievalStep(DecoyGenStep):
             decoy_smiles, zinc_id = parts[0], parts[1]
             
             try:
-                decoy_props = get_molecular_properties(decoy_smiles, get_charge=False)
-                window = compare_properties_with_windows(lig_props, decoy_props, windows)
-                
-                if window is not None:
-                    best_windows.append(window)
+                # Apply protonation filtering first
+                if self._matches_protonation_state(lig_props, decoy_smiles):
+                    decoy_props = get_molecular_properties(decoy_smiles, get_charge=False)
+                    window = compare_properties_with_windows(lig_props, decoy_props, windows)
                     
-                    # Collect window 0 matches immediately like original
-                    if window == 0:
-                        if zinc_id not in decoy_dict:
-                            decoy_count += 1
-                            decoy_dict[zinc_id] = [decoy_smiles, zinc_id, window]
-                            selected_decoys.append((decoy_smiles, zinc_id, window))
-                            
-                            if decoy_count >= max_decoys:
-                                self.log_debug(f"DECOYS FOUND BEST WINDOW: {decoy_count}")
-                                return selected_decoys
+                    if window is not None:
+                        best_windows.append(window)
+                        
+                        # Collect window 0 matches immediately like original
+                        if window == 0:
+                            if zinc_id not in decoy_dict:
+                                decoy_count += 1
+                                decoy_dict[zinc_id] = [decoy_smiles, zinc_id, window]
+                                selected_decoys.append((decoy_smiles, zinc_id, window))
+                                
+                                if decoy_count >= max_decoys:
+                                    self.log_debug(f"DECOYS FOUND BEST WINDOW: {decoy_count}")
+                                    return selected_decoys
+                    else:
+                        best_windows.append(None)
                 else:
                     best_windows.append(None)
             except Exception as e:
@@ -278,6 +282,59 @@ class RetrievalStep(DecoyGenStep):
         except Exception as e:
             self.log_error(f"Scheduled retrieval failed: {str(e)}")
             return False
+    
+    def _matches_protonation_state(self, lig_props: Tuple, decoy_smiles: str) -> bool:
+        """
+        Check if decoy can form a protomer that matches the ligand's charge state
+        
+        Args:
+            lig_props: (mw, logp, rotb, hbd, hba, charge) for ligand
+            decoy_smiles: SMILES string for decoy
+            
+        Returns:
+            True if decoy can match ligand's protonation state, False otherwise
+        """
+        try:
+            from pydock3.protonation import generate_protomers, ProtonationError
+            from pydock3.decoy_gen.utils import get_progressive_windows_from_config, compare_properties_with_windows
+            
+            # Get ligand charge
+            ligand_charge = lig_props[5]
+            
+            # If ligand is neutral, check if decoy is also neutral (quick check)
+            if ligand_charge == 0:
+                decoy_props = get_molecular_properties(decoy_smiles, get_charge=True)
+                if decoy_props[5] == 0:
+                    return True  # Both neutral, should match
+            
+            # For charged ligands or when we need to check protonation, use ChemAxon
+            try:
+                # Generate protomers for the decoy at pH 7.4
+                smiles_with_name = [f"{decoy_smiles} temp_decoy"]
+                protomer_results = generate_protomers(smiles_with_name, ph=7.4, score_cutoff=10.0)
+                
+                # Check if any protomer has the same charge as the ligand
+                for protomer_smiles, name, score in protomer_results:
+                    protomer_props = get_molecular_properties(protomer_smiles, get_charge=True)
+                    protomer_charge = protomer_props[5]
+                    
+                    if protomer_charge == ligand_charge:
+                        # Check if protomer also matches other properties
+                        windows = get_progressive_windows_from_config(self.config.param_dict)
+                        window = compare_properties_with_windows(lig_props, protomer_props, windows)
+                        if window is not None:
+                            return True
+                
+                return False  # No matching protomer found
+                
+            except (ProtonationError, ImportError):
+                # If protonation tools not available, fall back to basic charge check
+                decoy_props = get_molecular_properties(decoy_smiles, get_charge=True)
+                return decoy_props[5] == ligand_charge
+                
+        except Exception as e:
+            self.log_debug(f"Error in protonation matching for {decoy_smiles}: {e}")
+            return False  # Conservative: reject on error
 
 
 class SingleLigandRetrievalStep(DecoyGenStep):

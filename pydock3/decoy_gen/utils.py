@@ -85,7 +85,8 @@ def get_progressive_windows_from_config(config_dict: dict) -> List[List[float]]:
         config_dict: Configuration dictionary containing property_matching section
         
     Returns:
-        List of windows as: [mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol, charge_tol]
+        List of windows as: [mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol]
+        Note: Charge matching is always exact (no tolerance)
     """
     prop_config = config_dict['property_matching']
     num_windows = prop_config['num_property_windows']
@@ -96,7 +97,6 @@ def get_progressive_windows_from_config(config_dict: dict) -> List[List[float]]:
     rotb_range = prop_config['rotatable_bonds_range']
     hba_range = prop_config['hb_acceptors_range']
     hbd_range = prop_config['hb_donors_range']
-    charge_range = prop_config['charge_range']
     
     windows = []
     for i in range(num_windows):
@@ -108,18 +108,16 @@ def get_progressive_windows_from_config(config_dict: dict) -> List[List[float]]:
         rotb_tol = rotb_range[0] + factor * (rotb_range[1] - rotb_range[0])
         hba_tol = hba_range[0] + factor * (hba_range[1] - hba_range[0])
         hbd_tol = hbd_range[0] + factor * (hbd_range[1] - hbd_range[0])
-        charge_tol = charge_range[0] + factor * (charge_range[1] - charge_range[0])
         
         # Ensure discrete properties remain integers
         rotb_tol = int(python2_round(rotb_tol))
         hba_tol = int(python2_round(hba_tol))
         hbd_tol = int(python2_round(hbd_tol))
-        charge_tol = int(python2_round(charge_tol))
         # Round logP to 1 decimal and MW to whole number
         logp_tol = python2_round(logp_tol,1)
         mw_tol = python2_round(mw_tol)
 
-        windows.append([mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol, charge_tol])
+        windows.append([mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol])
     
     # Match previous functionality where MWT and logP windows won't start at 0
     if windows[0][0] == 0:
@@ -142,6 +140,7 @@ def compare_properties_with_windows(lig_props: Tuple, dec_props: Tuple,
         
     Returns:
         Window number (0=best match) or None if no match
+        Note: Charge matching is always exact (no tolerance)
     """
     lig_mw, lig_logp, lig_rotb, lig_hbd, lig_hba, lig_charge = lig_props
     dec_mw, dec_logp, dec_rotb, dec_hbd, dec_hba, dec_charge = dec_props
@@ -150,13 +149,13 @@ def compare_properties_with_windows(lig_props: Tuple, dec_props: Tuple,
     lig_mw_round = int(python2_round(lig_mw))
     lig_logp_round = python2_round(lig_logp,2)
 
-    for window_num, (mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol, charge_tol) in enumerate(windows):
+    for window_num, (mw_tol, logp_tol, rotb_tol, hbd_tol, hba_tol) in enumerate(windows):
         if (abs(dec_mw - lig_mw_round) <= mw_tol and
             abs(dec_logp - lig_logp_round) <= logp_tol and
             abs(dec_rotb - lig_rotb) <= rotb_tol and
             abs(dec_hbd - lig_hbd) <= hbd_tol and
             abs(dec_hba - lig_hba) <= hba_tol and
-            (dec_charge is None or lig_charge is None or abs(dec_charge - lig_charge) <= charge_tol)):
+            (dec_charge is None or lig_charge is None or dec_charge == lig_charge)):
             return window_num
     
     return None

@@ -51,7 +51,7 @@ class FilteringStep(DecoyGenStep):
                 
             self.log_info(f"Found {len(lig_property_dict)} ligands and {len(decoy_property_dict)} decoys")
             
-            # Calculate Tanimoto coefficients if enabled
+            # Calculate Tanimoto coefficients (protonation filtering now done in retrieval step)
             self.log_info("Calculating Tanimoto coefficients...")
             decoy_tc_list = self._calculate_tanimoto_coefficients(lig_property_dict, decoy_property_dict)
             
@@ -134,8 +134,8 @@ class FilteringStep(DecoyGenStep):
                         parts = line.strip().split()
                         if len(parts) >= 2:
                             decoy_smiles, zinc_id = parts[0], parts[1]
-                            # TODO: need to add protonation checks to the decoy filtering
-                            props = get_molecular_properties(decoy_smiles, get_charge=False)
+                            # Get properties including charge (protonation filtering now done in retrieval)
+                            props = get_molecular_properties(decoy_smiles, get_charge=True)
                             
                             # Calculate TC to closest ligand (placeholder for now)
                             tc_to_lig = 0.0
@@ -312,7 +312,7 @@ class FilteringStep(DecoyGenStep):
                 for lig_id in lig_order:
                     lig_props = lig_property_dict[lig_id]
                     window = self._compare_properties(lig_props, decoy_props)
-                    decoy_windows.append(window if window is not None else 1000)  # 1000 = bad match
+                    decoy_windows.append(window)
                 
                 dec_windows.append(decoy_windows)
             
@@ -322,7 +322,7 @@ class FilteringStep(DecoyGenStep):
             
             # Solve ILP assignment problem
             self.log_info("Solving optimization problem...")
-            assignments = self._solve_assignment_ilp(dec_windows, pref_decoys)
+            assignments = self._solve_assignment_ilp(dec_windows, pref_decoys, lig_order, decoy_order)
             
             if assignments is None:
                 self.log_error("ILP optimization failed")
@@ -363,7 +363,7 @@ class FilteringStep(DecoyGenStep):
         
         return compare_properties_with_windows(lig_tuple, dec_tuple, windows)
     
-    def _solve_assignment_ilp(self, dec_windows: List[List[int]], pref_decoys: int) -> Optional[List[List[int]]]:
+    def _solve_assignment_ilp(self, dec_windows: List[List[int]], pref_decoys: int, lig_order: List[str], decoy_order: List[str]) -> Optional[List[List[int]]]:
         """Solve the decoy assignment problem using Integer Linear Programming"""
         
         n = len(dec_windows)        # Number of decoys
@@ -373,35 +373,275 @@ class FilteringStep(DecoyGenStep):
         # Create the problem
         prob = pulp.LpProblem("DecoyAssignmentProblem", pulp.LpMinimize)
         
-        # Create decision variables
+        # Create decision variables only for valid assignments
+        valid_assignments = []
+        
+        for i in range(n):
+            for j in range(k):
+                if dec_windows[i][j] is not None:  # Valid match
+                    valid_assignments.append((i, j))
+        
+        if not valid_assignments:
+            self.log_error("No valid decoy-ligand assignments possible")
+            return None
+        
+        # Create decision variables only for valid assignments
         x = pulp.LpVariable.dicts("assignment", 
-                                 ((i, j) for i in range(n) for j in range(k)),
+                                 valid_assignments,
                                  lowBound=0, upBound=1, cat=pulp.LpBinary)
         
-        # Objective: minimize total matching cost
-        prob += pulp.lpSum([x[(i, j)] * dec_windows[i][j] for i in range(n) for j in range(k)])
+        # Objective: minimize total matching cost (minimize "window") (only for valid assignments)
+        prob += pulp.lpSum([x[(i, j)] * dec_windows[i][j] for (i, j) in valid_assignments])
         
         # Constraint: each decoy assigned to exactly one ligand
         for i in range(n):
-            prob += pulp.lpSum([x[(i, j)] for j in range(k)]) == 1
+            valid_for_decoy = [(decoy_idx, lig_idx) for (decoy_idx, lig_idx) in valid_assignments if decoy_idx == i]
+            if valid_for_decoy:
+                prob += pulp.lpSum([x[(decoy_idx, lig_idx)] for (decoy_idx, lig_idx) in valid_for_decoy]) == 1
         
-        # Constraint: each ligand gets at least minimum decoys (use minimum, not preferred)
+        # Check if we can meet minimum requirements BEFORE solving
         min_decoys = self.config.param_dict['generation']['minimum_decoys_per_ligand']
+        ligands_with_insufficient_decoys = []
+        
         for j in range(k):
-            prob += pulp.lpSum([x[(i, j)] for i in range(n)]) >= min_decoys
+            lig_id = lig_order[j]
+            this_ligand_valid = [(i, j_val) for (i, j_val) in valid_assignments if j_val == j]
+            valid_count = len(this_ligand_valid)
+            
+            if valid_count >= min_decoys:
+                # This ligand has enough valid decoys, enforce minimum
+                prob += pulp.lpSum([x[(i, j_val)] for (i, j_val) in this_ligand_valid]) >= min_decoys
+            else:
+                # This ligand cannot meet minimum requirements
+                ligands_with_insufficient_decoys.append((lig_id, valid_count, min_decoys))
+        
+        # If any ligands can't meet minimum, fail with helpful error message
+        if ligands_with_insufficient_decoys:
+            error_msg = f"Cannot meet minimum decoy requirements for {len(ligands_with_insufficient_decoys)} ligand(s):\n"
+            for lig_id, available, needed in ligands_with_insufficient_decoys:
+                error_msg += f"  - {lig_id}: {available} available, {needed} required\n"
+            
+            error_msg += "\nPossible solutions:\n"
+            error_msg += f"  a) Reduce minimum_decoys_per_ligand in config (currently {min_decoys})\n"
+            error_msg += f"  b) Increase max_tanimoto_between_decoys to allow more similar decoys\n"
+            error_msg += f"  c) Increase total_decoys_to_generate to retrieve more options\n"
+            error_msg += f"  d) Widen property_matching ranges to allow more diverse decoys\n"
+            error_msg += f"  e) Check if ligands with insufficient decoys have unusual properties\n"
+            
+            self.log_error(error_msg)
+            return None
         
         # Solve the problem
         prob.solve(pulp.PULP_CBC_CMD(msg=0))  # Suppress solver output
         
         if prob.status == 1:  # Optimal solution found
-            assignments = [[x[(i, j)].varValue for j in range(k)] for i in range(n)]
+            # Convert back to the original format
+            assignments = [[0 for j in range(k)] for i in range(n)]
+            
+            for (i, j) in valid_assignments:
+                if x[(i, j)].varValue and x[(i, j)].varValue > 0.5:  # Assigned
+                    assignments[i][j] = 1
+            
             return assignments
         else:
             self.log_error(f"ILP solver status: {pulp.LpStatus[prob.status]}")
             return None
     
+    def _apply_protonation_filtering(self, lig_property_dict: Dict, decoy_property_dict: Dict) -> Dict:
+        """Apply protonation-based filtering to decoys"""
+        try:
+            
+            # Get property windows for comparison
+            windows = get_progressive_windows_from_config(self.config.param_dict)
+            
+            # Track which decoys match which ligands
+            ligand_to_decoys = {}  # {lig_id: {decoy_id: (protomer_smiles, original_smiles, score)}}
+            all_valid_decoys = {}  # Final set of decoys that match at least one ligand
+            
+            for lig_id, lig_props in lig_property_dict.items():
+                self.log_info(f"Processing protonation filtering for ligand {lig_id}")
+                
+                # Extract ligand properties tuple (mw, logp, rotb, hbd, hba, charge)
+                ligand_tuple = tuple(lig_props[2:8])  # Skip lig_id and smiles
+                self.log_info(f"Ligand {lig_id} properties: {ligand_tuple} (charge: {ligand_tuple[5]})")
+                
+                # Create decoy SMILES dict for this ligand's potential decoys
+                decoy_smiles_dict = {decoy_id: props[0] for decoy_id, props in decoy_property_dict.items()}
+                
+                try:
+                    # Apply protonation filtering for this specific ligand
+                    matching_decoys = self._filter_by_protonation_match(
+                        ligand_tuple, 
+                        decoy_smiles_dict, 
+                        windows,
+                        ph=7.4,
+                        batch_size=50  # Process in smaller batches
+                    )
+                    
+                    # Store ligand-specific matches
+                    ligand_to_decoys[lig_id] = matching_decoys
+                    
+                    self.log_info(f"Ligand {lig_id}: found {len(matching_decoys)} matching decoys")
+                    
+                    for decoy_id, (protomer_smiles, original_smiles, score) in matching_decoys.items():
+                        # Add to global valid decoys set (but preserve best protomer if multiple ligands match)
+                        if decoy_id not in all_valid_decoys:
+                            # Update decoy properties with protomer information
+                            original_props = decoy_property_dict[decoy_id].copy()
+                            
+                            # Store protomer SMILES in position 8 (prot_id field)
+                            original_props[8] = protomer_smiles
+                            
+                            # Update charge from protomer (position 7 is charge)
+                            try:
+                                protomer_props = get_molecular_properties(protomer_smiles, get_charge=True)
+                                original_props[7] = protomer_props[5]  # Update charge from protomer
+                                self.log_debug(f"Updated charge for {decoy_id}: {original_props[7]}")
+                            except Exception as e:
+                                self.log_warning(f"Failed to get protomer charge for {decoy_id}: {e}")
+                            
+                            all_valid_decoys[decoy_id] = original_props
+                    
+                except Exception as e:
+                    self.log_error(f"Protonation filtering failed for ligand {lig_id}: {e}")
+                    # Continue with other ligands
+                    continue
+            
+            # Store ligand-to-decoys mapping for use in assignment
+            self._ligand_decoy_matches = ligand_to_decoys
+            
+            self.log_info(f"Total unique decoys passing protonation filter: {len(all_valid_decoys)}")
+            return all_valid_decoys
+            
+        except ImportError:
+            self.log_error("Protonation module not available - skipping protonation filtering")
+            self.log_error("FALLBACK: Using original decoys without protonation filtering")
+            return decoy_property_dict
+        except Exception as e:
+            self.log_error(f"Protonation filtering failed: {e}")
+            self.log_error("FALLBACK: Using original decoys without protonation filtering")
+            # Fall back to original decoys if protonation fails
+            return decoy_property_dict
+    
+    def _filter_by_protonation_match(self, ligand_props: tuple, decoy_smiles_dict: Dict[str, str], 
+                                   property_windows: List[List[float]], 
+                                   ph: float = 7.4, batch_size: int = 100) -> Dict[str, tuple]:
+        """
+        Filter decoys based on whether their protomers match ligand properties
+        
+        Args:
+            ligand_props: (mw, logp, rotb, hbd, hba, charge) for ligand
+            decoy_smiles_dict: {decoy_id: decoy_smiles} for decoys to filter
+            property_windows: Progressive property tolerance windows
+            ph: pH for protomer generation
+            batch_size: Number of decoys to process in each batch
+            
+        Returns:
+            Dict {decoy_id: (protomer_smiles, decoy_smiles, protomer_score)} for matching decoys
+        """
+        from pydock3.protonation import generate_protomers, ProtonationError
+        
+        if not decoy_smiles_dict:
+            return {}
+        
+        self.log_info(f"Filtering {len(decoy_smiles_dict)} decoys based on protonation matching")
+        self.log_info(f"Ligand properties: MW={ligand_props[0]:.1f}, LogP={ligand_props[1]:.2f}, "
+                     f"RotB={ligand_props[2]}, HBD={ligand_props[3]}, HBA={ligand_props[4]}, Charge={ligand_props[5]}")
+        
+        matching_decoys = {}
+        decoy_items = list(decoy_smiles_dict.items())
+        
+        # Process decoys in batches for efficiency
+        for i in range(0, len(decoy_items), batch_size):
+            batch = decoy_items[i:i + batch_size]
+            self.log_debug(f"Processing batch {i//batch_size + 1}: {len(batch)} decoys")
+            
+            # Prepare input for protomer generation
+            smiles_with_names = [f"{smiles} {decoy_id}" for decoy_id, smiles in batch]
+            
+            try:
+                # Generate protomers for this batch
+                protomer_results = generate_protomers(smiles_with_names, ph=ph)
+                self.log_info(f"Generated {len(protomer_results)} total protomers for batch")
+                
+                # Check each protomer against ligand properties
+                for protomer_smiles, decoy_id, score in protomer_results:
+                    if decoy_id in decoy_smiles_dict:
+                        original_smiles = decoy_smiles_dict[decoy_id]
+                        
+                        try:
+                            # Calculate protomer properties
+                            protomer_props = get_molecular_properties(protomer_smiles, get_charge=True)
+                            
+                            # Compare with ligand using exact charge matching
+                            window = compare_properties_with_windows(ligand_props, protomer_props, property_windows)
+                            
+                            
+                            if window is not None:
+                                matching_decoys[decoy_id] = (protomer_smiles, original_smiles, score)
+                                self.log_debug(f"Match found: {decoy_id} -> {protomer_smiles} (window {window}, score {score:.2f})")
+                        
+                        except Exception as e:
+                            self.log_warning(f"Failed to process protomer {protomer_smiles} for {decoy_id}: {e}")
+                            continue
+                
+            except ProtonationError as e:
+                self.log_error(f"Batch protomer generation failed: {e}")
+                # Continue with next batch rather than failing completely
+                continue
+        
+        self.log_info(f"Found {len(matching_decoys)} decoys with matching protomers")
+        return matching_decoys
+    
+    def _calculate_backup_decoys(self, lig_property_dict: Dict, decoy_property_dict: Dict, 
+                                assignment_dict: Dict, target_decoys: int) -> Dict:
+        """Split each ligand's assignments into main and backup decoys"""
+        backup_dict = {}
+        
+        # Get progressive windows for ranking quality
+        windows = get_progressive_windows_from_config(self.config.param_dict)
+        
+        for lig_id, assigned_decoys in assignment_dict.items():
+            if len(assigned_decoys) <= target_decoys:
+                # This ligand doesn't have enough for backups
+                backup_dict[lig_id] = []
+                continue
+            
+            # Get ligand properties for comparison
+            lig_props = lig_property_dict[lig_id]
+            lig_tuple = tuple(lig_props[2:8])  # (mw, logp, rotb, hbd, hba, charge)
+            
+            # Calculate quality score for each assigned decoy
+            decoy_scores = []
+            for decoy_id in assigned_decoys:
+                decoy_props = decoy_property_dict[decoy_id]
+                dec_tuple = tuple(decoy_props[2:8])
+                window = compare_properties_with_windows(lig_tuple, dec_tuple, windows)
+                decoy_scores.append((decoy_id, window if window is not None else 999))
+            
+            # Sort by quality (lower window = better match)
+            decoy_scores.sort(key=lambda x: x[1])
+            
+            # Split into main and backup
+            main_decoys = [decoy_id for decoy_id, _ in decoy_scores[:target_decoys]]
+            backup_decoys = [(decoy_id, window) for decoy_id, window in decoy_scores[target_decoys:]]
+            
+            # Update assignment_dict to only contain main decoys
+            assignment_dict[lig_id] = main_decoys
+            backup_dict[lig_id] = backup_decoys
+            
+            self.log_info(f"Ligand {lig_id}: {len(main_decoys)} main, {len(backup_decoys)} backup decoys")
+        
+        return backup_dict
+    
     def _write_final_assignments(self, lig_property_dict: Dict, decoy_property_dict: Dict, assignment_dict: Dict) -> None:
-        """Write final decoy assignments to files"""
+        """Write final decoy assignments to files with main and backup decoys"""
+        
+        # Get target decoys per ligand for determining main vs backup
+        target_decoys = self.config.param_dict['generation']['target_decoys_per_ligand']
+        
+        # Calculate backup decoys for each ligand
+        backup_dict = self._calculate_backup_decoys(lig_property_dict, decoy_property_dict, assignment_dict, target_decoys)
         
         # Write summary
         summary_file = self.get_output_file("filtered_decoys_summary.txt")
@@ -410,32 +650,68 @@ class FilteringStep(DecoyGenStep):
             f.write(f"========================\n")
             f.write(f"Total ligands: {len(lig_property_dict)}\n")
             f.write(f"Total decoys: {len(decoy_property_dict)}\n")
-            f.write(f"Decoys assigned: {sum(len(decoys) for decoys in assignment_dict.values())}\n\n")
+            f.write(f"Main decoys assigned: {sum(len(decoys) for decoys in assignment_dict.values())}\n")
+            f.write(f"Backup decoys available: {sum(len(backups) for backups in backup_dict.values())}\n\n")
             
             for lig_id, decoys in assignment_dict.items():
-                f.write(f"{lig_id}: {len(decoys)} decoys assigned\n")
+                backup_count = len(backup_dict.get(lig_id, []))
+                f.write(f"{lig_id}: {len(decoys)} main decoys, {backup_count} backup decoys\n")
         
-        # Write assignment log
+        # Write assignment log (main decoys only)
         log_file = self.get_output_file("assignment_log.txt")
         with open(log_file, 'w') as f:
-            f.write("Ligand_ID\tDecoy_ID\tDecoy_SMILES\tLigand_TC\tMW\tLogP\tRotB\tHBD\tHBA\tCharge\n")
+            f.write("Ligand_ID\tDecoy_ID\tDecoy_SMILES\tLigand_TC\tMW\tLogP\tRotB\tHBD\tHBA\tCharge\tType\n")
             
             for lig_id, decoy_ids in assignment_dict.items():
                 for decoy_id in decoy_ids:
                     if decoy_id in decoy_property_dict:
                         props = decoy_property_dict[decoy_id]
-                        f.write(f"{lig_id}\t{decoy_id}\t{props[0]}\t{props[9]:.3f}\t{props[2]:.1f}\t{props[3]:.2f}\t{props[4]}\t{props[5]}\t{props[6]}\t{props[7]}\n")
+                        f.write(f"{lig_id}\t{decoy_id}\t{props[0]}\t{props[9]:.3f}\t{props[2]:.1f}\t{props[3]:.2f}\t{props[4]}\t{props[5]}\t{props[6]}\t{props[7]}\tmain\n")
+        
+        # Write backup assignment log
+        backup_log_file = self.get_output_file("backup_assignment_log.txt")
+        with open(backup_log_file, 'w') as f:
+            f.write("Ligand_ID\tDecoy_ID\tDecoy_SMILES\tLigand_TC\tMW\tLogP\tRotB\tHBD\tHBA\tCharge\tWindow\tRank\n")
+            
+            for lig_id, backup_list in backup_dict.items():
+                for rank, (decoy_id, window) in enumerate(backup_list, 1):
+                    if decoy_id in decoy_property_dict:
+                        props = decoy_property_dict[decoy_id]
+                        f.write(f"{lig_id}\t{decoy_id}\t{props[0]}\t{props[9]:.3f}\t{props[2]:.1f}\t{props[3]:.2f}\t{props[4]}\t{props[5]}\t{props[6]}\t{props[7]}\t{window}\t{rank}\n")
         
         # Write individual ligand files (matching original format)
         ligand_map = self._read_ligand_map()
         
         for ligand_num, (smiles, lig_id) in ligand_map.items():
             if lig_id in assignment_dict:
+                # Get ligand properties
+                lig_props = lig_property_dict[lig_id]
+                
+                # Main decoys file
                 assignment_file = self.get_output_file(f"{ligand_num}_final_property_matched_decoys.txt")
                 with open(assignment_file, 'w') as f:
-                    f.write("SMILES ZINC_ID logP #Rotatable_Bonds #HBond_Donors #HBond_Acceptors Charge Protomer_ID TC_TO_LIG\n")
+                    f.write("SMILES ZINC_ID MW LogP #Rotatable_Bonds #HBond_Donors #HBond_Acceptors Charge Protomer_ID TC_TO_LIG\n")
                     
+                    # Write ligand as first row
+                    f.write(f"{lig_props[1]} {lig_props[0]} {lig_props[2]:.1f} {lig_props[3]:.2f} {lig_props[4]} {lig_props[5]} {lig_props[6]} {lig_props[7]} LIGAND 1.00\n")
+                    
+                    # Write decoys
                     for decoy_id in assignment_dict[lig_id]:
                         if decoy_id in decoy_property_dict:
                             props = decoy_property_dict[decoy_id]
-                            f.write(f"{props[0]} {props[1]} {props[3]} {props[4]} {props[5]} {props[6]} {props[7]} {props[8]} {props[9]:.6f}\n")
+                            f.write(f"{props[0]} {props[1]} {props[2]:.1f} {props[3]:.2f} {props[4]} {props[5]} {props[6]} {props[7]} {props[8]} {props[9]:.2f}\n")
+                
+                # Backup decoys file
+                if lig_id in backup_dict and backup_dict[lig_id]:
+                    backup_file = self.get_output_file(f"{ligand_num}_backup_decoys.txt")
+                    with open(backup_file, 'w') as f:
+                        f.write("SMILES ZINC_ID MW LogP #Rotatable_Bonds #HBond_Donors #HBond_Acceptors Charge Protomer_ID TC_TO_LIG Window Rank\n")
+                        
+                        # Write ligand as first row
+                        f.write(f"{lig_props[1]} {lig_props[0]} {lig_props[2]:.1f} {lig_props[3]:.2f} {lig_props[4]} {lig_props[5]} {lig_props[6]} {lig_props[7]} LIGAND 1.00 0 0\n")
+                        
+                        # Write backup decoys
+                        for rank, (decoy_id, window) in enumerate(backup_dict[lig_id], 1):
+                            if decoy_id in decoy_property_dict:
+                                props = decoy_property_dict[decoy_id]
+                                f.write(f"{props[0]} {props[1]} {props[2]:.1f} {props[3]:.2f} {props[4]} {props[5]} {props[6]} {props[7]} {props[8]} {props[9]:.2f} {window} {rank}\n")
