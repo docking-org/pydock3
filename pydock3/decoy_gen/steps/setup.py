@@ -124,21 +124,29 @@ class SetupStep(DecoyGenStep):
         return ligands
     
     def _protonate_ligands(self, ligands: Dict[str, str]) -> Dict[str, List[str]]:
-        """Generate protomers for ligands using RDKit"""
-        from rdkit.Chem import rdMolDescriptors
+        """Generate protomers for ligands using ChemAxon integration"""
+        from pydock3.protonation.core import generate_protomers
         
         processed = {}
         
         for lig_id, smiles in ligands.items():
             mol = Chem.MolFromSmiles(smiles)
             if mol is None:
+                self.log_error(f"Invalid SMILES for ligand {lig_id}: {smiles}")
                 continue
                 
-            # For now, just use the original SMILES (placeholder for real protonation)
-            # TODO: Implement proper protonation state enumeration
-            # This could use tools like ChemAxon or other protonation libraries
-            canonical_smiles = Chem.MolToSmiles(mol)
-            processed[f"{lig_id}_0"] = [canonical_smiles]
+            # Generate protomers using ChemAxon
+            protomers = generate_protomers(smiles, ph=7.4)
+            
+            if not protomers:
+                self.log_error(f"Protonation failed for ligand {lig_id}: {smiles}")
+                continue
+                
+            # Use all protomers, indexed by variant number
+            for i, protomer_smiles in enumerate(protomers):
+                processed[f"{lig_id}_{i}"] = [protomer_smiles]
+            
+            self.log_debug(f"Generated {len(protomers)} protomers for ligand {lig_id}")
             
         return processed
     
