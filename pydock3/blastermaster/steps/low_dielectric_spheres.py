@@ -38,11 +38,10 @@ class LowDielectricSpheresSelectionStep(BlasterStep):
             program_file_path=ProgramFilePaths.MAKESPHERES1_PROGRAM_FILE_PATH,
         )
 
-        self.min_num_spheres = min_num_spheres
 
     @BlasterStep.handle_run_func
     def run(self):
         """run the makespheres1.cli.pl perl script to make low dielectric spheres"""
 
-        run_str = f"{self.program_file.path} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.all_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.low_dielectric_spheres_outfile.name} {self.parameters.min_num_spheres.value}"
+        run_str = f"{self.program_file.path} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.all_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.low_dielectric_spheres_outfile.name} {self.parameters.min_num_spheres_parameter.value}"
         self.run_command(run_str)
