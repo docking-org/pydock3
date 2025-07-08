@@ -35,9 +35,13 @@ dock_files_generation:
 
   matching_spheres_generation: include('matching_spheres_generation', required=False)
 
+  molecular_surface_density: include('molecular_surface_density', required=False)
+
 # See below for indock schema. Eventually this should just be optional for some things. We largely don't change these numbers
 indock_file_generation: include('indock_file_generation', required=True)
 
+---
+molecular_surface_density: num(required=False)
 ---
 box_generation:
   margin: num(required=False)

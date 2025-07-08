@@ -47,6 +47,7 @@ step:
         penetration: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
         distance_to_ligand: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
       # See below for optional schemas for dockfile generation 
+      molecular_surface_density: include('molecular_surface_density', required=False)
       box_generation: include('box_generation', required=False)
       electrostatics_grid_gen: include('electrostatics_grid_gen', required=False)
       desolv_grid_gen: include('desolv_grid_gen', required=False)
@@ -136,6 +137,8 @@ step_list_item:
 sequence_list_item:
   sequence: include('sequence')
 
+---
+molecular_surface_density: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'))
 ---
 box_generation:
   margin: any(regex('^[\^]$'), num(), list(num()), include('numerically_operative_multivalued_parameter'), required=False)
