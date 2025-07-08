@@ -4,14 +4,14 @@ dock_files_generation:
 
   thin_spheres_elec:
     use: true
-    molecular_surface_density: 10.0
+    molecular_surface_density: 5.0
     distance_to_surface: 1.0
     penetration: 0.0
     distance_to_ligand: 4.0
 
   thin_spheres_desolv:
     use: true
-    molecular_surface_density: 10.0
+    molecular_surface_density: 5.0
     distance_to_surface: 0.1
     penetration: 0.0
     distance_to_ligand: 4.0
