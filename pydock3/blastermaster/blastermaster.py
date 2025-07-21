@@ -134,7 +134,11 @@ def get_blaster_steps(blaster_files, flat_param_dict, working_dir):
             binding_site_residues_infile=blaster_files.binding_site_residues_file,
             radii_infile=blaster_files.molecular_surface_radii_file,
             molecular_surface_outfile=blaster_files.molecular_surface_file,
-            molecular_surface_density_parameter=flat_param_dict['molecular_surface_density'],
+            **(
+                {'molecular_surface_density_parameter': flat_param_dict['molecular_surface_density']}
+                if 'molecular_surface_density' in flat_param_dict
+                else {}
+            )
         )
     )
 
