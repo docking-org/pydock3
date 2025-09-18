@@ -41,10 +41,10 @@ class SetupStep(DecoyGenStep):
             # Process ligands (protonate if requested)
             if self.config.param_dict['input']['protonate_ligands']:
                 self.log_info("Protonation enabled - processing ligands")
-                processed_ligands = self._protonate_ligands(ligands)
+                processed_ligands = self._protonate_ligands(ligands) # Returns dict with values of [neutral_smi, charged_smi]
             else:
                 self.log_info("Protonation disabled - using original ligands")
-                processed_ligands = {f"{lig_id}_0": [smiles] for lig_id, smiles in ligands.items()}
+                processed_ligands = {f"{lig_id}_0": [smiles, smiles] for lig_id, smiles in ligands.items()} # mirror og_smi, charged_smi like protonation
             
             if not processed_ligands:
                 self.log_error("No ligands after processing")
@@ -56,7 +56,7 @@ class SetupStep(DecoyGenStep):
             fingerprints = self._generate_fingerprints(processed_ligands)
             
             # Create individual ligand directories
-            self._create_ligand_directories(processed_ligands)
+            # self._create_ligand_directories(processed_ligands) # NOTE: I don't think this is required
             
             # Save ligand map
             self._save_ligand_map(processed_ligands)
@@ -136,15 +136,16 @@ class SetupStep(DecoyGenStep):
                 continue
                 
             # Generate protomers using ChemAxon
-            protomers = generate_protomers(smiles, ph=7.4)
+            smiles_with_name = [f"{smiles} {lig_id}"]
+            protomers = generate_protomers(smiles_with_name, ph=7.4)
             
             if not protomers:
                 self.log_error(f"Protonation failed for ligand {lig_id}: {smiles}")
                 continue
                 
             # Use all protomers, indexed by variant number
-            for i, protomer_smiles in enumerate(protomers):
-                processed[f"{lig_id}_{i}"] = [protomer_smiles]
+            for i, (protomer_smiles, original_name, score) in enumerate(protomers):
+                processed[f"{lig_id}_{i}"] = [smiles, protomer_smiles] # Keep track of the original input smiles too
             
             self.log_debug(f"Generated {len(protomers)} protomers for ligand {lig_id}")
             
@@ -158,7 +159,7 @@ class SetupStep(DecoyGenStep):
         fingerprints = {}
         
         for lig_id, smiles_list in ligands.items():
-            smiles = smiles_list[0]  # Use first (canonical) SMILES
+            smiles = smiles_list[0]  # Use first (neutral) SMILES
             mol = Chem.MolFromSmiles(smiles)
             if mol is None:
                 continue
@@ -187,7 +188,7 @@ class SetupStep(DecoyGenStep):
         
         with open(map_file, 'w') as f:
             for i, (lig_id, smiles_list) in enumerate(ligands.items(), 1):
-                f.write(f"ligand_{i} {smiles_list[0]} {lig_id}\n")
+                f.write(f"ligand_{i} {smiles_list[0]} {smiles_list[1]} {lig_id}\n") # Save neutral smiles and then charged smiles
     
     def _save_fingerprints(self, fingerprints: Dict[str, str]) -> None:
         """Save fingerprints to file"""

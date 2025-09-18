@@ -51,7 +51,7 @@ class FilteringStep(DecoyGenStep):
                 
             self.log_info(f"Found {len(lig_property_dict)} ligands and {len(decoy_property_dict)} decoys")
             
-            # Calculate Tanimoto coefficients (protonation filtering now done in retrieval step)
+            # Calculate Tanimoto coefficients
             self.log_info("Calculating Tanimoto coefficients...")
             decoy_tc_list = self._calculate_tanimoto_coefficients(lig_property_dict, decoy_property_dict)
             
@@ -119,10 +119,10 @@ class FilteringStep(DecoyGenStep):
         ligand_map = self._read_ligand_map()
         
         # Collect ligand properties
-        for ligand_num, (smiles, lig_id) in ligand_map.items():
-            props = get_molecular_properties(smiles, get_charge=True)
-            # [lig_id, smiles, mw, logp, rotb, hbd, hba, charge]
-            lig_property_dict[lig_id] = [lig_id, smiles] + list(props)
+        for ligand_num, (neutral_smiles, prot_smiles, lig_id) in ligand_map.items():
+            props = get_molecular_properties(prot_smiles, get_charge=True)
+            # [lig_id, neutral_smiles, prot_smiles, mw, logp, rotb, hbd, hba, charge]
+            lig_property_dict[lig_id] = [lig_id, neutral_smiles, prot_smiles] + list(props)
         
         # Collect decoy properties
         retrieval_dir = os.path.join(os.path.dirname(self.step_dir.path), "retrieval")
@@ -132,19 +132,16 @@ class FilteringStep(DecoyGenStep):
                 with open(decoy_file, 'r') as f:
                     for line in f:
                         parts = line.strip().split()
-                        if len(parts) >= 2:
-                            decoy_smiles, zinc_id = parts[0], parts[1]
+                        if len(parts) >= 3:
+                            decoy_neutral_smiles, decoy_prot_smiles, zinc_id = parts[0], parts[1], parts[2]
                             # Get properties including charge (protonation filtering now done in retrieval)
-                            props = get_molecular_properties(decoy_smiles, get_charge=True)
+                            props = get_molecular_properties(decoy_prot_smiles, get_charge=True)
                             
-                            # Calculate TC to closest ligand (placeholder for now)
-                            tc_to_lig = 0.0
-                            closest_lig = list(ligand_map.values())[0][1]  # First ligand as placeholder
-                            
-                            # [dec_smiles, zinc_id, mw, logp, rotb, hbd, hba, charge, prot_id, tc_to_lig, closest_lig]
+                            # [dec_neutral_smiles, dec_prot_smiles, zinc_id, mw, logp, rotb, hbd, hba, charge, prot_id, tc_to_lig, closest_lig]
+                            # tc_to_lig and closest_lig start at None and are calculated in the next step
                             decoy_property_dict[zinc_id] = [
-                                decoy_smiles, zinc_id, props[0], props[1], props[2], 
-                                props[3], props[4], props[5], "NA", tc_to_lig, closest_lig
+                                decoy_neutral_smiles, decoy_prot_smiles, zinc_id, props[0], props[1], props[2], 
+                                props[3], props[4], props[5], "NA", None, None
                             ]
         
         return lig_property_dict, decoy_property_dict
@@ -162,11 +159,12 @@ class FilteringStep(DecoyGenStep):
             with open(map_file, 'r') as f:
                 for line in f:
                     parts = line.strip().split()
-                    if len(parts) >= 3:
+                    if len(parts) >= 4:
                         ligand_num = parts[0]  # e.g., "ligand_1"
-                        smiles = parts[1]
-                        lig_id = parts[2]
-                        ligand_map[ligand_num] = (smiles, lig_id)
+                        neutral_smiles = parts[1]
+                        prot_smiles = parts[2]
+                        lig_id = parts[3]
+                        ligand_map[ligand_num] = (neutral_smiles, prot_smiles, lig_id)
                         
         except Exception as e:
             self.log_error(f"Error reading ligand map: {e}")
@@ -179,8 +177,8 @@ class FilteringStep(DecoyGenStep):
         
         # Check if we can use cached Tanimoto matrix
         tanimoto_cache_file = self.get_output_file("tanimoto_matrix.pkl")
-        ligand_smiles = [props[1] for props in lig_property_dict.values()]
-        decoy_smiles = [props[0] for props in decoy_property_dict.values()]
+        ligand_smiles = [props[1] for props in lig_property_dict.values()] # neutral_smiles
+        decoy_smiles = [props[0] for props in decoy_property_dict.values()] # neutral_smiles
         ligand_ids = list(lig_property_dict.keys())
         decoy_ids = list(decoy_property_dict.keys())
         
@@ -192,6 +190,7 @@ class FilteringStep(DecoyGenStep):
                 tc_matrix, cached_lig_ids, cached_dec_ids = load_tanimoto_matrix(tanimoto_cache_file)
                 
                 # Reorder to match current order
+                # TODO: what the heck is this
                 lig_idx_map = {lig_id: i for i, lig_id in enumerate(cached_lig_ids)}
                 dec_idx_map = {dec_id: i for i, dec_id in enumerate(cached_dec_ids)}
                 
@@ -209,7 +208,7 @@ class FilteringStep(DecoyGenStep):
         # Find max TC for each decoy and update properties
         decoy_tc_list = []
         
-        for j, (decoy_id, decoy_props) in enumerate(decoy_property_dict.items()):
+        for j, (decoy_id, _) in enumerate(decoy_property_dict.items()):
             max_tc = 0.0
             closest_lig = None
             
@@ -221,8 +220,8 @@ class FilteringStep(DecoyGenStep):
                     closest_lig = lig_id
             
             # Update decoy properties with TC info
-            decoy_property_dict[decoy_id][9] = max_tc  # tc_to_lig
-            decoy_property_dict[decoy_id][10] = closest_lig  # closest_lig
+            decoy_property_dict[decoy_id][10] = max_tc  # tc_to_lig
+            decoy_property_dict[decoy_id][11] = closest_lig  # closest_lig
             
             decoy_tc_list.append((max_tc, decoy_id))
         
@@ -252,7 +251,7 @@ class FilteringStep(DecoyGenStep):
         decoy_fingerprints = {}
         for tc, decoy_id in sorted_decoys:
             if decoy_id in decoy_property_dict:
-                smiles = decoy_property_dict[decoy_id][0]
+                smiles = decoy_property_dict[decoy_id][0] # neutral smiles
                 mol = Chem.MolFromSmiles(smiles)
                 if mol:
                     fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048)
@@ -355,8 +354,8 @@ class FilteringStep(DecoyGenStep):
         """Compare ligand and decoy properties using progressive windows"""
         
         # Extract properties as tuples
-        lig_tuple = tuple(lig_props[2:8])  # (mw, logp, rotb, hbd, hba, charge)
-        dec_tuple = tuple(decoy_props[2:8])
+        lig_tuple = tuple(lig_props[3:9])  # (mw, logp, rotb, hbd, hba, charge)
+        dec_tuple = tuple(decoy_props[3:9])
         
         # Get progressive windows
         windows = get_progressive_windows_from_config(self.config.param_dict)
@@ -446,7 +445,10 @@ class FilteringStep(DecoyGenStep):
         else:
             self.log_error(f"ILP solver status: {pulp.LpStatus[prob.status]}")
             return None
-    
+
+# NOTE: I think the protonation was taken out of here and instead is while we are searching for ligands in the first place. 
+# I think we can safely delete these two functions 
+
     def _apply_protonation_filtering(self, lig_property_dict: Dict, decoy_property_dict: Dict) -> Dict:
         """Apply protonation-based filtering to decoys"""
         try:
@@ -609,13 +611,13 @@ class FilteringStep(DecoyGenStep):
             
             # Get ligand properties for comparison
             lig_props = lig_property_dict[lig_id]
-            lig_tuple = tuple(lig_props[2:8])  # (mw, logp, rotb, hbd, hba, charge)
+            lig_tuple = tuple(lig_props[3:9])  # (mw, logp, rotb, hbd, hba, charge)
             
             # Calculate quality score for each assigned decoy
             decoy_scores = []
             for decoy_id in assigned_decoys:
                 decoy_props = decoy_property_dict[decoy_id]
-                dec_tuple = tuple(decoy_props[2:8])
+                dec_tuple = tuple(decoy_props[3:9])
                 window = compare_properties_with_windows(lig_tuple, dec_tuple, windows)
                 decoy_scores.append((decoy_id, window if window is not None else 999))
             
@@ -660,29 +662,29 @@ class FilteringStep(DecoyGenStep):
         # Write assignment log (main decoys only)
         log_file = self.get_output_file("assignment_log.txt")
         with open(log_file, 'w') as f:
-            f.write("Ligand_ID\tDecoy_ID\tDecoy_SMILES\tLigand_TC\tMW\tLogP\tRotB\tHBD\tHBA\tCharge\tType\n")
+            f.write("Ligand_ID\tDecoy_ID\tDecoy_neutral_SMILES\tDecoy_protonated_SMILES\tLigand_TC\tMW\tLogP\tRotB\tHBD\tHBA\tCharge\tType\n")
             
             for lig_id, decoy_ids in assignment_dict.items():
                 for decoy_id in decoy_ids:
                     if decoy_id in decoy_property_dict:
                         props = decoy_property_dict[decoy_id]
-                        f.write(f"{lig_id}\t{decoy_id}\t{props[0]}\t{props[9]:.3f}\t{props[2]:.1f}\t{props[3]:.2f}\t{props[4]}\t{props[5]}\t{props[6]}\t{props[7]}\tmain\n")
+                        f.write(f"{lig_id}\t{decoy_id}\t{props[0]}\t{props[1]}\t{props[10]:.3f}\t{props[3]:.1f}\t{props[4]:.2f}\t{props[5]}\t{props[6]}\t{props[7]}\t{props[8]}\tmain\n")
         
         # Write backup assignment log
         backup_log_file = self.get_output_file("backup_assignment_log.txt")
         with open(backup_log_file, 'w') as f:
-            f.write("Ligand_ID\tDecoy_ID\tDecoy_SMILES\tLigand_TC\tMW\tLogP\tRotB\tHBD\tHBA\tCharge\tWindow\tRank\n")
+            f.write("Ligand_ID\tDecoy_ID\tDecoy_neutral_SMILES\tDecoy_protonated_SMILES\tLigand_TC\tMW\tLogP\tRotB\tHBD\tHBA\tCharge\tWindow\tRank\n")
             
             for lig_id, backup_list in backup_dict.items():
                 for rank, (decoy_id, window) in enumerate(backup_list, 1):
                     if decoy_id in decoy_property_dict:
                         props = decoy_property_dict[decoy_id]
-                        f.write(f"{lig_id}\t{decoy_id}\t{props[0]}\t{props[9]:.3f}\t{props[2]:.1f}\t{props[3]:.2f}\t{props[4]}\t{props[5]}\t{props[6]}\t{props[7]}\t{window}\t{rank}\n")
+                        f.write(f"{lig_id}\t{decoy_id}\t{props[0]}\t{props[1]}\t{props[10]:.3f}\t{props[3]:.1f}\t{props[4]:.2f}\t{props[5]}\t{props[6]}\t{props[7]}\t{props[8]}\t{window}\t{rank}\n")
         
         # Write individual ligand files (matching original format)
         ligand_map = self._read_ligand_map()
         
-        for ligand_num, (smiles, lig_id) in ligand_map.items():
+        for ligand_num, (neutral_smiles, prot_smiles, lig_id) in ligand_map.items():
             if lig_id in assignment_dict:
                 # Get ligand properties
                 lig_props = lig_property_dict[lig_id]
@@ -690,28 +692,28 @@ class FilteringStep(DecoyGenStep):
                 # Main decoys file
                 assignment_file = self.get_output_file(f"{ligand_num}_final_property_matched_decoys.txt")
                 with open(assignment_file, 'w') as f:
-                    f.write("SMILES ZINC_ID MW LogP #Rotatable_Bonds #HBond_Donors #HBond_Acceptors Charge Protomer_ID TC_TO_LIG\n")
+                    f.write("Neutral_SMILES Protonated_SMILES ZINC_ID MW LogP #Rotatable_Bonds #HBond_Donors #HBond_Acceptors Charge Protomer_ID TC_TO_LIG\n")
                     
                     # Write ligand as first row
-                    f.write(f"{lig_props[1]} {lig_props[0]} {lig_props[2]:.1f} {lig_props[3]:.2f} {lig_props[4]} {lig_props[5]} {lig_props[6]} {lig_props[7]} LIGAND 1.00\n")
+                    f.write(f"{lig_props[1]} {lig_props[2]} {lig_props[0]} {lig_props[3]:.1f} {lig_props[4]:.2f} {lig_props[5]} {lig_props[6]} {lig_props[7]} {lig_props[8]} LIGAND 1.00\n")
                     
                     # Write decoys
                     for decoy_id in assignment_dict[lig_id]:
                         if decoy_id in decoy_property_dict:
                             props = decoy_property_dict[decoy_id]
-                            f.write(f"{props[0]} {props[1]} {props[2]:.1f} {props[3]:.2f} {props[4]} {props[5]} {props[6]} {props[7]} {props[8]} {props[9]:.2f}\n")
+                            f.write(f"{props[0]} {props[1]} {props[2]} {props[3]:.1f} {props[4]:.2f} {props[5]} {props[6]} {props[7]} {props[8]} {props[9]} {props[10]:.2f}\n")
                 
                 # Backup decoys file
                 if lig_id in backup_dict and backup_dict[lig_id]:
                     backup_file = self.get_output_file(f"{ligand_num}_backup_decoys.txt")
                     with open(backup_file, 'w') as f:
-                        f.write("SMILES ZINC_ID MW LogP #Rotatable_Bonds #HBond_Donors #HBond_Acceptors Charge Protomer_ID TC_TO_LIG Window Rank\n")
+                        f.write("Neutral_SMILES Protonated_SMILES ZINC_ID MW LogP #Rotatable_Bonds #HBond_Donors #HBond_Acceptors Charge Protomer_ID TC_TO_LIG Window Rank\n")
                         
                         # Write ligand as first row
-                        f.write(f"{lig_props[1]} {lig_props[0]} {lig_props[2]:.1f} {lig_props[3]:.2f} {lig_props[4]} {lig_props[5]} {lig_props[6]} {lig_props[7]} LIGAND 1.00 0 0\n")
+                        f.write(f"{lig_props[1]} {lig_props[2]} {lig_props[0]} {lig_props[3]:.1f} {lig_props[4]:.2f} {lig_props[5]} {lig_props[6]} {lig_props[7]} {lig_props[8]} LIGAND 1.00 0 0\n")
                         
                         # Write backup decoys
                         for rank, (decoy_id, window) in enumerate(backup_dict[lig_id], 1):
                             if decoy_id in decoy_property_dict:
                                 props = decoy_property_dict[decoy_id]
-                                f.write(f"{props[0]} {props[1]} {props[2]:.1f} {props[3]:.2f} {props[4]} {props[5]} {props[6]} {props[7]} {props[8]} {props[9]:.2f} {window} {rank}\n")
+                                f.write(f"{props[0]} {props[1]} {props[2]} {props[3]:.1f} {props[4]:.2f} {props[5]} {props[6]} {props[7]} {props[8]} {props[9]} {props[10]:.2f} {window} {rank}\n")

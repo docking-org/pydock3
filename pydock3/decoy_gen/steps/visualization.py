@@ -81,10 +81,11 @@ class VisualizationStep(DecoyGenStep):
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 3:
-                    ligand_num, smiles, lig_id = parts[0], parts[1], parts[2]
+                    ligand_num, neutral_smiles, prot_smiles, lig_id = parts[0], parts[1], parts[2], parts[3]
                     ligand_data.append({
                         'ligand_num': ligand_num,
-                        'smiles': smiles,
+                        'neutral_smiles': neutral_smiles,
+                        'prot_smiles': prot_smiles,
                         'ligand_id': lig_id
                     })
         
@@ -101,16 +102,17 @@ class VisualizationStep(DecoyGenStep):
                 parts = line.strip().split()
                 if len(parts) >= 10:
                     decoy_info = {
-                        'smiles': parts[0],
-                        'zinc_id': parts[1],
-                        'ligand_id': parts[2],
-                        'tc_to_lig': float(parts[3]),
-                        'mw': float(parts[4]),
-                        'logp': float(parts[5]),
-                        'rotb': int(parts[6]),
-                        'hbd': int(parts[7]),
-                        'hba': int(parts[8]),
-                        'charge': int(parts[9])
+                        'neutral_smiles': parts[0],
+                        'prot_smiles': parts[1],
+                        'zinc_id': parts[2],
+                        'ligand_id': parts[3],
+                        'tc_to_lig': float(parts[4]),
+                        'mw': float(parts[5]),
+                        'logp': float(parts[6]),
+                        'rotb': int(parts[7]),
+                        'hbd': int(parts[8]),
+                        'hba': int(parts[9]),
+                        'charge': int(parts[10])
                     }
                     decoy_data.append(decoy_info)
                     
@@ -124,7 +126,7 @@ class VisualizationStep(DecoyGenStep):
         from pydock3.decoy_gen.utils import get_molecular_properties
         
         for lig_info in ligand_data:
-            props = get_molecular_properties(lig_info['smiles'], get_charge=True)
+            props = get_molecular_properties(lig_info['prot_smiles'], get_charge=True)
             lig_info.update({
                 'mw': props[0],
                 'logp': props[1], 
@@ -244,7 +246,7 @@ class VisualizationStep(DecoyGenStep):
             assigned_decoys = pd.DataFrame(assignments[lig_id])
             
             fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-            fig.suptitle(f'Ligand {lig_id} - Assigned Decoy Distributions\nLigand SMILES: {ligand["smiles"]}', 
+            fig.suptitle(f'Ligand {lig_id} - Assigned Decoy Distributions\nLigand SMILES: {ligand["prot_smiles"]}', 
                         fontsize=14, fontweight='bold')
             
             axes = axes.flatten()

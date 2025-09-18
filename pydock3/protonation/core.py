@@ -104,7 +104,7 @@ def generate_protomers(smiles_with_names: List[str], ph: float = 7.4,
     
     try:
         # Step 1: Generate tautomers
-        logger.debug("Step 1: Generating tautomers")
+        # logger.debug("Step 1: Generating tautomers")
         cmd1 = [cxcalc_path, "-g", "dominanttautomerdistribution", "-H", str(ph), "-C", "false", "-t", "tautomer-dist"]
         
         result1 = subprocess.run(cmd1, input=input_text, text=True, capture_output=True, timeout=timeout)
@@ -112,7 +112,7 @@ def generate_protomers(smiles_with_names: List[str], ph: float = 7.4,
             raise ProtonationError(f"Tautomer generation failed: {result1.stderr}")
         
         # Step 2: Filter tautomers by score
-        logger.debug("Step 2: Filtering tautomers")
+        # logger.debug("Step 2: Filtering tautomers")
         cmd2 = [molconvert_path, "sdf", "-g", "-c", f"tautomer-dist>={tautomer_limit}"]
         
         result2 = subprocess.run(cmd2, input=result1.stdout, text=True, capture_output=True, timeout=timeout)
@@ -120,7 +120,7 @@ def generate_protomers(smiles_with_names: List[str], ph: float = 7.4,
             raise ProtonationError(f"Tautomer filtering failed: {result2.stderr}")
         
         # Step 3: Generate protomers
-        logger.debug("Step 3: Generating protomers")
+        # logger.debug("Step 3: Generating protomers")
         cmd3 = [cxcalc_path, "-g", "microspeciesdistribution", "-H", str(ph), "-t", "protomer-dist"]
         
         result3 = subprocess.run(cmd3, input=result2.stdout, text=True, capture_output=True, timeout=timeout)
@@ -128,7 +128,7 @@ def generate_protomers(smiles_with_names: List[str], ph: float = 7.4,
             raise ProtonationError(f"Protomer generation failed: {result3.stderr}")
         
         # Step 4: Convert to SMILES with scores
-        logger.debug("Step 4: Converting to SMILES")
+        # logger.debug("Step 4: Converting to SMILES")
         cmd4 = [molconvert_path, "smiles", "-g", "-c", f"protomer-dist>={protomer_limit}", 
                 "-T", "name:tautomer-dist:protomer-dist"]
         

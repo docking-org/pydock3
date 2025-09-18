@@ -114,24 +114,26 @@ class PreparationStep(DecoyGenStep):
                 
                 for line in f:
                     parts = line.strip().split('\t')
-                    if len(parts) >= 8:  # Minimum required columns
+                    if len(parts) >= 9:  # Minimum required columns
                         lig_id = parts[0]
                         decoy_id = parts[1]
-                        decoy_smiles = parts[2]
-                        tc_to_lig = float(parts[3])
-                        mw = float(parts[4])
-                        logp = float(parts[5])
-                        rotb = int(parts[6])
-                        hbd = int(parts[7])
-                        hba = int(parts[8]) if len(parts) > 8 else 0
-                        charge = int(parts[9]) if len(parts) > 9 else 0
+                        neutral_decoy_smiles = parts[2]
+                        prot_decoy_smiles = parts[3]
+                        tc_to_lig = float(parts[4])
+                        mw = float(parts[5])
+                        logp = float(parts[6])
+                        rotb = int(parts[7])
+                        hbd = int(parts[8])
+                        hba = int(parts[9]) if len(parts) > 9 else 0
+                        charge = int(parts[10]) if len(parts) > 10 else 0
                         
                         if lig_id not in assignments:
                             assignments[lig_id] = []
                         
                         assignments[lig_id].append({
                             'decoy_id': decoy_id,
-                            'smiles': decoy_smiles,
+                            'neutral_smiles': neutral_decoy_smiles,
+                            'prot_smiles': prot_decoy_smiles,
                             'tc_to_lig': tc_to_lig,
                             'mw': mw,
                             'logp': logp,
@@ -154,11 +156,11 @@ class PreparationStep(DecoyGenStep):
             
             with open(smiles_file, 'w') as f:
                 # Write header
-                f.write("SMILES ZINC_ID TC_TO_LIG MW LogP RotB HBD HBA Charge\n")
+                f.write("NEUTRAL_SMILES PROTONATED_SMILES ZINC_ID TC_TO_LIG MW LogP RotB HBD HBA Charge\n")
                 
                 # Write decoys
                 for decoy in decoy_list:
-                    f.write(f"{decoy['smiles']} {decoy['decoy_id']} {decoy['tc_to_lig']:.2f} "
+                    f.write(f"{decoy['neutral_smiles']} {decoy['prot_smiles']} {decoy['decoy_id']} {decoy['tc_to_lig']:.2f} "
                            f"{decoy['mw']:.1f} {decoy['logp']:.2f} {decoy['rotb']} "
                            f"{decoy['hbd']} {decoy['hba']} {decoy['charge']}\n")
             
@@ -176,12 +178,12 @@ class PreparationStep(DecoyGenStep):
             
             with open(combined_file, 'w') as f:
                 # Write header with ligand info
-                f.write("SMILES ZINC_ID LIGAND_ID TC_TO_LIG MW LogP RotB HBD HBA Charge\n")
+                f.write("NEUTRAL_SMILES PROTONATED_SMILES ZINC_ID LIGAND_ID TC_TO_LIG MW LogP RotB HBD HBA Charge\n")
                 
                 total_decoys = 0
                 for lig_id, decoy_list in assignments.items():
                     for decoy in decoy_list:
-                        f.write(f"{decoy['smiles']} {decoy['decoy_id']} {lig_id} {decoy['tc_to_lig']:.2f} "
+                        f.write(f"{decoy['neutral_smiles']} {decoy['prot_smiles']} {decoy['decoy_id']} {lig_id} {decoy['tc_to_lig']:.2f} "
                                f"{decoy['mw']:.1f} {decoy['logp']:.2f} {decoy['rotb']} "
                                f"{decoy['hbd']} {decoy['hba']} {decoy['charge']}\n")
                         total_decoys += 1

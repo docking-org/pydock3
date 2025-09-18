@@ -160,7 +160,7 @@ def compare_properties_with_windows(lig_props: Tuple, dec_props: Tuple,
     
     return None
 
-
+# TODO: use bulk tanimoto to make this faster
 def calculate_tanimoto_matrix(ligand_smiles: List[str], decoy_smiles: List[str]) -> np.ndarray:
     """
     Calculate Tanimoto similarity matrix between ligands and decoys

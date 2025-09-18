@@ -37,10 +37,10 @@ class RetrievalStep(DecoyGenStep):
             
             # Process each ligand
             success_count = 0
-            for ligand_num, (smiles, lig_id) in ligand_map.items():
+            for ligand_num, (neutral_smiles, prot_smiles, lig_id) in ligand_map.items():
                 self.log_info(f"Processing ligand {ligand_num}: {lig_id}")
                 
-                success = self._query_zinc_for_ligand(ligand_num, smiles, lig_id)
+                success = self._query_zinc_for_ligand(ligand_num, neutral_smiles, prot_smiles, lig_id)
                 if success:
                     success_count += 1
                 else:
@@ -88,11 +88,12 @@ class RetrievalStep(DecoyGenStep):
             with open(map_file, 'r') as f:
                 for line in f:
                     parts = line.strip().split()
-                    if len(parts) >= 3:
+                    if len(parts) >= 4:
                         ligand_num = parts[0]  # e.g., "ligand_1"
-                        smiles = parts[1]
-                        lig_id = parts[2]
-                        ligand_map[ligand_num] = (smiles, lig_id)
+                        neutral_smiles = parts[1]
+                        prot_smiles = parts[2]
+                        lig_id = parts[3]
+                        ligand_map[ligand_num] = (neutral_smiles, prot_smiles, lig_id)
                         
         except Exception as e:
             self.log_error(f"Error reading ligand map: {e}")
@@ -100,17 +101,23 @@ class RetrievalStep(DecoyGenStep):
             
         return ligand_map
     
-    def _query_zinc_for_ligand(self, ligand_num: str, smiles: str, lig_id: str) -> bool:
+    def _query_zinc_for_ligand(self, ligand_num: str, neutral_smiles: str, prot_smiles: str, lig_id: str) -> bool:
         """Query ZINC20 database for a single ligand using progressive windowing"""
         try:
             # Calculate ligand properties
-            lig_props = get_molecular_properties(smiles, get_charge=True)
-            mw, logp, rotb, hbd, hba, charge = lig_props
+            # This looks funky but there's a reason. ZINC20 tranches are based on neutral smiles so we need
+            # to calculate the properties of the neutral smiles to do tranche mapping, but then we should
+            # use the properties of the protonated state for the rest of the calculations
+            neutral_lig_props = get_molecular_properties(neutral_smiles, get_charge=False)
+            neutral_mw, neutral_logp, neutral_rotb, neutral_hbd, neutral_hba, neutral_charge = neutral_lig_props
+            prot_lig_props = get_molecular_properties(prot_smiles, get_charge=True)
+            prot_mw, prot_logp, prot_rotb, prot_hbd, prot_hba, prot_charge = prot_lig_props
             
-            self.log_debug(f"Ligand properties - MW: {mw:.1f}, LogP: {logp:.2f}, RotB: {rotb}, HBA: {hba}, HBD: {hbd}, Charge: {charge}")
+            self.log_debug(f"(Neutral) Ligand properties - MW: {neutral_mw:.1f}, LogP: {neutral_logp:.2f}, RotB: {neutral_rotb}, HBA: {neutral_hba}, HBD: {neutral_hbd}, Charge: {neutral_charge}")
+            self.log_debug(f"(Protonated) Ligand properties - MW: {prot_mw:.1f}, LogP: {prot_logp:.2f}, RotB: {prot_rotb}, HBA: {prot_hba}, HBD: {prot_hbd}, Charge: {prot_charge}")
             
-            # Determine ZINC20 tranche based on properties
-            tranche = map_to_zinc_tranche(mw, logp)
+            # Determine ZINC20 tranche based on NEUTRAL properties (see comment above)
+            tranche = map_to_zinc_tranche(neutral_mw, neutral_logp)
             if not tranche:
                 self.log_error(f"Could not map ligand properties to ZINC20 tranche")
                 return False
@@ -118,7 +125,7 @@ class RetrievalStep(DecoyGenStep):
             self.log_debug(f"Mapped to ZINC20 tranche: {tranche}")
             
             # Query ZINC20 database using progressive windowing (like original zinc_subfunc)
-            decoys = self._search_zinc_tranche_progressive(tranche, lig_props)
+            decoys = self._search_zinc_tranche_progressive(tranche, prot_lig_props)
             
             if not decoys:
                 self.log_error(f"No decoys found for ligand {lig_id}")
@@ -129,8 +136,8 @@ class RetrievalStep(DecoyGenStep):
             # Write decoys to file
             decoy_file = self.get_output_file(f"{ligand_num}_decoys.smi")
             with open(decoy_file, 'w') as f:
-                for decoy_smiles, zinc_id, window in decoys:
-                    f.write(f"{decoy_smiles} {zinc_id}\n")
+                for decoy_smiles, decoy_prot_smiles, zinc_id, window in decoys:
+                    f.write(f"{decoy_smiles} {decoy_prot_smiles} {zinc_id}\n")
                     
             return True
             
@@ -197,30 +204,26 @@ class RetrievalStep(DecoyGenStep):
             
             try:
                 # Apply protonation filtering first
-                if self._matches_protonation_state(lig_props, decoy_smiles):
-                    decoy_props = get_molecular_properties(decoy_smiles, get_charge=False)
-                    window = compare_properties_with_windows(lig_props, decoy_props, windows)
+                window, decoy_prot_smiles = self._matches_protonation_state(lig_props, decoy_smiles)
+                self.log_debug(f"{decoy_smiles}: window: {window}")
+                if window is not None:
+                    best_windows.append((window, decoy_smiles, decoy_prot_smiles, zinc_id))
                     
-                    if window is not None:
-                        best_windows.append(window)
-                        
-                        # Collect window 0 matches immediately like original
-                        if window == 0:
-                            if zinc_id not in decoy_dict:
-                                decoy_count += 1
-                                decoy_dict[zinc_id] = [decoy_smiles, zinc_id, window]
-                                selected_decoys.append((decoy_smiles, zinc_id, window))
-                                
-                                if decoy_count >= max_decoys:
-                                    self.log_debug(f"DECOYS FOUND BEST WINDOW: {decoy_count}")
-                                    return selected_decoys
-                    else:
-                        best_windows.append(None)
+                    # Collect window 0 matches immediately like original
+                    if window == 0:
+                        if zinc_id not in decoy_dict:
+                            decoy_count += 1
+                            decoy_dict[zinc_id] = [decoy_smiles, decoy_prot_smiles, zinc_id, window]
+                            selected_decoys.append((decoy_smiles, decoy_prot_smiles, zinc_id, window))
+                            
+                            if decoy_count >= max_decoys:
+                                self.log_debug(f"DECOYS FOUND BEST WINDOW: {decoy_count}")
+                                return selected_decoys
                 else:
-                    best_windows.append(None)
+                    best_windows.append((None, decoy_smiles, decoy_prot_smiles, zinc_id))
             except Exception as e:
                 self.log_debug(f"Error processing SMILES {decoy_smiles}: {e}")
-                best_windows.append(None)
+                best_windows.append((None, decoy_smiles, None, zinc_id))
                 continue
         
         self.log_debug(f"DECOYS FOUND BEST WINDOW: {decoy_count}")
@@ -228,19 +231,12 @@ class RetrievalStep(DecoyGenStep):
         # Second pass: try progressively wider windows like original
         for step_count in range(1, num_windows):
             self.log_debug(f"Trying window {step_count}...")
-            for i, window in enumerate(best_windows):
+            for i, (window, decoy_smiles, decoy_prot_smiles, zinc_id) in enumerate(best_windows):
                 if window == step_count:
-                    line = all_smiles_lines[i]
-                    parts = line.strip().split()
-                    if len(parts) < 2:
-                        continue
-                        
-                    decoy_smiles, zinc_id = parts[0], parts[1]
-                    
                     if zinc_id not in decoy_dict:
                         decoy_count += 1
-                        decoy_dict[zinc_id] = [decoy_smiles, zinc_id, window]
-                        selected_decoys.append((decoy_smiles, zinc_id, window))
+                        decoy_dict[zinc_id] = [decoy_smiles, decoy_prot_smiles, zinc_id, window]
+                        selected_decoys.append((decoy_smiles, decoy_prot_smiles, zinc_id, window))
                         
                         if decoy_count >= max_decoys:
                             self.log_debug(f"DECOYS FOUND TOTAL: {decoy_count}")
@@ -301,20 +297,14 @@ class RetrievalStep(DecoyGenStep):
             # Get ligand charge
             ligand_charge = lig_props[5]
             
-            # If ligand is neutral, check if decoy is also neutral (quick check)
-            if ligand_charge == 0:
-                decoy_props = get_molecular_properties(decoy_smiles, get_charge=True)
-                if decoy_props[5] == 0:
-                    return True  # Both neutral, should match
-            
             # For charged ligands or when we need to check protonation, use ChemAxon
             try:
                 # Generate protomers for the decoy at pH 7.4
-                smiles_with_name = [f"{decoy_smiles} temp_decoy"]
-                protomer_results = generate_protomers(smiles_with_name, ph=7.4, score_cutoff=10.0)
+                decoy_smiles_with_name = [f"{decoy_smiles} temp_decoy"]
+                decoy_protomer_results = generate_protomers(decoy_smiles_with_name, ph=7.4, score_cutoff=10.0)
                 
                 # Check if any protomer has the same charge as the ligand
-                for protomer_smiles, name, score in protomer_results:
+                for protomer_smiles, name, score in decoy_protomer_results:
                     protomer_props = get_molecular_properties(protomer_smiles, get_charge=True)
                     protomer_charge = protomer_props[5]
                     
@@ -323,9 +313,9 @@ class RetrievalStep(DecoyGenStep):
                         windows = get_progressive_windows_from_config(self.config.param_dict)
                         window = compare_properties_with_windows(lig_props, protomer_props, windows)
                         if window is not None:
-                            return True
+                            return window, protomer_smiles # return the matching window and the protonated smiles
                 
-                return False  # No matching protomer found
+                return None, None # No matching protomer found. Return None window and None smiles
                 
             except (ProtonationError, ImportError):
                 # If protonation tools not available, fall back to basic charge check
@@ -334,7 +324,7 @@ class RetrievalStep(DecoyGenStep):
                 
         except Exception as e:
             self.log_debug(f"Error in protonation matching for {decoy_smiles}: {e}")
-            return False  # Conservative: reject on error
+            return None, None  # Conservative: reject on error
 
 
 class SingleLigandRetrievalStep(DecoyGenStep):
