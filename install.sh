@@ -7,6 +7,7 @@ while [[ "$#" -gt 0 ]]; do
         -f|--force) force_flag="true";;
         -r|--rebuild) rebuild_flag="true";;
         -g|--git-pull) git_pull_flag="true";;
+        -w|--wheel) wheel_flag="true";;
         *) echo "Error: Unknown parameter passed: $1"; exit 1;;
     esac
     shift
@@ -104,7 +105,13 @@ if [ "$dir_name" == "pydock3" ]; then
         fi
     fi
 
-    pip install "$target_whl_file"
+    # Do not install if the goal is to simply build a wheel
+    if [ -z "$wheel_flag" ]; then
+        pip install "$target_whl_file"
+    else
+        echo "Skipping pip installation as requested by the --wheel flag."
+    fi
+
     exit 0
 else
     echo "Error: The current working directory dirname is NOT 'pydock3'. Exiting."
