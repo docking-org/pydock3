@@ -96,6 +96,7 @@ class DockoptPipelineComponentRunFuncArgSet:  # TODO: rename?
     export_decoys_mol2: bool = False
     delete_intermediate_files: bool = False
     max_scheduler_jobs_running_at_a_time: Optional[int] = None
+    job_timeout_minutes: Optional[int] = None
 
 
 class Dockopt(Script):
@@ -187,6 +188,7 @@ class Dockopt(Script):
         retrodock_job_max_reattempts: int = 0,
         allow_failed_retrodock_jobs: bool = False,
         retrodock_job_timeout_minutes: Optional[str] = None,
+        job_timeout_minutes: Optional[str] = None,
         max_task_array_size: Optional[int] = None,
         extra_submission_cmd_params_str: Optional[str] = None,
         sleep_seconds_after_copying_output: int = 0,
@@ -262,6 +264,7 @@ class Dockopt(Script):
             sleep_seconds_after_copying_output=sleep_seconds_after_copying_output,
             export_decoys_mol2=export_decoys_mol2,
             delete_intermediate_files=delete_intermediate_files,
+            job_timeout_minutes=job_timeout_minutes,
             #max_scheduler_jobs_running_at_a_time=max_scheduler_jobs_running_at_a_time,  # TODO: move checking of this to this class?
         )
 
@@ -752,7 +755,7 @@ class DockoptStep(PipelineComponent):
 
         return new_dc_kwargs_sorted
 
-    def parallel_run_graph_steps(self, scheduler) -> None:
+    def parallel_run_graph_steps(self, scheduler, job_timeout_minutes) -> None:
         """Runs steps in parallel while ensuring each unique step is executed only once."""
 
         g = self.graph
@@ -789,7 +792,7 @@ class DockoptStep(PipelineComponent):
             
             for step_instance, step_id in steps_to_run_scheduler:
                 logger.info(f"Submitting {step_instance.__class__.__name__} to the scheduler")
-                scheduler.submit_single_step(step_instance, job_name=step_id)
+                scheduler.submit_single_step(step_instance, job_name=step_id, job_timeout_minutes=job_timeout_minutes)
             
             for step_instance in steps_to_run_sequentially:
                 step_instance.run()
@@ -820,7 +823,7 @@ class DockoptStep(PipelineComponent):
         # run necessary steps to get all dock files
         logger.info("Generating docking configurations")
 
-        self.parallel_run_graph_steps(component_run_func_arg_set.scheduler)
+        self.parallel_run_graph_steps(component_run_func_arg_set.scheduler, component_run_func_arg_set.job_timeout_minutes)
         for dc in self.docking_configurations:
             indock_file = dc.get_indock_file(self.pipeline_dir.path)
             indock_file.write(dc.get_dock_files(self.pipeline_dir.path), dc.indock_file_generation_flat_param_dict)
