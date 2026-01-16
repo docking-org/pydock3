@@ -123,33 +123,29 @@ class SlurmJobScheduler(JobScheduler):
 
         return procs
 
-    def submit_single_step(
-            self,
-            step_instance,
-            job_name="blaster_step",
-    ):
-        # TODO: Better handling of the step_dir. Technically the run() function
-        # will overwrite this folder. I think its ok for now but silly
+    def submit_single_step(self, step_instance, job_name="blaster_step", job_timeout_minutes=None):
         step_dir = step_instance.step_dir.path
         os.makedirs(step_dir, exist_ok=True)
+        
         step_pickle_path = os.path.join(step_dir, "step_instance.pkl")
         with open(step_pickle_path, "wb") as f:
             pickle.dump(step_instance, f)
 
-        slurm_script = f"""#!/bin/bash
-#SBATCH --job-name={job_name}
-#SBATCH --output={step_dir}/{job_name}_%A_%a.out
-#SBATCH --error={step_dir}/{job_name}_%A_%a.err
+        script_content = f"""#!/bin/bash
+    {sys.executable} -c "import pickle; step = pickle.load(open('{step_pickle_path}', 'rb')); step.run()"
+    """
+        script_path = os.path.join(step_dir, "submission.sh")
+        with open(script_path, "w") as f:
+            f.write(script_content)
 
-{sys.executable} -c "import pickle; step = pickle.load(open('{step_pickle_path}', 'rb')); step.run()"
-"""
-        sub_script_path = os.path.join(step_dir, "submission.sh")
-        with open(sub_script_path, "w") as f:
-            f.write(slurm_script)
-
-        proc = system_call(f"{self.SBATCH_EXEC} {sub_script_path}")
-
-        return proc
+        return self.submit(
+            job_name=job_name,
+            script_path=script_path,
+            log_dir_path=step_dir,
+            task_ids=[0],
+            env_vars_dict={},
+            job_timeout_minutes=job_timeout_minutes
+        )[0]
         
         
 
@@ -253,6 +249,30 @@ class SGEJobScheduler(JobScheduler):
             procs.append(proc)
 
         return procs
+
+    def submit_single_step(self, step_instance, job_name="blaster_step", job_timeout_minutes=None):
+        step_dir = step_instance.step_dir.path
+        os.makedirs(step_dir, exist_ok=True)
+        
+        step_pickle_path = os.path.join(step_dir, "step_instance.pkl")
+        with open(step_pickle_path, "wb") as f:
+            pickle.dump(step_instance, f)
+
+        script_content = f"""#!/bin/bash
+    {sys.executable} -c "import pickle; step = pickle.load(open('{step_pickle_path}', 'rb')); step.run()"
+    """
+        script_path = os.path.join(step_dir, "submission.sh")
+        with open(script_path, "w") as f:
+            f.write(script_content)
+
+        return self.submit(
+            job_name=job_name,
+            script_path=script_path,
+            log_dir_path=step_dir,
+            task_ids=[0],
+            env_vars_dict={},
+            job_timeout_minutes=job_timeout_minutes
+        )[0]
 
     def job_is_on_queue(self, job_name: str) -> bool:
         command_str = f"{self.QSTAT_EXEC} -r | grep '{job_name}'"
