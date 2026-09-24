@@ -1,0 +1,74 @@
+# Builds the pydock3 wheels (one per platform, with blastermaster's programs compiled for it)
+# and tests each one against the control files in tests/blastermaster/controls.
+name: wheels
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  wheel:
+    name: wheel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest  # Linux x86_64
+          - os: ubuntu-24.04-arm  # Linux aarch64
+          - os: macos-14  # macOS arm64
+            macos-deployment-target: "14.0"
+          - os: macos-15-intel  # macOS x86_64
+            macos-deployment-target: "15.0"
+          - os: windows-latest  # Windows x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gfortran (macOS)
+        if: runner.os == 'macOS'
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: 14
+
+      - name: Install MinGW-w64 gcc & gfortran (Windows)
+        if: runner.os == 'Windows'
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran
+      - name: Put MinGW-w64 on the PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin" >> "$GITHUB_PATH"
+
+      - uses: pypa/cibuildwheel@v2.23.4
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos-deployment-target }}
+          CIBW_ENVIRONMENT_WINDOWS: CMAKE_GENERATOR=Ninja CC=gcc CXX=g++ FC=gfortran
+
+      # (on Linux and macOS, auditwheel and delocate bundle or reject non-system libraries)
+      - name: Check that the programs don't need MinGW's DLLs (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          unzip -q wheelhouse/*.whl -d unpacked
+          ! objdump -p unpacked/pydock3/blastermaster/bin/*.exe | grep -iE "DLL Name: lib(gfortran|gcc|stdc|quadmath|winpthread)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx run build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
