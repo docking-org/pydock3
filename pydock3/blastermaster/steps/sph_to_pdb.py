@@ -1,6 +1,7 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import BlasterStep
+from pydock3.blastermaster.programs.sphere_files import sph_to_pdb
 
 
 #
@@ -25,12 +26,10 @@ class SpheresToPDBConversionStep(BlasterStep):
                 (pdb_outfile, "pdb_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=ProgramFilePaths.DOSHOWSPH_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
     def run(self):
         """convert spheres to pdb file"""
 
-        run_str = f"{self.program_file.path} {self.infiles.sph_infile.name} 1 {self.outfiles.pdb_outfile.name}"
-        self.run_command(run_str)
+        sph_to_pdb(self.infiles.sph_infile.path, 1, self.outfiles.pdb_outfile.path)

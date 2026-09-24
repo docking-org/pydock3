@@ -1,15 +1,17 @@
 import os
 import logging
 import re
+import subprocess
 import collections
+from contextlib import ExitStack
 from copy import deepcopy
 from datetime import datetime
 from functools import wraps
 from dataclasses import make_dataclass
 
-from pydock3.util import validate_variable_type, system_call
+from pydock3.util import validate_variable_type
 from pydock3.config import Parameter
-from pydock3.files import File, Dir, ProgramFile, LogFile
+from pydock3.files import File, Dir, LogFile
 from pydock3.blastermaster.programs import __file__ as PROGRAMS_INIT_FILE_PATH
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 
@@ -100,34 +102,24 @@ VISUALIZATION_FILE_IDENTIFIERS = [
 ]
 
 
-#
-class ProgramFilePaths:
-    REDUCE_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "reduce/reduce")
-    DMS_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "dms/bin/dms")
-    FILT_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "filt/bin/filt")
-    SPHGEN_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "sphgen/bin/sphgen")
-    PDBTOSPH_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "pdbtosph/bin/pdbtosph"
-    )
-    MAKESPHERES1_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "makespheres1/makespheres1.cli.pl"
-    )
-    DOSHOWSPH_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "showsphere/doshowsph.csh"
-    )
-    MAKESPHERES3_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "makespheres3/makespheres3.cli.pl"
-    )
-    QNIFFT_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "qnifft/bin/qnifft22_193_pgf_32"
-    )
-    MAKEBOX_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "makebox/makebox.smallokay.pl"
-    )
-    CHEMGRID_PROGRAM_FILE_PATH = os.path.join(
-        PROGRAMS_DIR_PATH, "chemgrid/bin/chemgrid"
-    )
-    SOLVMAP_PROGRAM_FILE_PATH = os.path.join(PROGRAMS_DIR_PATH, "solvmap/bin/solvmap")
+# the prebuilt programs shipped in programs/ (Linux x86-64 only)
+_LEGACY_PROGRAM_PATHS = {
+    "reduce": "reduce/reduce",
+    "dms": "dms/bin/dms",
+    "filt": "filt/bin/filt",
+    "sphgen": "sphgen/bin/sphgen",
+    "qnifft": "qnifft/bin/qnifft22_193_pgf_32",
+    "chemgrid": "chemgrid/bin/chemgrid",
+    "solvmap": "solvmap/bin/solvmap",
+}
+
+
+def program_path(name):
+    """Path of one of the executables bundled with blastermaster."""
+    path = os.path.join(PROGRAMS_DIR_PATH, _LEGACY_PROGRAM_PATHS[name])
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"blastermaster program `{name}` not found at {path}")
+    return path
 
 
 class BlasterFile(File):
@@ -306,7 +298,7 @@ class AttributeContainer:
 
 
 class BlasterStep(object):
-    def __init__(self, working_dir, infile_tuples, outfile_tuples, parameter_tuples, dockopt_submit_to_scheduler=False, program_file_path=None):
+    def __init__(self, working_dir, infile_tuples, outfile_tuples, parameter_tuples, dockopt_submit_to_scheduler=False):
         #
         self.step_dir = self._get_step_dir(working_dir, outfile_tuples)
 
@@ -321,12 +313,6 @@ class BlasterStep(object):
         self.parameters = self._process_parameters(*parameter_tuples)
 
         #
-        if program_file_path:
-            self.program_file = ProgramFile(program_file_path)
-        else:
-            self.program_file = None
-
-        #
         self.log_file = self._get_log_file()
 
         #
@@ -336,9 +322,9 @@ class BlasterStep(object):
         return self.__class__.__name__
 
     def _get_step_dir(self, working_dir, outfile_tuples):
+        # named by the first outfile (unique to each step); kept short for Windows' path length limit
         class_name_snake_case = re.sub('(?<!^)(?=[A-Z])', '_', self.__str__()).lower()
-        comma_separated_outfile_names = ','.join([x[0].name for x in outfile_tuples])
-        dir_name = f"{class_name_snake_case}_outfiles={comma_separated_outfile_names}"
+        dir_name = f"{class_name_snake_case}_{outfile_tuples[0][0].name}"
         return Dir(path=os.path.join(working_dir.path, dir_name))
 
     @property
@@ -504,27 +490,34 @@ class BlasterStep(object):
             if not outfile.original_file_in_working_dir.exists:
                 outfile.original_file_in_working_dir.copy_from(outfile.path)
 
-    def run_command(self, command_str, timeout_seconds=None, env_vars_dict=None):
-        result = system_call(
-            command_str,
-            cwd=self.step_dir.path,
-            timeout_seconds=timeout_seconds,
-            env_vars_dict=env_vars_dict,
-        )
+    def run_program(self, args, stdin_file_path=None, stdout_file_path=None, ok_return_codes=(0,)):
+        """Run a program in the step dir, without a shell.
+
+        stdin is read from `stdin_file_path` if given; stdout is written to `stdout_file_path`
+        if given, else to the step's log (as is stderr).
+        """
+        args = [str(arg) for arg in args]
+        with ExitStack() as stack:
+            stdin = stack.enter_context(open(stdin_file_path, "rb")) if stdin_file_path else subprocess.DEVNULL
+            stdout = stack.enter_context(open(stdout_file_path, "wb")) if stdout_file_path else subprocess.PIPE
+            result = subprocess.run(
+                args, cwd=self.step_dir.path, stdin=stdin, stdout=stdout, stderr=subprocess.PIPE,
+                encoding="utf-8", errors="replace",
+            )
         with open(self.log_file.path, "a") as f:
-            f.write(f"command:\n{command_str}\n")
-            f.write("\n")
-            f.write(f"stdout:\n{result.stdout}\n")
-            f.write("\n")
-            f.write(f"stderr:\n{result.stderr}\n")
-            f.write("\n")
-            f.write("-" * 20)
-            f.write("\n\n")
+            f.write(f"command:\n{' '.join(args)}\n\n")
+            f.write(f"stdout:\n{result.stdout if result.stdout is not None else f'(written to {stdout_file_path})'}\n\n")
+            f.write(f"stderr:\n{result.stderr}\n\n")
+            f.write(f"return code: {result.returncode}\n")
+            f.write("-" * 20 + "\n\n")
+        if result.returncode not in ok_return_codes:
+            raise RuntimeError(
+                f"{os.path.basename(args[0])} failed with return code {result.returncode} "
+                f"(see {self.log_file.path}):\n{result.stderr}"
+            )
 
     def log_parameters_file(self, file):
-        logger.debug(
-            f"{self.program_file.name} parameters file at {file.path} begins: "
-        )
+        logger.debug(f"{self} parameters file at {file.path} begins: ")
         with open(file.path, "r") as f:
             logger.debug("\n\t".join([line.strip() for line in f.readlines()]))
-        logger.debug(f"\t{self.program_file.name} parameters file ends.")
+        logger.debug(f"\t{self} parameters file ends.")

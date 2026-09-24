@@ -1,7 +1,7 @@
 import os
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import program_path, BlasterStep
 from pydock3.files import File
 from pydock3.config import Parameter
 
@@ -49,7 +49,6 @@ class VDWScoringGridGenerationStep(BlasterStep):
             parameter_tuples=[
                 (grid_spacing_parameter, "grid_spacing_parameter")
             ],
-            program_file_path=ProgramFilePaths.CHEMGRID_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
@@ -68,7 +67,7 @@ class VDWScoringGridGenerationStep(BlasterStep):
         )
 
         #
-        with open(chemgrid_parameters_file.path, "w") as f:
+        with open(chemgrid_parameters_file.path, "w", newline="\n") as f:
             f.write(f"{self.infiles.charged_receptor_infile.name}\n")
             f.write(f"{self.infiles.protein_table_infile.name}\n")
             f.write(f"{self.infiles.vdw_parameters_infile.name}\n")
@@ -86,5 +85,4 @@ class VDWScoringGridGenerationStep(BlasterStep):
         self.log_parameters_file(chemgrid_parameters_file)
 
         # run
-        run_str = f"{self.program_file.path}"
-        self.run_command(run_str)
+        self.run_program([program_path("chemgrid")])

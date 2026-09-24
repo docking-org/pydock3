@@ -6,7 +6,7 @@ from pathlib import Path
 
 import oyaml as yaml
 
-from pydock3.blastermaster.blastermaster import Blastermaster
+from pydock3.blastermaster.blastermaster import Blastermaster, load_steps
 from pydock3.files import INDOCK_FILE_NAME
 
 HERE = Path(__file__).resolve().parent
@@ -78,4 +78,28 @@ def run_job(root, config_name):
         if p.is_file() and p.name not in initial_files and is_controlled(p.name)
     }
     produced[INDOCK_FILE_NAME] = job_dir / Blastermaster.DOCK_FILES_DIR_NAME / INDOCK_FILE_NAME
+    return produced
+
+
+def run_steps_in_isolation(root, config_name, control_dir):
+    """Run each step of a job on control copies of its input files.
+
+    Returns {file name: path} of the controlled files the steps produced, so that each step's
+    output can be compared with the controls independently of the other steps.
+    """
+    job_dir = new_job(root, config_name)
+    _, _, steps = load_steps(str(job_dir), str(job_dir / Blastermaster.CONFIG_FILE_NAME))
+    outputs_dir = Path(root) / "outputs"
+    outputs_dir.mkdir()
+    produced = {}
+    for step in steps:
+        for infile in step.infiles:
+            control = Path(control_dir) / infile.original_file_in_working_dir.name
+            if control.exists():
+                shutil.copy(control, infile.original_file_in_working_dir.path)
+        step.run()
+        for outfile in step.outfiles:
+            name = outfile.original_file_in_working_dir.name
+            if is_controlled(name):
+                produced[name] = Path(shutil.copy(outfile.original_file_in_working_dir.path, outputs_dir / name))
     return produced

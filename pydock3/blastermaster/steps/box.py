@@ -1,6 +1,7 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import BlasterStep
+from pydock3.blastermaster.programs.makebox import make_box
 from pydock3.config import Parameter
 
 #
@@ -33,13 +34,14 @@ class BoxGenerationStep(BlasterStep):
             parameter_tuples=[
                 (margin_parameter, "margin_parameter")
             ],
-            program_file_path=ProgramFilePaths.MAKEBOX_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
     def run(self):
-        """run the makebox.smallokay.pl perl script to make box surrounding binding
-        site"""
-
-        run_str = f"{self.program_file.path} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.box_outfile.name} {self.parameters.margin_parameter.value}"
-        self.run_command(run_str)
+        """make box surrounding binding site"""
+        make_box(
+            self.infiles.ligand_matching_spheres_infile.path,
+            self.infiles.charged_receptor_infile.path,
+            self.outfiles.box_outfile.path,
+            self.parameters.margin_parameter.value,
+        )

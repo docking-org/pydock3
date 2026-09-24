@@ -25,7 +25,6 @@ class LigandHetatmRenamingStep(BlasterStep):
                 (ligand_hetatm_renamed_outfile, "ligand_hetatm_renamed_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func

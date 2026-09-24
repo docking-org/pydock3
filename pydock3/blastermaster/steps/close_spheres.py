@@ -33,7 +33,6 @@ class CloseSpheresGenerationStep(BlasterStep):
                 (penetration_parameter, "penetration_parameter"),
                 (distance_to_ligand_parameter, "distance_to_ligand_parameter"),
             ],
-            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func

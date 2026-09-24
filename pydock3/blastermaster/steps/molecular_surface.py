@@ -1,6 +1,6 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import program_path, BlasterStep
 from pydock3.files import File
 from pydock3.config import Parameter 
 
@@ -40,7 +40,6 @@ class MolecularSurfaceGenerationStep(BlasterStep):
             parameter_tuples=[
                 (molecular_surface_density_parameter, "molecular_surface_density_parameter")
             ],
-            program_file_path=ProgramFilePaths.DMS_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
@@ -56,16 +55,29 @@ class MolecularSurfaceGenerationStep(BlasterStep):
         charged_receptor_no_waters_file = File(
             path=f"{self.infiles.charged_receptor_infile.path}.dms"
         )
-        run_str = f"grep -a -v HOH {self.infiles.charged_receptor_infile.name} > {charged_receptor_no_waters_file.name}"
-        self.run_command(run_str)
+        remove_lines_containing(b"HOH", self.infiles.charged_receptor_infile.path, charged_receptor_no_waters_file.path)
 
         # removing waters from binding site
         binding_site_residues_no_waters_file = File(
             path=f"{self.infiles.binding_site_residues_infile.path}.dms"
         )
-        run_str = f"grep -a -v HOH {self.infiles.binding_site_residues_infile.name} > {binding_site_residues_no_waters_file.name}"
-        self.run_command(run_str)
+        remove_lines_containing(b"HOH", self.infiles.binding_site_residues_infile.path, binding_site_residues_no_waters_file.path)
 
         #
-        run_str = f"{self.program_file.path} {charged_receptor_no_waters_file.name} -a -d {self.parameters.molecular_surface_density_parameter.value} -i {binding_site_residues_no_waters_file.name} -g {self.log_file.name} -p -n -o {self.outfiles.molecular_surface_outfile.name}"
-        self.run_command(run_str)
+        self.run_program([
+            program_path("dms"), charged_receptor_no_waters_file.name,
+            "-a", "-d", self.parameters.molecular_surface_density_parameter.value,
+            "-i", binding_site_residues_no_waters_file.name,
+            "-g", self.log_file.name, "-p", "-n",
+            "-o", self.outfiles.molecular_surface_outfile.name,
+        ])
+
+
+def remove_lines_containing(text, in_file_path, out_file_path):
+    """Copy a file without the lines containing `text` (bytes), like `grep -a -v`."""
+    with open(in_file_path, "rb") as f:
+        lines = f.read().split(b"\n")
+    if lines[-1] == b"":  # the file ended with a newline
+        lines.pop()
+    with open(out_file_path, "wb") as f:
+        f.writelines(line + b"\n" for line in lines if text not in line)

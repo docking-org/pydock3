@@ -1,6 +1,7 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import BlasterStep
+from pydock3.blastermaster.programs.sphere_files import pdb_to_sph
 
 
 #
@@ -24,12 +25,9 @@ class LigandPDBToSpheresConversionStep(BlasterStep):
                 (sph_outfile, "sph_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=ProgramFilePaths.PDBTOSPH_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
     def run(self):
-        """run the pdbtosph program to turn the ligand into spheres"""
-        #
-        run_str = f"{self.program_file.path} {self.infiles.pdb_infile.name} {self.outfiles.sph_outfile.name}"
-        self.run_command(run_str)
+        """turn the ligand into spheres"""
+        pdb_to_sph(self.infiles.pdb_infile.path, self.outfiles.sph_outfile.path)

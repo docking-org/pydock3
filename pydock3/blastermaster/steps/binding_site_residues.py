@@ -1,6 +1,6 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import program_path, BlasterStep
 
 #
 logger = logging.getLogger(__name__)
@@ -32,7 +32,6 @@ class BindingSiteResiduesSelectionStep(BlasterStep):
                 (binding_site_residues_outfile, "binding_site_residues_outfile", self.MandatoryFileNames.BINDING_SITE_RESIDUES_FILE_NAME),
             ],
             parameter_tuples=[],
-            program_file_path=ProgramFilePaths.FILT_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
@@ -40,8 +39,4 @@ class BindingSiteResiduesSelectionStep(BlasterStep):
         """just run the filt.exe program to produce list of binding site residues
         The program filt.exe presumably outputs a file called rec.site in the current directory.
         """
-        #
-        run_str = (
-            f"{self.program_file.path} < {self.infiles.filt_parameters_infile.name}"
-        )
-        self.run_command(run_str)
+        self.run_program([program_path("filt")], stdin_file_path=self.infiles.filt_parameters_infile.path)

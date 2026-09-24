@@ -1,6 +1,7 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import BlasterStep
+from pydock3.blastermaster.programs.makespheres import make_low_dielectric_spheres
 from pydock3.config import Parameter
 
 #
@@ -35,13 +36,16 @@ class LowDielectricSpheresSelectionStep(BlasterStep):
             parameter_tuples=[
                 (min_num_spheres_parameter, "min_num_spheres_parameter")
             ],
-            program_file_path=ProgramFilePaths.MAKESPHERES1_PROGRAM_FILE_PATH,
         )
 
 
     @BlasterStep.handle_run_func
     def run(self):
-        """run the makespheres1.cli.pl perl script to make low dielectric spheres"""
-
-        run_str = f"{self.program_file.path} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.all_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.low_dielectric_spheres_outfile.name} {self.parameters.min_num_spheres_parameter.value}"
-        self.run_command(run_str)
+        """make low dielectric spheres"""
+        make_low_dielectric_spheres(
+            self.infiles.ligand_matching_spheres_infile.path,
+            self.infiles.all_spheres_infile.path,
+            self.infiles.charged_receptor_infile.path,
+            self.outfiles.low_dielectric_spheres_outfile.path,
+            self.parameters.min_num_spheres_parameter.value,
+        )

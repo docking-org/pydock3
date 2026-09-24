@@ -24,7 +24,6 @@ class ReceptorTransformationForLigandDesolvationNoThinSpheres(BlasterStep):
                 (charged_receptor_desolv_pdb_outfile, "charged_receptor_desolv_pdb_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func
@@ -53,7 +52,6 @@ class ReceptorTransformationForLigandDesolvationYesThinSpheres(BlasterStep):
                 (charged_receptor_desolv_pdb_outfile, "charged_receptor_desolv_pdb_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func
@@ -63,6 +61,8 @@ class ReceptorTransformationForLigandDesolvationYesThinSpheres(BlasterStep):
             self.infiles.charged_receptor_pdb_infile.path
         )
 
-        #
-        run_str = f"cat {self.infiles.close_spheres_desolv_pdb_infile.path} | sed -e 's/ C   SPH/ X   SPH/g' >> {self.outfiles.charged_receptor_desolv_pdb_outfile.path}"
-        self.run_command(run_str)
+        # append the spheres, as atom type X
+        with open(self.infiles.close_spheres_desolv_pdb_infile.path, "rb") as f:
+            spheres = f.read().replace(b" C   SPH", b" X   SPH")
+        with open(self.outfiles.charged_receptor_desolv_pdb_outfile.path, "ab") as f:
+            f.write(spheres)

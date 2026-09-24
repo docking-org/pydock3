@@ -1,8 +1,8 @@
 import os
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile, File
+from pydock3.blastermaster.util import program_path, BlasterStep
+from pydock3.files import File
 
 
 #
@@ -32,7 +32,6 @@ class BindingSiteSpheresGenerationStep(BlasterStep):
                 (spheres_outfile, "spheres_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=ProgramFilePaths.SPHGEN_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
@@ -43,15 +42,16 @@ class BindingSiteSpheresGenerationStep(BlasterStep):
         sphgen_input_file = File(
             path=os.path.join(self.step_dir.path, self.INSPH_FILE_NAME)
         )
-        with open(sphgen_input_file.path, "w") as f:
+        with open(sphgen_input_file.path, "w", newline="\n") as f:
             f.write(f"{self.infiles.molecular_surface_infile.name}\n")  # input file
             f.write(f"{self.LINES_2_THROUGH_6}\n")  # see above
             f.write(f"{self.outfiles.spheres_outfile.name}\n")  # output file
 
         # run
-        run_str = f"{self.program_file.path}"
-        self.run_command(run_str)
+        self.run_program([program_path("sphgen")])
 
         # remove the first line of the output
-        run_str = f"sed -i '1d' {self.outfiles.spheres_outfile.path}"
-        self.run_command(run_str)
+        with open(self.outfiles.spheres_outfile.path, "rb") as f:
+            _, _, rest = f.read().partition(b"\n")
+        with open(self.outfiles.spheres_outfile.path, "wb") as f:
+            f.write(rest)

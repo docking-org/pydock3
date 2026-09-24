@@ -1,6 +1,7 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
+from pydock3.blastermaster.util import BlasterStep
+from pydock3.blastermaster.programs.makespheres import make_matching_spheres
 from pydock3.blastermaster import pdb
 from pydock3.config import Parameter
 
@@ -50,18 +51,17 @@ class MatchingSpheresGenerationStep(BlasterStep):
                 (gridsize_parameter, "gridsize_parameter"),
                 (tooclose_parameter, "tooclose_parameter")
             ],
-            program_file_path=ProgramFilePaths.MAKESPHERES3_PROGRAM_FILE_PATH,
         )
 
 
     @BlasterStep.handle_run_func
     def run(self):
-        """run the makespheres3.cli.pl perl script to make low dielectric spheres"""
+        """make the matching spheres"""
 
         # if this is a covalent run, export a matching spheres file based on the covalent residue
         if self.parameters.covalent_use_parameter.value:
             # output header coloring table for historical purposes
-            with open(self.outfiles.matching_spheres_outfile.path, "w") as f:
+            with open(self.outfiles.matching_spheres_outfile.path, "w", newline="\n") as f:
                 f.write("DOCK 5.2 ligand_atoms\n")
                 f.write("positive                       (1)\n")
                 f.write("negative                       (2)\n")
@@ -189,6 +189,12 @@ class MatchingSpheresGenerationStep(BlasterStep):
                 )
 
         else:
-            # run
-            run_str = f"{self.program_file.path} {self.parameters.gridsize_parameter.value} {self.parameters.tooclose_parameter.value} {self.parameters.max_num_spheres_parameter.value} {self.infiles.ligand_matching_spheres_infile.name} {self.infiles.all_spheres_infile.name} {self.infiles.charged_receptor_infile.name} {self.outfiles.matching_spheres_outfile.name}"
-            self.run_command(run_str)
+            make_matching_spheres(
+                self.parameters.gridsize_parameter.value,
+                self.parameters.tooclose_parameter.value,
+                self.parameters.max_num_spheres_parameter.value,
+                self.infiles.ligand_matching_spheres_infile.path,
+                self.infiles.all_spheres_infile.path,
+                self.infiles.charged_receptor_infile.path,
+                self.outfiles.matching_spheres_outfile.path,
+            )

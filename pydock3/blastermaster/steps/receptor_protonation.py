@@ -1,9 +1,10 @@
 import logging
+import re
+import shlex
 
 import yaml
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import File
+from pydock3.blastermaster.util import program_path, BlasterStep
 from pydock3.blastermaster import pdb
 
 
@@ -35,7 +36,6 @@ class ReceptorProtonationStep(BlasterStep):
             parameter_tuples=[
                 (reduce_options_parameter, "reduce_options_parameter"),
             ],
-            program_file_path=ProgramFilePaths.REDUCE_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
@@ -47,15 +47,17 @@ class ReceptorProtonationStep(BlasterStep):
         charged_receptor_full_h_file_path = (
             f"{self.outfiles.charged_receptor_outfile.path}.fullh"
         )
-        charged_receptor_full_h_file_name = File.get_file_name_of_file(
-            charged_receptor_full_h_file_path
+        self.run_program(
+            [
+                program_path("reduce"),
+                "-db", self.infiles.add_h_dict_infile.name,
+                *shlex.split(self.parameters.reduce_options_parameter.value),
+                self.infiles.receptor_infile.name,
+            ],
+            stdout_file_path=charged_receptor_full_h_file_path,
+            ok_return_codes=(0, 1),  # 1: some flip optimizations were abandoned, but the output is complete
         )
-        run_str = f"{self.program_file.path} -db {self.infiles.add_h_dict_infile.name} {self.parameters.reduce_options_parameter.value} {self.infiles.receptor_infile.name} > {charged_receptor_full_h_file_name}"
-        self.run_command(run_str)
-
-        # remove extraneous output from charged_receptor_full_h_file_path
-        run_str = f"sed -i 's/\s*new\s*//g' {charged_receptor_full_h_file_name} ; sed -i '/^USER.*/d' {charged_receptor_full_h_file_name}"
-        self.run_command(run_str)
+        remove_reduce_annotations(charged_receptor_full_h_file_path)
 
         # remove nonpolar hydrogens
         pdb_d = pdb.PDBData(charged_receptor_full_h_file_path, ignore_waters=False)
@@ -76,3 +78,13 @@ class ReceptorProtonationStep(BlasterStep):
 
         #
         pdb_d.write(self.outfiles.charged_receptor_outfile.path)
+
+
+def remove_reduce_annotations(pdb_file_path):
+    """Remove the "new" flags reduce puts on added atoms and its USER records."""
+    with open(pdb_file_path, "rb") as f:
+        lines = f.read().split(b"\n")
+    lines = [re.sub(rb"\s*new\s*", b"", line) for line in lines]
+    lines = [line for line in lines if not line.startswith(b"USER")]
+    with open(pdb_file_path, "wb") as f:
+        f.write(b"\n".join(lines))

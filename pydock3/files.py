@@ -4,6 +4,7 @@ from enum import Enum
 import collections
 import logging
 import os
+import posixpath
 import shutil
 import pathlib
 from datetime import datetime
@@ -17,7 +18,7 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-from pydock3.util import validate_variable_type, system_call
+from pydock3.util import validate_variable_type
 
 
 #
@@ -150,12 +151,7 @@ class Dir(FileSystemEntity):
     @staticmethod
     def delete_dir(dir_path: str) -> None:
         if os.path.exists(dir_path):
-            '''
             shutil.rmtree(dir_path, ignore_errors=True)
-            while os.path.isdir(dir_path):  # TODO: hmmm. is this valid?
-                pass
-            '''
-            system_call(f"rm -rf {dir_path}")
             logger.debug(f"Deleted directory `{dir_path}`.")
 
     @staticmethod
@@ -546,13 +542,13 @@ iseed                         {indock_file_generation_dict['iseed']}
 """
 
         #
-        with open(self.path, "w") as f:
+        with open(self.path, "w", newline="\n") as f:  # read by DOCK on Linux
             f.write(header)
             f.write(
-                f"receptor_sphere_file          {os.path.join('..', dock_files_dir_name, dock_files.matching_spheres_file.name)}\n"
+                f"receptor_sphere_file          {posixpath.join('..', dock_files_dir_name, dock_files.matching_spheres_file.name)}\n"
             )
             f.write(
-                f"vdw_parameter_file            {os.path.join('..', dock_files_dir_name, dock_files.vdw_parameters_file.name)}\n"
+                f"vdw_parameter_file            {posixpath.join('..', dock_files_dir_name, dock_files.vdw_parameters_file.name)}\n"
             )
             f.write(f"delphi_nsize                  {phi_size}\n")
             if not use_flex:  # normal docking, no flexible sidechains
@@ -573,19 +569,19 @@ iseed                         {indock_file_generation_dict['iseed']}
                     f"rec_group_option              {indock_file_generation_dict['rec_group_option']}\n"
                 )
                 f.write(
-                    f"solvmap_file                  {os.path.join('..', dock_files_dir_name, dock_files.ligand_desolvation_heavy_file.name)}\n"
+                    f"solvmap_file                  {posixpath.join('..', dock_files_dir_name, dock_files.ligand_desolvation_heavy_file.name)}\n"
                 )
                 f.write(
-                    f"hydrogen_solvmap_file         {os.path.join('..', dock_files_dir_name, dock_files.ligand_desolvation_hydrogen_file.name)}\n"
+                    f"hydrogen_solvmap_file         {posixpath.join('..', dock_files_dir_name, dock_files.ligand_desolvation_hydrogen_file.name)}\n"
                 )
                 f.write(
-                    f"delphi_file                   {os.path.join('..', dock_files_dir_name, dock_files.electrostatics_trim_phi_file.name)}\n"
+                    f"delphi_file                   {posixpath.join('..', dock_files_dir_name, dock_files.electrostatics_trim_phi_file.name)}\n"
                 )
                 f.write(
-                    f"chemgrid_file                 {os.path.join('..', dock_files_dir_name, dock_files.vdw_file.name)}\n"
+                    f"chemgrid_file                 {posixpath.join('..', dock_files_dir_name, dock_files.vdw_file.name)}\n"
                 )
                 f.write(
-                    f"bumpmap_file                  {os.path.join('..', dock_files_dir_name, dock_files.vdw_bump_map_file.name)}\n"
+                    f"bumpmap_file                  {posixpath.join('..', dock_files_dir_name, dock_files.vdw_bump_map_file.name)}\n"
                 )
                 f.write("#####################################################\n")
                 f.write("#                             STRAIN\n")

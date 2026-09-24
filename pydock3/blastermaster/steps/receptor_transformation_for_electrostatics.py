@@ -26,10 +26,11 @@ class ReceptorTransformationForElectrostatics(BlasterStep):
                 (receptor_low_dielectric_pdb_outfile, "receptor_low_dielectric_pdb_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func
     def run(self):
-        run_str = f"cat {self.infiles.charged_receptor_infile.name} {self.infiles.spheres_pdb_infile.name} > {self.outfiles.receptor_low_dielectric_pdb_outfile.name}"
-        self.run_command(run_str)
+        with open(self.outfiles.receptor_low_dielectric_pdb_outfile.path, "wb") as f_out:
+            for infile in (self.infiles.charged_receptor_infile, self.infiles.spheres_pdb_infile):
+                with open(infile.path, "rb") as f_in:
+                    f_out.write(f_in.read())

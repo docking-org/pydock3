@@ -1,7 +1,6 @@
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile
+from pydock3.blastermaster.util import BlasterStep
 from pydock3.blastermaster import pdb
 
 
@@ -33,14 +32,11 @@ class ChargedReceptorDeprotonationStep(BlasterStep):
                 (covalent_residue_name_parameter, "covalent_residue_name_parameter"),
                 (covalent_residue_atoms_parameter, "covalent_residue_atoms_parameter"),
             ],
-            program_file_path=ProgramFilePaths.REDUCE_PROGRAM_FILE_PATH,
         )
 
     @BlasterStep.handle_run_func
     def run(self):
-        """run REDUCE to produce a pdb with hydrogens.
-        Word, et. al. (1999) J. Mol. Biol. 285, 1735-1747.
-        then run script to remove nonpolar hydrogens & rename"""
+        """remove the protons of the covalent residue"""
 
         # deprotonate covalent residue
         logger.debug("Deprotonating covalent residue")

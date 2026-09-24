@@ -29,7 +29,6 @@ class ThinSpheresGenerationStep(BlasterStep):
                 (distance_to_surface_parameter, "distance_to_surface_parameter"),
                 (penetration_parameter, "penetration_parameter"),
             ],
-            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func

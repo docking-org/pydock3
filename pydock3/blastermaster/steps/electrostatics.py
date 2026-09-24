@@ -1,8 +1,9 @@
 import os
+import re
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile, File
+from pydock3.blastermaster.util import program_path, BlasterStep
+from pydock3.files import File
 from pydock3.blastermaster import phi
 from pydock3.config import Parameter
 
@@ -69,7 +70,6 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
                 (grid_size_parameter, "grid_size_parameter"),
                 (use_receptor_box_parameter, "use_receptor_box_parameter")
             ],
-            program_file_path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH,
         )
 
         # misc.
@@ -86,7 +86,7 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
         qnifft_parameters_file = File(
             path=os.path.join(self.step_dir.path, self.QNIFFT_PARAMETERS_FILE_NAME)
         )
-        with open(qnifft_parameters_file.path, "w") as f:
+        with open(qnifft_parameters_file.path, "w", newline="\n") as f:
             with open(self.infiles.delphi_infile.path, "r") as g:
                 for line in g:
                     f.write(line)
@@ -116,8 +116,7 @@ class ElectrostaticsGridGenerationStepNoThinSpheres(BlasterStep):
         self.log_parameters_file(qnifft_parameters_file)
 
         # run program
-        run_str = f"{self.program_file.path} {qnifft_parameters_file.name}"
-        self.run_command(run_str)
+        self.run_program([program_path("qnifft"), qnifft_parameters_file.name])
 
         #
         phi_size, new_center = phi.trim(
@@ -178,7 +177,6 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
                 (grid_size_parameter, "grid_size_parameter"),
                 (use_receptor_box_parameter, "use_receptor_box_parameter")
             ],
-            program_file_path=ProgramFilePaths.QNIFFT_PROGRAM_FILE_PATH,
         )
 
         # misc.
@@ -195,7 +193,7 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
         qnifft_parameters_file = File(
             path=os.path.join(self.step_dir.path, self.QNIFFT_PARAMETERS_FILE_NAME)
         )
-        with open(qnifft_parameters_file.path, "w") as f:
+        with open(qnifft_parameters_file.path, "w", newline="\n") as f:
             with open(self.infiles.delphi_infile.path, "r") as g:
                 for line in g:
                     f.write(line)
@@ -224,17 +222,18 @@ class ElectrostaticsGridGenerationStepYesThinSpheres(BlasterStep):
         #
         self.log_parameters_file(qnifft_parameters_file)
 
-        #
-        command_str = f"sed -i 's/c     sph   1.90/c     sph   %3.2f/g' %s " % (
+        # the thin spheres get the radius given by their distance to the surface
+        sphere_radius = (
             self.parameters.thin_spheres_elec_distance_to_surface_parameter.value
-            + self.parameters.thin_spheres_elec_penetration_parameter.value,
-            self.infiles.radius_infile.name,
+            + self.parameters.thin_spheres_elec_penetration_parameter.value
         )
-        self.run_command(command_str)
+        with open(self.infiles.radius_infile.path, "rb") as f:
+            radii = f.read()
+        with open(self.infiles.radius_infile.path, "wb") as f:
+            f.write(re.sub(rb"c     sph   1.90", b"c     sph   %3.2f" % sphere_radius, radii))
 
         # run program
-        run_str = f"{self.program_file.path} {qnifft_parameters_file.name}"
-        self.run_command(run_str)
+        self.run_program([program_path("qnifft"), qnifft_parameters_file.name])
 
         #
         phi_size, new_center = phi.trim(

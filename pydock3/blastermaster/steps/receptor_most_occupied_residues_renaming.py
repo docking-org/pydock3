@@ -25,7 +25,6 @@ class ReceptorMostOccupiedResiduesRenamingStep(BlasterStep):
                 (receptor_most_occupied_residues_renamed_outfile, "receptor_most_occupied_residues_renamed_outfile", None),
             ],
             parameter_tuples=[],
-            program_file_path=None,
         )
 
     @BlasterStep.handle_run_func

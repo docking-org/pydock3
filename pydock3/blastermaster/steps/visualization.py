@@ -1,6 +1,7 @@
 import logging
 
-from pydock3.blastermaster.util import BlasterStep, ProgramFilePaths
+from pydock3.blastermaster.util import BlasterStep
+from pydock3.blastermaster.programs.sphere_files import sph_to_pdb
 from pydock3.blastermaster.programs.visualization.create_VDW_DX import create_vdw_dx
 from pydock3.blastermaster.programs.visualization.create_LigDeSolv_DX import create_ligdesolv_dx
 from pydock3.blastermaster.programs.visualization.phi_to_dx import create_trim_electrostatics_dx
@@ -44,7 +45,6 @@ class VisualizationStep(BlasterStep):
                 (matching_spheres_outfile, "matching_spheres_outfile", None)
             ],
             parameter_tuples=[],
-            program_file_path=None,
         )
 
 
@@ -70,8 +70,7 @@ class VisualizationStep(BlasterStep):
         )
 
     def visualize_matching_spheres(self):
-        run_str = f"{ProgramFilePaths.DOSHOWSPH_PROGRAM_FILE_PATH} {self.infiles.matching_spheres_infile.name} 1 {self.outfiles.matching_spheres_outfile.name}"
-        self.run_command(run_str)
+        sph_to_pdb(self.infiles.matching_spheres_infile.path, 1, self.outfiles.matching_spheres_outfile.path)
 
     @BlasterStep.handle_run_func
     def run(self):

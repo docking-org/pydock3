@@ -1,8 +1,8 @@
 import os
 import logging
 
-from pydock3.blastermaster.util import ProgramFilePaths, BlasterStep
-from pydock3.files import ProgramFile, File
+from pydock3.blastermaster.util import program_path, BlasterStep
+from pydock3.files import File
 from pydock3.config import Parameter
 
 #
@@ -76,7 +76,6 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
                 (heavy_radius_parameter, "heavy_radius_parameter"),
 
             ],
-            program_file_path=ProgramFilePaths.SOLVMAP_PROGRAM_FILE_PATH,
             dockopt_submit_to_scheduler=submit_to_scheduler_parameter.value,
         )
 
@@ -93,7 +92,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
                 self.step_dir.path, self.MandatoryFileNames.SOLVMAP_PARAMETERS_FILE_NAME
             )
         )
-        with open(solvmap_parameters_file.path, "w") as f:
+        with open(solvmap_parameters_file.path, "w", newline="\n") as f:
             f.write(f"{self.infiles.receptor_pdb_infile.name}\n")  # receptor file name
             f.write(
                 f"{self.outfiles.ligand_desolvation_outfile.name}\n"
@@ -117,8 +116,7 @@ class LigandDesolvationScoringGridGenerationStep(BlasterStep):
         self.log_parameters_file(solvmap_parameters_file)
 
         # run
-        run_str = f"{self.program_file.path}"
-        self.run_command(run_str)
+        self.run_program([program_path("solvmap")])
 
 
 class HydrogenAtomLigandDesolvationScoringGridGenerationStep(
