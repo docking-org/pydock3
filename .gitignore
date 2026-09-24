@@ -50,3 +50,4 @@ dist/
 *.png
 *.ipynb
 .ipynb_checkpoints/
+!tests/**/*.pdb
