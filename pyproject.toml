@@ -59,7 +59,8 @@ build = "cp310-*"  # the wheel works with any Python 3, so one build per platfor
 skip = "*-musllinux_*"
 archs = ["native"]
 config-settings = { "cmake.define.PYDOCK3_STATIC_RUNTIME" = "ON" }
-test-requires = ["pytest>=7.2,<8"]
+# (the plugin shows test failures as annotations on GitHub)
+test-requires = ["pytest>=7.2,<8", "pytest-github-actions-annotate-failures"]
 test-command = "pytest {project}/tests/blastermaster"
 
 [tool.cibuildwheel.linux]
