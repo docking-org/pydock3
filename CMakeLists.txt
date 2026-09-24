@@ -66,6 +66,12 @@ add_executable(dmsd
   native/dms/dmsd/freadv.c native/dms/dmsd/emalloc.c
 )
 target_include_directories(dmsd PRIVATE native/dms)
+# dmsd uses correctly rounded acos, atan2, sin, cos (CORE-MATH), so that dms computes the same
+# surface on every platform (the platforms' math libraries can differ in the last bit)
+add_library(core_math STATIC
+  native/core-math/acos.c native/core-math/atan2.c native/core-math/sin.c native/core-math/cos.c
+)
+target_link_libraries(dmsd PRIVATE core_math)
 if(NOT WIN32)
   target_link_libraries(dmsd PRIVATE m)
 endif()

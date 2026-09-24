@@ -60,7 +60,7 @@ skip = "*-musllinux_*"
 archs = ["native"]
 config-settings = { "cmake.define.PYDOCK3_STATIC_RUNTIME" = "ON" }
 # (the plugin shows test failures as annotations on GitHub)
-test-requires = ["pytest>=7.2,<8", "pytest-github-actions-annotate-failures"]
+test-requires = ["pytest~=7.2", "pytest-github-actions-annotate-failures"]  # (no "<": Windows' shell)
 test-command = "pytest {project}/tests/blastermaster"
 
 [tool.cibuildwheel.linux]

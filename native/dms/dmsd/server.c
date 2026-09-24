@@ -32,6 +32,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdio.h>
 #include <math.h>
+#include "cr_math.h"
 #include <sys/types.h>
 #include "iovec.h"
 #ifdef _WIN32

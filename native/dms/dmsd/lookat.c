@@ -32,6 +32,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdio.h>
 #include <math.h>
+#include "cr_math.h"
 
 /*
  * This function is like the one from the E & S library which produces
