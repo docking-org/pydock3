@@ -68,7 +68,6 @@ char	**av;
 	int		aflg, nflg;
 	int		natom;
 	int		verbose;
-	int		fd;
 	int		any_wanted;
 	double		density, probe;
 	char		*in_file, *out_file;
@@ -126,13 +125,12 @@ char	**av;
 			}
 			break;
 		  case 'g':
-			(void) fflush(stderr);
-			if ((fd = creat(optarg, 0666)) < 0) {
+			/* (pydock3: freopen instead of creat & dup2, as Windows'
+			   creat rejects mode 0666) */
+			if (freopen(optarg, "w", stderr) == NULL) {
 				perror(optarg);
 				exit(1);
 			}
-			(void) dup2(fd, 2);
-			(void) close(fd);
 			break;
 		  case 'i':
 			if ((wanted_fp = fopen(optarg, "r")) == NULL) {

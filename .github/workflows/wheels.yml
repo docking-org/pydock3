@@ -23,7 +23,7 @@ jobs:
             macos-deployment-target: "15.0"
           - os: windows-latest  # Windows x86_64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install gfortran (macOS)
         if: runner.os == 'macOS'
@@ -57,7 +57,7 @@ jobs:
           unzip -q wheelhouse/*.whl -d unpacked
           ! objdump -p unpacked/pydock3/blastermaster/bin/*.exe | grep -iE "DLL Name: lib(gfortran|gcc|stdc|quadmath|winpthread)"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.os }}
           path: wheelhouse/*.whl
@@ -65,9 +65,9 @@ jobs:
   sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: pipx run build --sdist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sdist
           path: dist/*.tar.gz
