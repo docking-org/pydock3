@@ -12,12 +12,11 @@ from dataclasses import make_dataclass
 from pydock3.util import validate_variable_type
 from pydock3.config import Parameter
 from pydock3.files import File, Dir, LogFile
-from pydock3.blastermaster.programs import __file__ as PROGRAMS_INIT_FILE_PATH
+from pydock3.blastermaster import __path__ as BLASTERMASTER_PACKAGE_DIRS
 from pydock3.blastermaster.defaults import __file__ as DEFAULTS_INIT_FILE_PATH
 
 
 #
-PROGRAMS_DIR_PATH = os.path.dirname(PROGRAMS_INIT_FILE_PATH)
 DEFAULT_FILES_DIR_PATH = os.path.dirname(DEFAULTS_INIT_FILE_PATH)
 
 #
@@ -102,24 +101,14 @@ VISUALIZATION_FILE_IDENTIFIERS = [
 ]
 
 
-# the prebuilt programs shipped in programs/ (Linux x86-64 only)
-_LEGACY_PROGRAM_PATHS = {
-    "reduce": "reduce/reduce",
-    "dms": "dms/bin/dms",
-    "filt": "filt/bin/filt",
-    "sphgen": "sphgen/bin/sphgen",
-    "qnifft": "qnifft/bin/qnifft22_193_pgf_32",
-    "chemgrid": "chemgrid/bin/chemgrid",
-    "solvmap": "solvmap/bin/solvmap",
-}
-
-
 def program_path(name):
-    """Path of one of the executables bundled with blastermaster."""
-    path = os.path.join(PROGRAMS_DIR_PATH, _LEGACY_PROGRAM_PATHS[name])
-    if not os.path.isfile(path):
-        raise FileNotFoundError(f"blastermaster program `{name}` not found at {path}")
-    return path
+    """Path of one of the programs built for blastermaster, installed in its bin/ directory."""
+    file_name = f"{name}.exe" if os.name == "nt" else name
+    for package_dir in BLASTERMASTER_PACKAGE_DIRS:  # more than one in an editable install
+        path = os.path.join(package_dir, "bin", file_name)
+        if os.path.isfile(path):
+            return path
+    raise FileNotFoundError(f"blastermaster program `{name}` not found in {BLASTERMASTER_PACKAGE_DIRS}")
 
 
 class BlasterFile(File):
