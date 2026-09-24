@@ -3,8 +3,7 @@
 name: wheels
 
 on:
-  push:
-    branches: [develop, main]
+  push:  # any branch
   pull_request:
   workflow_dispatch:
 
