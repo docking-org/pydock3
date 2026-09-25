@@ -4,7 +4,9 @@ name: wheels
 
 on:
   push:  # any branch
+    paths-ignore: ["docs/**", "**.md"]
   pull_request:
+    paths-ignore: ["docs/**", "**.md"]
   workflow_dispatch:
 
 jobs:
