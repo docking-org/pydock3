@@ -46,7 +46,8 @@ jobs:
 
       - uses: pypa/cibuildwheel@v2.23.4
         env:
-          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos-deployment-target }}
+          # (Homebrew's gfortran runtime, which the wheel bundles, needs the runner's macOS version)
+          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=${{ matrix.macos-deployment-target }}
           CIBW_ENVIRONMENT_WINDOWS: CMAKE_GENERATOR=Ninja CC=gcc CXX=g++ FC=gfortran
 
       # (on Linux and macOS, auditwheel and delocate bundle or reject non-system libraries)

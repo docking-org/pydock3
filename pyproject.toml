@@ -61,7 +61,8 @@ archs = ["native"]
 config-settings = { "cmake.define.PYDOCK3_STATIC_RUNTIME" = "ON" }
 # (the plugin shows test failures as annotations on GitHub)
 test-requires = ["pytest~=7.2", "pytest-github-actions-annotate-failures"]  # (no "<": Windows' shell)
-test-command = "pytest {project}/tests/blastermaster"
+# (live logging shows when each blastermaster step starts)
+test-command = "pytest -o log_cli=true --log-cli-level=INFO --durations=0 {project}/tests/blastermaster"
 
 [tool.cibuildwheel.linux]
 manylinux-x86_64-image = "manylinux_2_28"
