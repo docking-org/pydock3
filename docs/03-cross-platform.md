@@ -48,7 +48,7 @@ The order mattered: **first make it measurable, then change it.**
 - The Perl scripts (makebox, makespheres1, makespheres3) and the tiny Fortran programs pdbtosph
   and showsphere became Python, ported line by line and checked byte for byte against the
   originals on two receptors over a sweep of parameters (170 cases). Details in
-  [native-programs.md](native-programs.md#python-ports-of-former-scripts-and-small-programs).
+  [02-native-programs.md](02-native-programs.md#python-ports-of-former-scripts-and-small-programs).
 - `rm -rf` became `shutil.rmtree`.
 
 ### 2. Paths and files
@@ -68,10 +68,10 @@ The order mattered: **first make it measurable, then change it.**
 ### 3. Building the programs
 
 Sources live in `native/` and are built by CMake through scikit-build-core, with the same flags
-everywhere (see [build-and-ci.md](build-and-ci.md)). The sources needed a few fixes to compile
+everywhere (see [04-build-and-ci.md](04-build-and-ci.md)). The sources needed a few fixes to compile
 and run as 64-bit programs on all platforms: a missing header (chemgrid), 32-bit pointer
 assumptions and non-standard I/O (solvmap), and Linux/Unix-only process handling (dms). They are
-listed in [native-programs.md](native-programs.md). Two flags matter for behaviour rather than
+listed in [02-native-programs.md](02-native-programs.md). Two flags matter for behaviour rather than
 portability:
 
 - `-fno-automatic`: the Fortran was written for compilers (PGI) that give local variables static
@@ -84,7 +84,7 @@ portability:
 Each wheel holds executables, not Python extensions, so it is tagged `py3-none-<platform>`: one
 wheel per platform, for any Python 3. Compiler runtime libraries are linked statically (fully
 static on Windows); macOS wheels bundle Homebrew's `libquadmath`. See
-[build-and-ci.md](build-and-ci.md).
+[04-build-and-ci.md](04-build-and-ci.md).
 
 ## Floating-point reproducibility
 
@@ -105,7 +105,7 @@ downstream. The causes, and what the build does about each:
 difference is the transcendental functions of qnifft (`exp`, `sin`, `cos`) and solvmap (`sin`,
 `cos`). In practice: a local gfortran 8.5 build and the manylinux gfortran 14.2 build produce
 bit-identical output, and in CI every platform's step-by-step outputs match the Linux controls
-within the tolerances in [testing.md](testing.md).
+within the tolerances in [05-testing.md](05-testing.md).
 
 ## Differences from the legacy binaries
 
@@ -157,6 +157,6 @@ only system DLLs (CI checks). Things that needed care:
   win_arm64 wheels. Users can install the x64 wheel under Windows' x64 emulation.
 - **musllinux** (Alpine): would be easy to add to CI.
 - **dockopt, retrodock and DOCK itself** still need Linux, a job scheduler, and the `dock64`
-  binary (see [other-tools.md](other-tools.md)).
+  binary (see [06-other-tools.md](06-other-tools.md)).
 - **Python ≥ 3.11**: `requires-python` and the dependency pins (e.g. `rdkit-pypi`, pandas 1.x) are
   unchanged from before.

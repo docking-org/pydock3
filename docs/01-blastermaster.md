@@ -3,7 +3,7 @@
 Blastermaster turns a receptor structure (`rec.pdb`) and a bound ligand (`xtal-lig.pdb`) into
 the files UCSF DOCK 3.8 docks against (the "dockfiles"): scoring grids, matching spheres, a
 protonated receptor and an `INDOCK` parameter file. It is a pipeline of 24 steps (default configuration); 10 of them run bundled scientific
-programs (see [native-programs.md](native-programs.md)), the rest are Python.
+programs (see [02-native-programs.md](02-native-programs.md)), the rest are Python.
 
 ## Usage
 
@@ -15,7 +15,7 @@ cd blastermaster_job
 pydock3 blastermaster - run      # ~10 min
 ```
 
-(`-` separates the script name from its command; see [architecture.md](architecture.md#the-command-line).)
+(`-` separates the script name from its command; see [00-architecture.md](00-architecture.md#the-command-line).)
 
 `new` creates the job directory:
 
@@ -143,7 +143,7 @@ To debug a step, look in its step dir: its inputs, outputs, the programs' own ou
 (`OUTCHEM`, `OUTSEV`, ...) and `log`.
 
 dockopt builds many variants of these steps (different parameters) and runs them through job
-schedulers; step instances must therefore stay picklable (see [other-tools.md](other-tools.md)).
+schedulers; step instances must therefore stay picklable (see [06-other-tools.md](06-other-tools.md)).
 
 ## Code map
 

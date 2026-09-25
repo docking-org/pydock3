@@ -78,7 +78,7 @@ output, so on Linux the `rebuilt` controls are reproduced exactly.
 For the legacy comparison, files that depend on sphgen's borderline decisions are skipped
 (`SPHGEN_DERIVED_FILES`: its spheres, the spheres selected from them, and with thin spheres off
 the electrostatics that use them). See
-[cross-platform.md](cross-platform.md#differences-from-the-legacy-binaries) for the numbers.
+[03-cross-platform.md](03-cross-platform.md#differences-from-the-legacy-binaries) for the numbers.
 
 ## Updating the controls
 

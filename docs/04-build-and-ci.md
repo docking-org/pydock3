@@ -70,7 +70,7 @@ Compiler flags, and why:
 runtime libraries (e.g. the system gfortran of RHEL/Rocky 8).
 
 The build type is Release (`-O3` for gcc). Don't add `-ffast-math` or similar: see
-[cross-platform.md](cross-platform.md#floating-point-reproducibility).
+[03-cross-platform.md](03-cross-platform.md#floating-point-reproducibility).
 
 ## pyproject.toml
 
@@ -114,7 +114,7 @@ Homebrew's runtime requires) is passed as `CIBW_ENVIRONMENT_MACOS`; cibuildwheel
 plain `MACOSX_DEPLOYMENT_TARGET`.
 
 Wheels and sdist are uploaded as workflow artifacts. Publishing to PyPI is not set up yet (see
-[maintenance.md](maintenance.md#releasing)).
+[07-maintenance.md](07-maintenance.md#releasing)).
 
 **Timing.** Building takes ~1 minute; the tests ~20–30 minutes, and ~70 minutes on the Intel
 macOS runner, which is slow for everything.

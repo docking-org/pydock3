@@ -1,7 +1,7 @@
 # The native programs
 
 Blastermaster runs seven compiled programs (plus dms's helper, dmsd). Their sources are in
-`native/`, they are built by CMake (see [build-and-ci.md](build-and-ci.md)) and installed into
+`native/`, they are built by CMake (see [04-build-and-ci.md](04-build-and-ci.md)) and installed into
 `pydock3/blastermaster/bin/`. This page says what each one does, where it comes from, and every
 change made to it. Changes in the sources are marked with `pydock3` comments.
 
@@ -20,7 +20,7 @@ made with the PGI compilers; those binaries and the sources as they were are in 
 | solvmap | Fortran 77 + C | Shoichet lab (UCSF) | ligand desolvation grids |
 
 Fortran programs read their input from fixed file names or stdin and write output in fixed
-formats; the steps that run them are listed in [blastermaster.md](blastermaster.md#the-pipeline).
+formats; the steps that run them are listed in [01-blastermaster.md](01-blastermaster.md#the-pipeline).
 
 ## reduce
 
@@ -38,7 +38,7 @@ come from `receptor_protonation.reduce_options`).
 - Exit code 1 means some flip optimizations were abandoned (too many combinations); the output
   is still complete, so the step accepts it.
 - Newer versions (4.15, now Apache-2.0) may protonate differently: upgrading means regenerating
-  the controls ([maintenance.md](maintenance.md)).
+  the controls ([07-maintenance.md](07-maintenance.md)).
 
 ## filt
 
@@ -70,7 +70,7 @@ Changes (`native/dms/`), all for portability:
   which flipped ~0.1% of the surface points (their type, or a few points in or out) and so
   changed everything downstream. Correctly rounded results are the same everywhere, and here
   identical to glibc's, so the Linux output is unchanged. See
-  [cross-platform.md](cross-platform.md#floating-point-reproducibility).
+  [03-cross-platform.md](03-cross-platform.md#floating-point-reproducibility).
 - The code is 1990s K&R C, compiled with `-std=gnu89` (implicit declarations are valid there;
   newer standards reject them).
 

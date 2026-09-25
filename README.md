@@ -20,7 +20,7 @@ pip install "git+https://github.com/docking-org/pydock3.git@cross-platform-blast
 ```
 
 This compiles blastermaster's programs, so it needs a C/C++ compiler and gfortran
-([how to get them](docs/build-and-ci.md#installing-from-source)). Or install a prebuilt wheel,
+([how to get them](docs/04-build-and-ci.md#installing-from-source)). Or install a prebuilt wheel,
 which needs no compiler: download one from the latest run of the
 [wheels workflow](https://github.com/docking-org/pydock3/actions/workflows/wheels.yml)
 (*Artifacts*; needs a GitHub login), then `pip install pydock3-*.whl`. Wheels exist for Linux x86_64/aarch64
@@ -39,10 +39,10 @@ The files DOCK needs are then in `blastermaster_job/dockfiles/`, with `INDOCK` p
 them; `visualization/` has the grids and spheres for a molecular viewer. Parameters are in
 `blastermaster_config.yaml`; to use your own version of any intermediate file (e.g. a protonated
 receptor `rec.crg.pdb`), put it next to `rec.pdb` before `new`. See
-[docs/blastermaster.md](docs/blastermaster.md).
+[docs/01-blastermaster.md](docs/01-blastermaster.md).
 
 dockopt and retrodock work the same way (`pydock3 dockopt - new`, `pydock3 dockopt - run slurm`),
-with `actives.tgz` and `decoys.tgz`; see [docs/other-tools.md](docs/other-tools.md).
+with `actives.tgz` and `decoys.tgz`; see [docs/06-other-tools.md](docs/06-other-tools.md).
 
 ## What's new: blastermaster on any OS and CPU
 
@@ -62,7 +62,7 @@ shell commands, Perl and csh. Now:
   except that sphgen makes a few borderline sphere choices differently (2 of 45 matching spheres
   change on the test receptor).
 
-The whole story, and why each choice was made: [docs/cross-platform.md](docs/cross-platform.md).
+The whole story, and why each choice was made: [docs/03-cross-platform.md](docs/03-cross-platform.md).
 
 ## Repository
 
@@ -82,9 +82,9 @@ pytest tests/blastermaster       # ~30 minutes
 ```
 
 Start with [docs/README.md](docs/README.md); common changes are in
-[docs/maintenance.md](docs/maintenance.md).
+[docs/07-maintenance.md](docs/07-maintenance.md).
 
 ## License
 
 pydock3 is GPL-3.0-or-later ([LICENSE](LICENSE)). The bundled programs in `native/` keep their own
-licenses ([docs/native-programs.md](docs/native-programs.md#licenses)).
+licenses ([docs/02-native-programs.md](docs/02-native-programs.md#licenses)).

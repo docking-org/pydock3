@@ -53,9 +53,9 @@ job from its directory.
 - **Blastermaster steps** (`blastermaster/util.py`): `BlasterStep` (a unit of work with declared
   input files, output files and parameters, run in its own directory and skipped when its outputs
   exist), `BlasterFiles` (all the files of a job), `program_path`. dockopt reuses them to build
-  and run many variants of the pipeline ([blastermaster.md](blastermaster.md#how-a-step-runs)).
+  and run many variants of the pipeline ([01-blastermaster.md](01-blastermaster.md#how-a-step-runs)).
 - **Jobs** (`jobs.py`, `job_schedulers.py`): array docking jobs and the Slurm/SGE interfaces
-  ([other-tools.md](other-tools.md)).
+  ([06-other-tools.md](06-other-tools.md)).
 
 ## Dependencies
 
@@ -75,4 +75,4 @@ or supplied by the user), only needed by dockopt and retrodock.
 | blastermaster | ✓ | ✓ | ✓ |
 | dockopt, retrodock | ✓ (x86_64, with Slurm or SGE) | – | – |
 
-How blastermaster got there: [cross-platform.md](cross-platform.md).
+How blastermaster got there: [03-cross-platform.md](03-cross-platform.md).

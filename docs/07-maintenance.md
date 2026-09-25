@@ -6,10 +6,10 @@ How to make common changes safely, and what is known to be unfinished.
 
 - **Measure first.** Blastermaster's output is compared to control files in every test run, on
   every platform. Before changing behaviour, know what the tests say; after, explain every
-  difference ([testing.md](testing.md)).
+  difference ([05-testing.md](05-testing.md)).
 - **Keep results reproducible across platforms**: no `-ffast-math`, no FMA contraction, no
   vectorized math functions, and correctly rounded math where a program makes discrete decisions
-  from transcendental functions ([cross-platform.md](cross-platform.md#floating-point-reproducibility)).
+  from transcendental functions ([03-cross-platform.md](03-cross-platform.md#floating-point-reproducibility)).
 - **Ports are faithful.** The Python ports of the Perl scripts and the patched programs reproduce
   the originals, quirks included. Fix a quirk as a deliberate, separate change that updates the
   controls.
@@ -26,13 +26,13 @@ Steps are in `pydock3/blastermaster/steps/` and wired together in `get_blaster_s
 its work in `run()` (decorated with `@BlasterStep.handle_run_func`), in its own step directory.
 To add a file, add it to `BLASTER_FILE_IDENTIFIER_TO_PROPER_BLASTER_FILE_NAME_DICT`
 (`util.py`); to add a parameter, give it a default in the step (`Parameter("dock_files_generation.…", default)`)
-and add it to `blastermaster_config_schema.yaml`. See [blastermaster.md](blastermaster.md#how-a-step-runs).
+and add it to `blastermaster_config_schema.yaml`. See [01-blastermaster.md](01-blastermaster.md#how-a-step-runs).
 
 ### Changing a program
 
 1. Edit the source in `native/<program>/`, with a `pydock3` comment.
 2. Rebuild: `pip install -e .` (or `cmake --build` a build directory, see
-   [build-and-ci.md](build-and-ci.md)).
+   [04-build-and-ci.md](04-build-and-ci.md)).
 3. Run the tests; update the controls if the output is meant to change.
 
 ### Adding a program
@@ -53,7 +53,7 @@ and add it to `blastermaster_config_schema.yaml`. See [blastermaster.md](blaster
    into `native/reduce/`, leaving out `reduce_src/CMakeLists.txt`, `reduce_bpl.cpp`, `reduce.py`,
    `SConscript`s and `Makefile`s.
 2. Update the source list of `reduce` in `CMakeLists.txt` if files were added or removed, and
-   the commit in [native-programs.md](native-programs.md#reduce).
+   the commit in [02-native-programs.md](02-native-programs.md#reduce).
 3. Expect different hydrogens: regenerate the controls and review the differences. Since 4.15
    reduce is Apache-2.0 licensed (update the license notes).
 
@@ -89,10 +89,10 @@ a job to `wheels.yml` that downloads the wheel and sdist artifacts and uploads t
 ## Known issues and unfinished work
 
 - **dockopt, retrodock, DOCK**: still Linux-only (job schedulers through bash scripts, `dock64`
-  binary, `timeout_decorator`); see [other-tools.md](other-tools.md).
+  binary, `timeout_decorator`); see [06-other-tools.md](06-other-tools.md).
 - **Python ≥ 3.11 and dependency pins** (`rdkit-pypi`, pandas 1.x, numpy 1.x, ...) are unchanged
   from before the port.
-- **Windows on ARM**, **musllinux**: no wheels (see [cross-platform.md](cross-platform.md#not-done-yet)).
+- **Windows on ARM**, **musllinux**: no wheels (see [03-cross-platform.md](03-cross-platform.md#not-done-yet)).
 - **Covalent docking** (`covalent.use: true`) is not covered by the tests.
 - `programs/visualization/create_VDW_DX.py` reads `vdw.vdw` without skipping its Fortran record
   markers and assumes a 0.2 Å grid spacing, so the vdW `.dx` files are slightly off. Only the
